@@ -165,6 +165,7 @@ def test_registry_rules():
     assert _errors(schema.check_registry(ok)) == []
     bad = copy.deepcopy(reg)
     bad["models"][0]["status"] = "verified"  # without pinned url + sha256
+    bad["models"][0]["weights"] = {"source_url": None, "sha256": None, "size_bytes": None}
     assert _errors(schema.check_registry(bad))
     bad = copy.deepcopy(reg)
     bad["models"][0]["tier"] = "community"

@@ -18,6 +18,8 @@ dependencies = [
 [project.optional-dependencies]
 test-crosscheck = ["pyloudnorm>=0.1"]
 test = ["pytest>=7"]
+# Stem separation runs in a worker subprocess (D-060); these are only imported there.
+separation = ["torch>=2.0", "openunmix>=1.3", "onnxruntime>=1.16"]
 
 [project.scripts]
 mankomix = "mankomix.cli.main:main"

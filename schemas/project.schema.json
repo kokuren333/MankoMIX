@@ -136,7 +136,27 @@
           }
         },
         "conform": { "type": "object" },
-        "imported_at_seq": { "type": ["integer", "null"], "minimum": 0 }
+        "imported_at_seq": { "type": ["integer", "null"], "minimum": 0 },
+        "separations": {
+          "description": "Stem separation records (SPEC 6.2, 12.2): model id, sha256, license, attribution; read by render manifests and the Mix Report.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "model_id", "model_sha256", "license", "source_asset", "mode", "stems"],
+            "additionalProperties": true,
+            "properties": {
+              "id": { "type": "string" },
+              "model_id": { "type": "string" },
+              "model_sha256": { "$ref": "#/$defs/sha256" },
+              "tier": { "enum": ["official", "byow"] },
+              "license": { "type": "object", "required": ["weights"], "additionalProperties": true },
+              "attribution": { "type": "string" },
+              "source_asset": { "type": "string" },
+              "mode": { "enum": ["preview", "full"] },
+              "stems": { "type": "array", "items": { "type": "object", "required": ["stem", "asset"], "additionalProperties": true } }
+            }
+          }
+        }
       }
     },
 
@@ -230,7 +250,18 @@
           }
         },
         "output": { "type": "string" },
-        "automation": { "type": "object" }
+        "automation": { "type": "object" },
+        "restrictions": {
+          "description": "Limits on what the agent may do with this track (R-22: separated stems are for balance only).",
+          "type": "object",
+          "required": ["operations"],
+          "additionalProperties": true,
+          "properties": {
+            "operations": { "type": "array", "items": { "enum": ["balance", "eq", "dynamics", "spatial", "cleanup", "all"] } },
+            "rule": { "type": "string" },
+            "reason": { "type": "string" }
+          }
+        }
       }
     },
 
@@ -341,7 +372,24 @@
             }
           }
         },
-        "track_overrides": { "type": "object" }
+        "track_overrides": { "type": "object" },
+        "evaluation": {
+          "description": "Objective evaluation of the applied stage proposal (SPEC 4.1, 6.8 sections 5-6): score, per-metric breakdown, constraints, translation gate. Written by the apply step; the Mix Report reads it.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "proposal_id": { "type": ["string", "null"] },
+            "score": { "type": ["number", "null"] },
+            "terms": { "type": "array", "items": { "type": "object" } },
+            "constraints": { "type": "object" },
+            "gate": { "type": ["object", "null"] }
+          }
+        },
+        "decisions": {
+          "description": "Decision log of the applied proposal grouped by the six Mix Report elements (SPEC 6.8 section 4).",
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "object" } }
+        }
       }
     },
 

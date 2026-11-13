@@ -1,70 +1,271 @@
 {
   "schema_version": 1,
-  "status": "draft",
-  "note": "Official catalog CANDIDATES only. No weights are stored in this repository. Every entry must be re-verified against primary sources (license text, author statement, model card) and pinned with a download URL and sha256 before its status can become verified. Entries without license metadata are invalid. See docs/SPEC.md section 12.",
+  "status": "provisional",
+  "note": "Official catalogue. No weights are stored in this repository; they are downloaded from the official distribution point on first use and checked against the pinned sha256. An entry is 'verified' only when its license evidence is primary (license file, model card metadata or an author statement on the author's own repository) and clean (use and redistribution allowed, no usage restriction). Evidence was re-checked on the date given in each entry. See docs/SPEC.md section 12.",
+  "defaults": { "preview": "scnet_4stem", "full": "scnet_large_4stem" },
   "models": [
     {
       "id": "kim_melband_roformer_vocals",
       "task": "separation",
       "stems": ["vocals", "instrumental"],
       "architecture": "mel_band_roformer",
-      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "runtime": {
+        "backend": "mankomix_torch",
+        "min_vram_gb": 6,
+        "cpu_ok": false,
+        "light": false,
+        "sample_rate": 44100,
+        "config": {
+          "model": {
+            "dim": 384, "depth": 6, "stereo": true, "num_stems": 1,
+            "time_transformer_depth": 1, "freq_transformer_depth": 1, "num_bands": 60,
+            "dim_head": 64, "heads": 8, "sample_rate": 44100,
+            "stft_n_fft": 2048, "stft_hop_length": 441, "stft_win_length": 2048, "stft_normalized": false,
+            "mask_estimator_depth": 2
+          },
+          "outputs": ["vocals"],
+          "residual": "instrumental",
+          "chunk_size": 352800,
+          "num_overlap": 2
+        }
+      },
+      "weights": {
+        "filename": "MelBandRoformer.ckpt",
+        "source_url": "https://huggingface.co/KimberleyJSN/melbandroformer/resolve/ac9b0614ab3cd7f77219e18ba494dfd93956c348/MelBandRoformer.ckpt",
+        "sha256": "87201f4d31afb5bc79993230fc49446918425574db48c01c405e44f365c7559e",
+        "size_bytes": 913106900
+      },
       "license": {
         "code": "MIT",
         "weights": "MIT",
         "usage_restrictions": "none",
         "evidence": [
-          { "url": "https://huggingface.co/KimberleyJSN/melbandroformer", "checked_on": "2026-11-13", "note": "model card metadata (from survey; to be re-verified)" },
-          { "url": "https://github.com/kimberleyjensen/mel-band-roformer-vocal-model/issues/18", "checked_on": "2026-11-13", "note": "author statement on relicensing (from survey; to be re-verified)" }
+          { "url": "https://huggingface.co/KimberleyJSN/melbandroformer", "checked_on": "2026-11-13", "kind": "model_card", "note": "Model card metadata declares license: mit (set by the author in revision ac9b0614, 2026-04-22). The card has no other text." },
+          { "url": "https://github.com/kimberleyjensen/mel-band-roformer-vocal-model/issues/18", "checked_on": "2026-11-13", "kind": "author_statement", "note": "Author (KimberleyJensen), 2026-04-22: 'I have changed the license to MIT on huggingface, that can apply to the Kim_Vocal_2 too, you are free to use these models and redistribute them in any way you like.'" },
+          { "url": "https://huggingface.co/api/models/KimberleyJSN/melbandroformer?blobs=true", "checked_on": "2026-11-13", "kind": "distribution_metadata", "note": "LFS sha256 and size of MelBandRoformer.ckpt; matches the downloaded file." },
+          { "url": "https://github.com/lucidrains/BS-RoFormer", "checked_on": "2026-11-13", "kind": "license_file", "note": "Architecture code (Phil Wang), MIT. MankoMIX runs its own compact port in third_party/bs_roformer/." }
         ],
-        "caveats": ["Training data terms may apply to trained weights; legally unsettled."]
+        "caveats": [
+          "Training data: the author states the model was trained with more data than the paper, partly contributed by the community; the data and its terms are not disclosed. Whether dataset terms reach trained weights is legally unsettled.",
+          "The license is declared in model card metadata and an issue reply, not in a LICENSE file next to the weights.",
+          "The author's GitHub repository has no LICENSE file; its inference code is not used by MankoMIX."
+        ]
       },
-      "attribution": "to be written from the primary source",
+      "attribution": "Mel-Band RoFormer vocal model by Kimberley Jensen (KimberleyJSN), MIT. Architecture: Mel-Band RoFormer (Wang et al.), implementation by Phil Wang (lucidrains), MIT; trained with ZFTurbo's Music-Source-Separation-Training.",
       "tier": "official",
-      "status": "candidate"
+      "status": "verified"
     },
     {
       "id": "scnet_4stem",
       "task": "separation",
-      "stems": ["vocals", "drums", "bass", "other"],
+      "stems": ["drums", "bass", "other", "vocals"],
       "architecture": "scnet",
-      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "runtime": {
+        "backend": "mankomix_torch",
+        "min_vram_gb": 2,
+        "cpu_ok": true,
+        "light": true,
+        "sample_rate": 44100,
+        "config": {
+          "model": {
+            "sources": ["drums", "bass", "other", "vocals"], "audio_channels": 2,
+            "dims": [4, 32, 64, 128], "nfft": 4096, "hop_size": 1024, "win_size": 4096, "normalized": true,
+            "band_SR": [0.175, 0.392, 0.433], "band_stride": [1, 4, 16], "band_kernel": [3, 4, 16],
+            "conv_depths": [3, 2, 1], "compress": 4, "conv_kernel": 3, "num_dplayer": 6, "expand": 1
+          },
+          "state_key": "best_state",
+          "segment_s": 11,
+          "overlap": 0.5,
+          "normalize_input": true
+        }
+      },
+      "weights": {
+        "filename": "checkpoint.th",
+        "source_url": "https://drive.usercontent.google.com/download?id=1CdEIIqsoRfHn1SJ7rccPfyYioW3BlXcW&export=download&confirm=t",
+        "sha256": "f8aff3bc8dd816aad392800d9d69519add719a2fbd22550af6f8cb2138d25ff5",
+        "size_bytes": 42434545
+      },
       "license": {
         "code": "MIT",
         "weights": "MIT",
         "usage_restrictions": "none",
         "evidence": [
-          { "url": "https://github.com/starrytong/SCNet", "checked_on": "2026-11-13", "note": "author confirmation reported by a third-party audit (from survey; primary source to be verified)" }
+          { "url": "https://github.com/starrytong/SCNet/issues/35", "checked_on": "2026-11-13", "kind": "author_statement", "note": "Repository owner (starrytong), 2026-07-17: 'I confirm that the released SCNet and SCNet-large pretrained weights are distributed under the MIT License, consistent with the source code. You are welcome to redistribute the original checkpoints and format-converted versions ... with appropriate attribution.'" },
+          { "url": "https://github.com/starrytong/SCNet/blob/5d95bf96b19c3eede63248d171efeca8e3abb948/LICENSE", "checked_on": "2026-11-13", "kind": "license_file", "note": "Code license MIT, Copyright (c) 2024 starrytong. Model code vendored unmodified in third_party/scnet/." },
+          { "url": "https://github.com/starrytong/SCNet", "checked_on": "2026-11-13", "kind": "repository_metadata", "note": "README links the checkpoint (Google Drive) and states it was trained on the MUSDB dataset; model hyper-parameters from conf/config.yaml." },
+          { "url": "https://sigsep.github.io/datasets/musdb.html", "checked_on": "2026-11-13", "kind": "dataset_terms", "note": "MUSDB18: 'the tracks can only be used for academic purposes'; parts are CC BY-NC-SA." }
         ],
-        "caveats": ["Training data terms may apply to trained weights; legally unsettled."]
+        "caveats": [
+          "Trained on MUSDB18 / MUSDB18-HQ, whose tracks may only be used for academic purposes (parts CC BY-NC-SA). Whether these terms reach trained weights is legally unsettled; the weights themselves are MIT per the author.",
+          "Distribution point is a Google Drive link from the author's README; the URL can stop working. The pinned sha256 protects against changed content."
+        ]
       },
-      "attribution": "to be written from the primary source",
+      "attribution": "SCNet: Sparse Compression Network for Music Source Separation, by Weinan Tong, Jiaxu Zhu et al. (starrytong), code and weights MIT.",
       "tier": "official",
-      "status": "candidate"
+      "status": "verified"
+    },
+    {
+      "id": "scnet_large_4stem",
+      "task": "separation",
+      "stems": ["drums", "bass", "other", "vocals"],
+      "architecture": "scnet",
+      "runtime": {
+        "backend": "mankomix_torch",
+        "min_vram_gb": 4,
+        "cpu_ok": true,
+        "light": false,
+        "sample_rate": 44100,
+        "config": {
+          "model": {
+            "sources": ["drums", "bass", "other", "vocals"], "audio_channels": 2,
+            "dims": [4, 64, 128, 256], "nfft": 4096, "hop_size": 1024, "win_size": 4096, "normalized": true,
+            "band_SR": [0.225, 0.372, 0.403], "band_stride": [1, 4, 16], "band_kernel": [3, 4, 16],
+            "conv_depths": [3, 2, 1], "compress": 4, "conv_kernel": 3, "num_dplayer": 6, "expand": 1
+          },
+          "state_key": "best_state",
+          "segment_s": 11,
+          "overlap": 0.5,
+          "normalize_input": true
+        }
+      },
+      "weights": {
+        "filename": "SCNet-large.th",
+        "source_url": "https://drive.usercontent.google.com/download?id=1s7QvQwn8ag9oVstGDBQ6KZvacJkvyK7t&export=download&confirm=t",
+        "sha256": "719e5abb8ed920305dad546ac3cd6fb0b1e9c3092d14ce21827bfc0423af3070",
+        "size_bytes": 168848417
+      },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://github.com/starrytong/SCNet/issues/35", "checked_on": "2026-11-13", "kind": "author_statement", "note": "Repository owner (starrytong), 2026-07-17, covers 'the released SCNet and SCNet-large pretrained weights': MIT, redistribution allowed with attribution." },
+          { "url": "https://github.com/starrytong/SCNet/blob/5d95bf96b19c3eede63248d171efeca8e3abb948/LICENSE", "checked_on": "2026-11-13", "kind": "license_file", "note": "Code license MIT." },
+          { "url": "https://github.com/starrytong/SCNet", "checked_on": "2026-11-13", "kind": "repository_metadata", "note": "README links SCNet-large and its config.yaml (Google Drive); hyper-parameters copied from that config (sha256 629a4901...)." },
+          { "url": "https://sigsep.github.io/datasets/musdb.html", "checked_on": "2026-11-13", "kind": "dataset_terms", "note": "MUSDB18: academic use only; parts CC BY-NC-SA." }
+        ],
+        "caveats": [
+          "Trained on MUSDB18-HQ (config: musdbhq), academic-use dataset; whether its terms reach trained weights is legally unsettled.",
+          "Distribution point is a Google Drive link from the author's README; the URL can stop working."
+        ]
+      },
+      "attribution": "SCNet-large: Sparse Compression Network for Music Source Separation, by Weinan Tong, Jiaxu Zhu et al. (starrytong), code and weights MIT.",
+      "tier": "official",
+      "status": "verified"
     },
     {
       "id": "open_unmix_umxhq",
       "task": "separation",
       "stems": ["vocals", "drums", "bass", "other"],
       "architecture": "open_unmix",
-      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "runtime": {
+        "backend": "mankomix_torch",
+        "min_vram_gb": 1,
+        "cpu_ok": true,
+        "light": true,
+        "sample_rate": 44100,
+        "requires": ["openunmix"],
+        "config": {
+          "model": { "nb_bins": 2049, "nb_channels": 2, "hidden_size": 512, "max_bin_bandwidth_hz": 16000 },
+          "n_fft": 4096, "n_hop": 1024, "niter": 1, "wiener_win_len": 300
+        }
+      },
+      "weights": {
+        "source_url": null,
+        "sha256": null,
+        "size_bytes": 142551184,
+        "files": [
+          { "name": "vocals-b62c91ce.pth", "role": "vocals", "source_url": "https://zenodo.org/records/3370489/files/vocals-b62c91ce.pth", "sha256": "b62c91cedbc7a066f1778ead5b5cecb377aa3a46a31af1cce7c5c8769339d083", "size_bytes": 35637796 },
+          { "name": "drums-9619578f.pth", "role": "drums", "source_url": "https://zenodo.org/records/3370489/files/drums-9619578f.pth", "sha256": "9619578f885c54737cb0234f9f9a4a679ee4f31438fd77fd1dbe02bb16c2da0a", "size_bytes": 35637796 },
+          { "name": "bass-8d85a5bd.pth", "role": "bass", "source_url": "https://zenodo.org/records/3370489/files/bass-8d85a5bd.pth", "sha256": "8d85a5bd3f996a8867fca0e8442e077e5a3f5ec747a6112742452a8f347b39c8", "size_bytes": 35637796 },
+          { "name": "other-b52fbbf7.pth", "role": "other", "source_url": "https://zenodo.org/records/3370489/files/other-b52fbbf7.pth", "sha256": "b52fbbf76479e752bd72e02304c602ac7802aa5bfbfb9cd12054b2695d5093ab", "size_bytes": 35637796 }
+        ]
+      },
       "license": {
         "code": "MIT",
         "weights": "MIT",
         "usage_restrictions": "none",
         "evidence": [
-          { "url": "https://github.com/sigsep/open-unmix-pytorch", "checked_on": "2026-11-13", "note": "umxhq weights stated as MIT (from survey; to be re-verified). The umxl variant is non-commercial and must not be used." }
+          { "url": "https://zenodo.org/records/3370489", "checked_on": "2026-11-13", "kind": "distribution_metadata", "note": "Zenodo record 'Open-Unmix-Pytorch UMX-HQ' (F.-R. Stoeter, A. Liutkus, Inria, DOI 10.5281/zenodo.3370489): license MIT. File md5 checksums match the downloaded files." },
+          { "url": "https://github.com/sigsep/open-unmix-pytorch/blob/master/LICENSE", "checked_on": "2026-11-13", "kind": "license_file", "note": "Code MIT, Copyright (c) 2019 Inria. The README states umxhq is trained on MUSDB18-HQ and that only umxl is non-commercial (CC BY-NC-SA 4.0); umxl is excluded." },
+          { "url": "https://sigsep.github.io/datasets/musdb.html", "checked_on": "2026-11-13", "kind": "dataset_terms", "note": "MUSDB18: academic use only; parts CC BY-NC-SA." }
         ],
-        "caveats": ["Lower separation quality; kept as a fallback."]
+        "caveats": [
+          "Trained on MUSDB18-HQ, an academic-use dataset; whether its terms reach trained weights is legally unsettled.",
+          "Lower separation quality (2019 model); kept as a CPU fallback.",
+          "Needs the 'openunmix' Python package (MIT) in the separation worker environment."
+        ]
       },
-      "attribution": "to be written from the primary source",
+      "attribution": "Open-Unmix UMX-HQ by Fabian-Robert Stoeter, Antoine Liutkus (Inria) et al., MIT. Stoeter et al., 'Open-Unmix - A Reference Implementation for Music Source Separation', JOSS 2019.",
+      "tier": "official",
+      "status": "verified"
+    },
+    {
+      "id": "uvr_mdx_net_inst_hq_3",
+      "task": "separation",
+      "stems": ["instrumental", "vocals"],
+      "architecture": "mdx_net",
+      "runtime": { "backend": "mankomix_onnx_mdx", "min_vram_gb": 2, "cpu_ok": true, "light": true, "sample_rate": 44100 },
+      "weights": {
+        "filename": "UVR-MDX-NET-Inst_HQ_3.onnx",
+        "source_url": "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR-MDX-NET-Inst_HQ_3.onnx",
+        "sha256": "317554b07fe1ea5279a77f2b1520a41ea4b93432560c4ffd08792c30fddf9adc",
+        "size_bytes": 66759214
+      },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://github.com/Anjok07/ultimatevocalremovergui#license", "checked_on": "2026-11-13", "kind": "repository_metadata", "note": "README: 'The Ultimate Vocal Remover GUI code is MIT-licensed. For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers.'" },
+          { "url": "https://github.com/TRvlvr/model_repo/releases/tag/all_public_uvr_models", "checked_on": "2026-11-13", "kind": "distribution_metadata", "note": "Distribution point used by the UVR application (gui_data/constants.py NORMAL_REPO). The release and the repository carry no license file." }
+        ],
+        "caveats": [
+          "Credit to UVR and its developers is required.",
+          "Training data not disclosed.",
+          "MDX-Net ONNX runtime is not implemented in MankoMIX yet."
+        ]
+      },
+      "status_reason": "Kept as candidate: the weights license is inferred from a README sentence that names the GUI code's MIT license; no license file accompanies the weights at the distribution point, and the training data is undisclosed. The runtime backend is not implemented yet.",
+      "attribution": "UVR-MDX-NET Inst HQ 3 by the Ultimate Vocal Remover team (Anjok07, aufr33). MDX-Net architecture by Kuielab & Woosung Choi.",
+      "tier": "official",
+      "status": "candidate"
+    },
+    {
+      "id": "uvr_mdx_kim_vocal_2",
+      "task": "separation",
+      "stems": ["vocals", "instrumental"],
+      "architecture": "mdx_net",
+      "runtime": { "backend": "mankomix_onnx_mdx", "min_vram_gb": 2, "cpu_ok": true, "light": true, "sample_rate": 44100 },
+      "weights": {
+        "filename": "Kim_Vocal_2.onnx",
+        "source_url": "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/Kim_Vocal_2.onnx",
+        "sha256": "ce74ef3b6a6024ce44211a07be9cf8bc6d87728cc852a68ab34eb8e58cde9c8b",
+        "size_bytes": 66759214
+      },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://github.com/kimberleyjensen/mel-band-roformer-vocal-model/issues/18", "checked_on": "2026-11-13", "kind": "author_statement", "note": "Author (KimberleyJensen), 2026-04-22: the MIT license 'can apply to the Kim_Vocal_2 too, you are free to use these models and redistribute them in any way you like.'" },
+          { "url": "https://github.com/TRvlvr/model_repo/releases/tag/all_public_uvr_models", "checked_on": "2026-11-13", "kind": "distribution_metadata", "note": "File is distributed by the UVR project, not by the author; no license file at the distribution point." }
+        ],
+        "caveats": [
+          "Credit to the author and to UVR is expected.",
+          "Training data not disclosed.",
+          "MDX-Net ONNX runtime is not implemented in MankoMIX yet."
+        ]
+      },
+      "status_reason": "Kept as candidate: the author statement is primary and permissive, but it is phrased tentatively ('can apply'), the file is served by a third party (UVR) without a license file, and the runtime backend is not implemented yet. Re-evaluate when the MDX-Net runtime lands.",
+      "attribution": "Kim Vocal 2 (MDX-Net) by Kimberley Jensen; distributed by the Ultimate Vocal Remover project.",
       "tier": "official",
       "status": "candidate"
     }
   ],
   "excluded_from_standard_route": [
     { "name": "Demucs official weights", "reason": "author states the weights are for scientific purposes only", "allowed_via": "byow" },
-    { "name": "Open-Unmix umxl", "reason": "CC BY-NC-SA", "allowed_via": "byow" },
+    { "name": "Open-Unmix umxl", "reason": "CC BY-NC-SA 4.0 (non-commercial), stated in the open-unmix-pytorch README", "allowed_via": "byow" },
     { "name": "community checkpoints without a declared license", "reason": "no license declared", "allowed_via": "byow" }
   ]
 }
