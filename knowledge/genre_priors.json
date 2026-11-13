@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Genre priors only set INITIAL weights and target ranges. Reference measurements and explicit user settings always take precedence. All values are practice-level conventions subject to calibration. P-10 target bands are provisional; the ordering between genres is more robust than the dB values. See docs/SPEC.md sections 4.10 and 4.11.",
+  "default_stem_importance_order": ["lead_vocal", "rhythm_core", "low_end_foundation", "harmony", "pads_fx_ornaments"],
+  "importance_groups": {
+    "lead_vocal": ["vocals"],
+    "rhythm_core": ["drums", "percussion"],
+    "low_end_foundation": ["bass"],
+    "harmony": ["guitar", "keyboard", "synth", "strings", "brass", "woodwinds", "backing_vocals"],
+    "pads_fx_ornaments": ["fx", "other"]
+  },
+  "genres": [
+    {
+      "id": "jpop",
+      "label": { "ja": "J-POP", "en": "J-pop" },
+      "low_end_lead": "decide_per_song",
+      "p10_target_db": { "range": [2.0, 6.0], "provisional": true },
+      "objective_tilt": { "vocal_forward": "raise" },
+      "emphasis": ["P-02:vs_lead", "P-22"],
+      "notes": ["dense arrangements: stricter initial P-02 threshold", "raise lead importance in chorus sections"],
+      "evidence": "practice"
+    },
+    {
+      "id": "anison",
+      "label": { "ja": "アニソン", "en": "Anime song" },
+      "low_end_lead": "decide_per_song",
+      "p10_target_db": { "range": [2.0, 6.0], "provisional": true },
+      "objective_tilt": { "vocal_forward": "raise", "clarity": "raise" },
+      "emphasis": ["P-02:vs_lead", "P-11:two_sided", "P-22"],
+      "notes": ["harmony vocals yield the lead presence band", "short reverb, clarity first"],
+      "evidence": "practice_unverified_genre_specific_sources"
+    },
+    {
+      "id": "idol_pop",
+      "label": { "ja": "アイドル／ダンスポップ", "en": "Idol / dance pop" },
+      "low_end_lead": "kick",
+      "p10_target_db": { "range": [2.0, 6.0], "provisional": true },
+      "objective_tilt": { "vocal_forward": "raise" },
+      "emphasis": ["P-10", "P-01", "P-11"],
+      "notes": ["group vocals as lead + supporting hierarchy", "brightness judged by P-01, excess penalized by P-11"],
+      "evidence": "practice_unverified_genre_specific_sources"
+    },
+    {
+      "id": "hiphop",
+      "label": { "ja": "ヒップホップ", "en": "Hip-hop" },
+      "low_end_lead": "kick",
+      "p10_target_db": { "range": [2.0, 5.0], "provisional": true },
+      "stem_importance_order": ["rhythm_core", "low_end_foundation", "lead_vocal", "harmony", "pads_fx_ornaments"],
+      "objective_tilt": {},
+      "emphasis": ["P-13", "P-02:temporal", "P-08"],
+      "notes": ["kick vs 808 separation is central", "808 needs harmonics, not sub only", "short, dry-leaning reverb", "lead vocal mono-center"],
+      "evidence": "practice"
+    },
+    {
+      "id": "edm",
+      "label": { "ja": "EDM", "en": "EDM" },
+      "low_end_lead": "kick_pulse_sub_mono",
+      "p10_target_db": { "range": [0.0, 3.0], "provisional": true },
+      "objective_tilt": { "club_impact": "raise" },
+      "emphasis": ["S-03", "S-04", "P-02:temporal", "P-08"],
+      "notes": ["low-end order: cut, separate, stabilize, mono", "sidechain ducking recovery aligned to note values"],
+      "evidence": "practice"
+    },
+    {
+      "id": "rock",
+      "label": { "ja": "ロック", "en": "Rock" },
+      "low_end_lead": "bass",
+      "p10_target_db": { "range": [0.0, 3.0], "provisional": true },
+      "stem_importance_order": ["lead_vocal", "rhythm_core", "low_end_foundation", "harmony", "pads_fx_ornaments"],
+      "importance_adjust": { "low_end_foundation": "raise" },
+      "objective_tilt": {},
+      "emphasis": ["P-13", "P-07:bass", "P-03:lra_plr_wide"],
+      "notes": ["light drum-bus glue in the default chain", "voice sits inside the band", "penalize over-compression"],
+      "evidence": "practice"
+    },
+    {
+      "id": "rnb_ballad",
+      "label": { "ja": "R&B／バラード", "en": "R&B / ballad" },
+      "low_end_lead": "bass",
+      "p10_target_db": { "range": [1.0, 4.0], "provisional": true },
+      "objective_tilt": {},
+      "emphasis": ["P-09", "P-15", "P-20", "P-03:lra_wide"],
+      "notes": ["intimacy: voice close and dry-leaning; long reverb allowed with high D/R", "keep section contrast"],
+      "evidence": "practice"
+    },
+    {
+      "id": "club_track",
+      "label": { "ja": "クラブ向け", "en": "Club track" },
+      "low_end_lead": "kick_and_sub",
+      "p10_target_db": { "range": null, "relative": "low", "provisional": true },
+      "objective_tilt": { "club_impact": "raise" },
+      "emphasis": ["S-03", "S-04", "P-06:gate"],
+      "notes": ["typical pairing: club_impact objective with club media profile", "keep intro/outro structure for DJ mixing", "separate master from the streaming version"],
+      "evidence": "practice"
+    }
+  ]
+}

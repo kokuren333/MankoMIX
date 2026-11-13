@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Perceptual vocabulary for Mix Report explanations. Words are impression labels, not objective names: each word maps to measurable proxies (P-nn), and every explanation pairs the word with measured values. Band ranges are teaching-level approximations (ranges, not points) subject to calibration. Translate by band + phenomenon, never word-for-word. Each entry carries an opposite-direction safety valve. See docs/SPEC.md section 6.8.1.",
+  "bands": [
+    { "id": "sub_bass", "range_hz": [25, 60], "image": { "ja": "圧力、重み（感じる低音）" }, "too_much": { "ja": "ヘッドルームを食う、ボワつく" }, "too_little": { "ja": "軽い、迫力がない" } },
+    { "id": "bass", "range_hz": [60, 250], "image": { "ja": "太さ、土台" }, "too_much": { "ja": "ボワボワ、濁る" }, "too_little": { "ja": "細い、芯がない" } },
+    { "id": "low_mid", "range_hz": [240, 500], "image": { "ja": "ボディ、暖かさ" }, "too_much": { "ja": "こもり、モコモコ" }, "too_little": { "ja": "ペラペラ、寒い" } },
+    { "id": "mid", "range_hz": [500, 2000], "image": { "ja": "芯、前に出る感じ" }, "too_much": { "ja": "箱鳴り、鼻声" }, "too_little": { "ja": "引っ込む、遠い" } },
+    { "id": "presence", "range_hz": [1000, 4000], "image": { "ja": "抜け、明瞭さ" }, "too_much": { "ja": "キンキン、刺さる" }, "too_little": { "ja": "埋もれる、こもる" } },
+    { "id": "high", "range_hz": [4000, 6000], "image": { "ja": "輪郭、歯切れ" }, "too_much": { "ja": "エッジがきつい、耳障り" }, "too_little": { "ja": "ぼやける" } },
+    { "id": "air", "range_hz": [10000, 16000], "image": { "ja": "空気感、きらめき" }, "too_much": { "ja": "シャリシャリ、ヒス" }, "too_little": { "ja": "暗い、伸びがない" } }
+  ],
+  "terms": [
+    { "id": "komori", "ja": ["こもり", "モコモコ"], "en": ["muddy"], "range_hz": [200, 500], "phenomenon": { "ja": "低中域の重なりで全体が曇る。主因は高域不足でなく低中域の集中" }, "proxies": ["P-07:low_mid_share", "P-02", "P-22"], "remedy": { "ja": "原因ステムの同帯域を 2〜3 dB 下げる。低域カットとリバーブ量の見直し。高域を足して隠さない" }, "safety_valve": "low_end_total_floor" },
+    { "id": "nukenai", "ja": ["抜けない", "埋もれる"], "en": [], "range_hz": [1000, 4000], "phenomenon": { "ja": "明瞭帯域がマスクされ、主役が聞き取れない" }, "proxies": ["P-10", "P-02:vs_lead"], "remedy": { "ja": "主役を上げるのでなく、競合側の 1〜2.5 kHz を 1〜2 dB 下げる" }, "safety_valve": "accompaniment_presence_floor" },
+    { "id": "mae_oku", "ja": ["前に出る", "引っ込む"], "en": [], "range_hz": null, "phenomenon": { "ja": "音量だけでなく、帯域、トランジェント、残響、定位で決まる前後感" }, "proxies": ["P-09", "P-15", "P-12"], "remedy": { "ja": "乾いた音は手前、残響の多い音は奥。前に出したい音にリバーブを足すのは逆効果" }, "safety_valve": "declared_depth_order" },
+    { "id": "kinkin", "ja": ["キンキン", "刺さる"], "en": ["harsh"], "range_hz": [2500, 5000], "phenomenon": { "ja": "耳の最感度帯域のピーク。特に 3 kHz 付近" }, "proxies": ["P-11"], "remedy": { "ja": "狭い帯域幅でのカット。間欠的ならダイナミック EQ" }, "safety_valve": "presence_floor" },
+    { "id": "sibilant", "ja": ["サ行がきつい"], "en": ["sibilant"], "range_hz": [5000, 8000], "phenomenon": { "ja": "歯擦音の突出" }, "proxies": ["P-17"], "remedy": { "ja": "ディエッサー" }, "safety_valve": "consonant_clarity_floor" },
+    { "id": "sharishari", "ja": ["シャリシャリ"], "en": [], "range_hz": [8000, 16000], "phenomenon": { "ja": "高域の粗さ、過剰なブースト、ロッシー圧縮や生成由来の人工的な質感" }, "proxies": ["P-16", "P-01:high"], "remedy": { "ja": "高域のブーストを戻す。整音の見直し" }, "safety_valve": "air_floor" },
+    { "id": "futoi", "ja": ["太い", "芯がある"], "en": [], "range_hz": null, "phenomenon": { "ja": "低域の量でなく、基音の聞こえやすさと倍音のバランス" }, "proxies": ["P-08", "P-07"], "remedy": { "ja": "芯の帯域を削らない。低域を足す前に倍音（200〜800 Hz）で聞こえを補う" }, "safety_valve": "muddiness_ceiling" },
+    { "id": "bowabowa", "ja": ["ボワボワ"], "en": ["boomy"], "range_hz": [100, 250], "phenomenon": { "ja": "低域の膨らみ" }, "proxies": ["P-07", "P-19"], "remedy": { "ja": "広い帯域幅で小さく下げる" }, "safety_valve": "foundation_floor" },
+    { "id": "hakonari", "ja": ["箱鳴り"], "en": ["boxy"], "range_hz": [250, 500], "phenomenon": { "ja": "箱の中で鳴っているような共鳴" }, "proxies": ["P-19"], "remedy": { "ja": "狭い帯域幅で 2〜3 dB 下げる" }, "safety_valve": "body_floor" },
+    { "id": "hanagoe", "ja": ["鼻声"], "en": ["honky", "nasal"], "range_hz": [500, 1500], "phenomenon": { "ja": "ボーカルの中域の詰まり" }, "proxies": ["P-19:lead"], "remedy": { "ja": "同帯域の軽いカット" }, "safety_valve": "core_floor" },
+    { "id": "tsubure", "ja": ["ペラペラ", "のっぺり", "潰れる"], "en": [], "range_hz": null, "phenomenon": { "ja": "過圧縮。アタック感が死に、音の粒が平たくなる" }, "proxies": ["P-12", "P-04", "P-03", "P-18"], "remedy": { "ja": "コンプレッションを緩める。ゲインリダクション 10 dB 超は過剰の目安。ミックス段へ戻る" }, "safety_valve": null },
+    { "id": "sukasuka", "ja": ["スカスカ"], "en": ["thin"], "range_hz": null, "phenomenon": { "ja": "低域カットの入れすぎで土台が消えた状態" }, "proxies": ["P-07:low_end_total"], "remedy": { "ja": "低域カットを緩める。カットでなくシェルフで下げる" }, "safety_valve": "muddiness_ceiling" },
+    { "id": "nuke_nobi", "ja": ["抜けがいい", "伸びがある"], "en": ["airy"], "range_hz": [10000, 16000], "phenomenon": { "ja": "高域の空気感とトランジェントが保たれ、音が前に抜ける状態" }, "proxies": ["P-12", "P-01:air"], "remedy": { "ja": "1〜4 kHz の確保と 10 kHz 以上の保持。過圧縮で失われる" }, "safety_valve": "harshness_ceiling" },
+    { "id": "donshari_kamaboko", "ja": ["ドンシャリ", "カマボコ"], "en": [], "range_hz": null, "phenomenon": { "ja": "帯域の傾向そのものの名前。良し悪しではない" }, "proxies": ["P-01:shape"], "remedy": { "ja": "目的関数と媒体に合うかを測って判断する" }, "safety_valve": null }
+  ]
+}
