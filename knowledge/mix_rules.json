@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Initial values of the mix-stage planner (core/mixplan.py; docs/SPEC.md 6.5, 6.8, 7.2). Every number here is a practice-level starting point and a calibration target, not a specification. Rules cited: R-04 order, R-05 cut before boost, R-06 small EQ moves, R-07 HPF below the lowest f0, R-08 low-band roles, R-09 low-end mono by measured loss, R-11 times in note values, R-12 minimum phase / octave widths, R-13 dynamic vs static, R-22 separated / baked stems, R-28 the lower-importance side yields, R-29 opposite safety valves.",
+  "order": {
+    "steps": [
+      {"n": 1, "id": "static_balance", "spec": "6.5.1-1", "rules": ["R-04", "R-05", "R-28"]},
+      {"n": 2, "id": "arrangement", "spec": "6.5.1-2", "rules": ["R-04", "R-28", "R-08"]},
+      {"n": 3, "id": "subtractive_eq", "spec": "6.5.1-3", "rules": ["R-05", "R-06", "R-07", "R-08", "R-12", "R-29"]},
+      {"n": 4, "id": "dynamics", "spec": "6.5.1-4", "rules": ["R-11", "R-13"]},
+      {"n": 5, "id": "additive_eq", "spec": "6.5.1-5", "rules": ["R-06"]},
+      {"n": 6, "id": "space", "spec": "6.5.1-6", "rules": ["R-10", "R-11"]},
+      {"n": 7, "id": "mix_bus", "spec": "6.5.1-7", "rules": ["R-09", "R-11"]}
+    ],
+    "template_mapping": {
+      "note": "SPEC 6.5.4 five-stage vocal template mapped onto the fixed order of 6.5.1 (a mapping, not a reordering): stage 1 and stage 4 are cuts (step 3), stage 2 is dynamics (step 4), stage 3 is additive (step 5), stage 5 is space (step 6).",
+      "stage_1_vocal_subtractive": 3,
+      "stage_2_two_stage_compression": 4,
+      "stage_3_saturation": 5,
+      "stage_4_accompaniment_yield": 3,
+      "stage_5_plate_reverb": 6
+    }
+  },
+  "acceptance": {
+    "min_improvement": 0.002,
+    "template_tolerance": 0.01,
+    "min_target_gain": 0.05,
+    "guard_terms": {"P-10": 0.3, "P-02:vs_lead": 0.3, "P-22": 0.1},
+    "evidence": "practice",
+    "note": "A candidate is scored by the resolved objective (objectives.evaluate, level matched) plus the stage guard terms (penalties of P-10, P-02 vs_lead and P-22, weighted as here) because the mix stage acts on exactly these (R-05, R-28) even when the chosen objective does not weigh them. Corrective moves are kept when the total improves by min_improvement, or when their target metric improves by min_target_gain while the total worsens by at most template_tolerance. Template moves (SPEC 6.5.4 defaults, rule-based HPFs) are kept unless they worsen the total by more than template_tolerance. A constraint failure, a newly failing OF-5 check or undoing a problem solved in an earlier step always rejects."
+  },
+  "static_balance": {
+    "p10_aim_fraction": 0.35,
+    "accompaniment_max_trim_db": 6.0,
+    "lead_raise_max_db": 3.0,
+    "lead_cut_max_db": 3.0,
+    "importance_floor": 0.15,
+    "solve_tolerance_db": 0.6,
+    "evidence": "practice",
+    "note": "P-10 aim = low edge + p10_aim_fraction x (target width) of the genre prior band (knowledge/genre_priors.json p10_target_db, else the generic band). R-05: the accompaniment is trimmed first, importance-aware (trim weight = lead importance - stem importance + importance_floor, normalised to the largest), up to accompaniment_max_trim_db for the least important stem; the lead is raised only for the rest, up to lead_raise_max_db. A floating lead is lowered (a cut) up to lead_cut_max_db.",
+    "pan": {
+      "groups": ["harmony"],
+      "mono_side_ratio_max": 0.05,
+      "centered_pan_max": 0.1,
+      "positions": [0.35, -0.35, 0.5, -0.5, 0.25, -0.25],
+      "keep_center_groups": ["lead_vocal", "low_end_foundation"],
+      "evidence": "practice",
+      "note": "Only centred, near-mono harmony stems are spread off the lead's centre (LC/RC presets + fine). Low end and the lead stay centred (R-09). The masking model averages channels, so spatial release from masking is not credited by P-02; pan moves are kept as rule-based defaults within tolerance."
+    }
+  },
+  "arrangement": {
+    "min_buried_db": 3.0,
+    "p22_max_owners": 2,
+    "role_swap_clarity_margin_db": 6.0,
+    "evidence": "practice",
+    "note": "Suggestions only (remix operations of SPEC 9.3, applied by a human or agent): range mute / level drop of the lower-importance masker where it overlaps the lead when the lead stays buried by more than min_buried_db (R-28); band-owner rotation per section when a P-22 band has more than p22_max_owners owners; a role check when a non-lead vocal stem carries clearly more clarity-band energy than the lead."
+  },
+  "eq": {
+    "max_move_db": 3.0,
+    "max_cumulative_db": 4.5,
+    "default_phase": "minimum",
+    "evidence": "practice",
+    "note": "R-06: one move stays within +-3 dB; the summed response of the planner's moves at any band centre stays within max_cumulative_db (beyond that, verification and a recorded reason are required, so the planner does not go there). Widths are octaves (R-12).",
+    "competitor_cut": {
+      "min_masker_buried_db": 0.25,
+      "db_per_buried_db": 2.0,
+      "min_cut_db": 1.0,
+      "max_cut_db": 3.0,
+      "bw_oct": 1.0,
+      "max_maskers_per_region": 2,
+      "evidence": "practice",
+      "note": "R-05: the competitor is cut at the lead's strongest frequency inside the masked region (P-02 vs_lead regions: low-mid 200-800 Hz, presence 2-5 kHz)."
+    },
+    "accompaniment_yield": {
+      "band_hz": [1000.0, 3000.0],
+      "freq_hz": 1732.0,
+      "bw_oct": 1.58,
+      "gain_db": -1.5,
+      "gain_db_if_buried": -2.0,
+      "min_level_vs_lead_db": -15.0,
+      "groups": ["harmony", "pads_fx_ornaments"],
+      "evidence": "practice",
+      "note": "SPEC 6.5.4 stage 4: the accompaniment's 1-3 kHz is lowered 1.5-2 dB to make room for the core of the voice (R-05). -2 dB when the lead is still below its P-10 aim or masked in the presence region. Rhythm core and low end are not asked to yield by default. Opposite valve (R-29): the accompaniment presence (1-4 kHz) may not drop more than accompaniment_presence_max_drop_db."
+    },
+    "accompaniment_presence_max_drop_db": 3.0,
+    "lead_subtractive": {
+      "mud_band_hz": [200.0, 400.0],
+      "mud_min_excess_db": 1.5,
+      "mud_bw_oct": 0.7,
+      "resonance_band_hz": [2500.0, 6000.0],
+      "resonance_min_excess_db": 3.0,
+      "resonance_bw_oct": 0.33,
+      "cut_fraction": 0.75,
+      "core_margin_oct": 0.17,
+      "core_upper_oct": 0.5,
+      "min_cut_db": 1.0,
+      "max_cut_db": 3.0,
+      "evidence": "practice",
+      "note": "SPEC 6.5.4 stage 1 (initial values 200-400 Hz and 2.5-6 kHz, 2-4 dB) adapted by measurement: a cut is placed only where the lead's 1/6-octave level exceeds its 1-octave smoothed level by the min excess; the depth is cut_fraction x excess, capped at 3 dB by R-06. Never inside the lead's fundamental range (lowest f0 - core_margin_oct .. median f0 + core_upper_oct octaves): a peak there is the core of the voice, not mud (6.8.1 'futoi', R-29)."
+    },
+    "low_band_role": {
+      "shelf_hz": 150.0,
+      "shelf_bw_oct": 1.9,
+      "gain_db": -2.0,
+      "evidence": "practice",
+      "note": "R-08: when more than low_end.max_elements stems own the sub or bass band (P-22), the stems that are not the low-end owners yield with a low shelf (not a steeper HPF: R-07 keeps HPFs below the lowest f0)."
+    }
+  },
+  "hpf": {
+    "margin_ratio": 0.8,
+    "min_cutoff_hz": 25.0,
+    "slope_db_oct": 12,
+    "f0_confidence_min": 0.6,
+    "spectral_floor_fraction": 0.005,
+    "by_role": {
+      "vocals": {"max_hz": 100.0, "slope_db_oct": 18},
+      "backing_vocals": {"max_hz": 150.0},
+      "bass": {"max_hz": 35.0, "margin_ratio": 0.7},
+      "drums": {"max_hz": 30.0, "margin_ratio": 0.6},
+      "percussion": {"max_hz": 250.0},
+      "guitar": {"max_hz": 120.0},
+      "keyboard": {"max_hz": 100.0},
+      "synth": {"max_hz": 80.0},
+      "strings": {"max_hz": 80.0},
+      "brass": {"max_hz": 100.0},
+      "woodwinds": {"max_hz": 200.0},
+      "fx": {"max_hz": 100.0},
+      "other": {"max_hz": 60.0}
+    },
+    "evidence": "practice",
+    "note": "R-07: cutoff = min(margin_ratio x lowest f0, the frequency below which spectral_floor_fraction of the stem's energy lies, role max). The lowest f0 is used only above f0_confidence_min; otherwise the spectral floor alone decides. Vocals: SPEC 6.5.4 stage 1 initial 80-100 Hz. Below min_cutoff_hz no filter is placed. Paired with the low-energy floor monitor (low_end)."
+  },
+  "low_end": {
+    "max_elements": 2,
+    "low_floor_max_drop_db": 1.0,
+    "band_hz": [20.0, 250.0],
+    "evidence": "practice",
+    "note": "R-08: 1-2 simultaneous low-band elements. R-29: a low cut may not lower the mix low/rest ratio (P-07, 20-250 Hz) by more than low_floor_max_drop_db; when it would, the cutoffs are relaxed once, then the move is dropped."
+  },
+  "compressor": {
+    "gr_yardsticks_db": {"light": [1.0, 2.0], "moderate": [3.0, 6.0], "excessive_above": 10.0},
+    "lead_peak": {"ratio": 4.0, "knee_db": 3.0, "attack_ms": 2.0, "release_note": "1/32", "release_ms_without_bpm": 60.0, "detector": "peak", "target_gr_p95_db": 3.0},
+    "lead_level": {"ratio": 2.0, "knee_db": 6.0, "attack_ms": 25.0, "release_note": "1/4", "release_ms_without_bpm": 400.0, "detector": "rms", "rms_window_ms": 30.0, "target_gr_median_db": 2.5},
+    "bass_level": {"ratio": 2.5, "knee_db": 6.0, "attack_ms": 30.0, "release_note": "1/8", "release_ms_without_bpm": 200.0, "detector": "rms", "rms_window_ms": 30.0, "target_gr_median_db": 2.0, "level_spread_db": 10.0},
+    "bus": {"ratio": 1.5, "knee_db": 6.0, "attack_ms": 30.0, "release_note": "1/4", "release_ms_without_bpm": 300.0, "detector": "rms", "rms_window_ms": 50.0, "target_gr_p95_db": 1.5},
+    "threshold_iterations": 3,
+    "evidence": "practice",
+    "note": "SPEC 6.5.3 yardsticks (knowledge/thresholds.json compressor_gr_yardsticks): 1-2 dB light glue, 3-6 dB evens the grain, above 10 dB excessive. SPEC 6.5.4 stage 2: fast peak control then slow 2-3 dB levelling. Thresholds are solved from the measured gain reduction of the reference compressor; makeup restores the measured active level so the step-1 balance holds. Release times are chosen as note values at the project tempo (R-11)."
+  },
+  "deesser": {
+    "min_penalty": 0.0,
+    "freq_hz": 6500.0,
+    "bw_oct": 1.0,
+    "range_db": 6.0,
+    "attack_ms": 1.0,
+    "release_ms": 60.0,
+    "threshold_below_p95_db": 6.0,
+    "max_band_drop_db": 3.0,
+    "evidence": "practice",
+    "note": "Placed on the lead when its own P-17 (5-8 kHz events vs 1-4 kHz) has a positive penalty. Dynamic, because sibilance is intermittent (R-13). Opposite valve (R-29, consonant clarity floor): the average 5-8 kHz level of the lead may not drop more than max_band_drop_db."
+  },
+  "ducking": {
+    "depth_db": 3.0,
+    "attack_ms": 5.0,
+    "release_note_default": "1/8",
+    "release_ms_without_bpm": 120.0,
+    "trigger_db_below_p95": 6.0,
+    "min_interval_ms": 80.0,
+    "time_axis_objectives": ["club_impact"],
+    "evidence": "practice",
+    "note": "Time-axis unmasking (P-02 time_axis) as gain automation on the bass (SPEC 9.2 v1 automation = gain) keyed by the kick onsets: no sidechain input exists in v1. Triggered when the kick is buried by the bass beyond the P-02 time_axis ok range, or when the objective weighs the time axis. The release is the suggested note value of the time_axis measurement (R-11)."
+  },
+  "saturation": {
+    "lead": {"mode": "tanh", "drive_db": 6.0, "mix": 0.25, "oversample": 2, "band_hz": [1000.0, 5000.0]},
+    "bass_enhance": {"mode": "asymmetric", "drive_db": 9.0, "asymmetry": 0.3, "mix": 0.35, "oversample": 2, "p08_penalty_min": 0.3},
+    "evidence": "practice",
+    "note": "SPEC 6.5.4 stage 3: harmonics in 1-5 kHz keep the voice present on small speakers (OF-5 band-limited check). A parallel blend (mix < 1) approximates the band-limited saturation of the template; the measured change of the lead's 1-5 kHz share is recorded. Bass enhancement only when OF-5 check 4 (pitch without the fundamental) fails or P-08 is poor."
+  },
+  "reverb": {
+    "bus_id": "bus_reverb",
+    "params": {"rt60_s": 1.2, "er_late_db": -6.0, "lowcut_hz": 600.0, "highcut_hz": 6000.0, "rt60_low_mult": 0.8, "rt60_high_mult": 0.6, "mix": 1.0},
+    "predelay_note": "1/64",
+    "predelay_ms_without_bpm": 25.0,
+    "short_reverb_genres": ["anison", "hiphop"],
+    "short_rt60_s": 0.8,
+    "sends_db": {"lead_vocal": -18.0, "harmony": -15.0, "pads_fx_ornaments": -13.0},
+    "no_send_groups": ["rhythm_core", "low_end_foundation"],
+    "declared_order_step_db": 2.0,
+    "max_send_db": -10.0,
+    "evidence": "practice",
+    "note": "SPEC 6.5.4 stage 5: plate-like (dense, few distinct early reflections), the return low-cut at 600 Hz and high-cut at 6 kHz keep only the tail. Depth order (P-09): the lead gets the lowest send (dry = front), harmony more, pads/fx most; rhythm core and low end stay dry. With a declared depth order the sends rise by declared_order_step_db per rank. Pre-delay is chosen as a note value (R-11)."
+  },
+  "interest": {
+    "contrast_max_drop_db": 1.0,
+    "evidence": "practice",
+    "note": "R-26: the planner does not create interest; it only reports when the section contrast (P-20, quiet vs loud short-term loudness) dropped by more than contrast_max_drop_db between the starting static mix and the proposal."
+  },
+  "mix_bus": {
+    "mono_below_hz": 120.0,
+    "evidence": "practice",
+    "note": "Light glue only (1-2 dB). A low-band mono split is added only when S-03 / S-04 fail on the measured mix (R-09), never by default."
+  },
+  "r22": {
+    "allowed_operations": ["balance"],
+    "max_gain_change_db": 3.0,
+    "allow_pan": false,
+    "baked_detection": {"peak_dbfs_min": -0.5, "plr_max_db": 8.0},
+    "evidence": "practice",
+    "note": "R-22: separated stems (asset origin 'separated') and baked stems (peak within 0.5 dB of full scale and peak-to-loudness ratio below 8 dB: processed, no headroom) are used for balance only: gain within +-max_gain_change_db, pan unchanged (bleed from other parts moves with it), no EQ / dynamics / spatial processing. A track's declared restrictions.operations always wins."
+  },
+  "vocabulary_en": {
+    "komori": "muddy",
+    "nukenai": "buried",
+    "mae_oku": "forward / set back",
+    "kinkin": "harsh",
+    "sibilant": "sibilant",
+    "sharishari": "grainy",
+    "futoi": "full-bodied",
+    "bowabowa": "boomy",
+    "hakonari": "boxy",
+    "hanagoe": "honky",
+    "tsubure": "squashed",
+    "sukasuka": "thin",
+    "nuke_nobi": "airy",
+    "donshari_kamaboko": "smile / mid-hump",
+    "note": "English labels for report sentences when knowledge/vocabulary.json has no English word; translation by band + phenomenon (SPEC 6.8.1 rule 5)."
+  }
+}
