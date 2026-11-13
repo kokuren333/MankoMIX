@@ -31,6 +31,7 @@
         { "metric": "P-03", "variant": "plr", "weight": 0.10, "sense": "keep_in_range" }
       ],
       "constraints_emphasis": ["S-03", "S-04"],
+      "params": { "sub_band_hz": { "default": [20, 60], "unit": "Hz", "range": [20, 120], "description": "Lower edge of the low band of the P-07 sub+bass term (low band = [sub_band_hz[0], 250 Hz])" } },
       "report_notes": ["normalization_tradeoff"]
     },
     {
@@ -44,7 +45,8 @@
         { "metric": "P-15", "variant": "lead", "weight": 0.15, "sense": "keep_in_range" },
         { "metric": "P-17", "weight": 0.10, "sense": "minimize_excess" }
       ],
-      "constraints_emphasis": ["S-04"]
+      "constraints_emphasis": ["S-04"],
+      "params": { "p10_target_db": { "default": null, "unit": "dB", "range": [-6, 12], "description": "Explicit P-10 target band [lo, hi]; overrides the genre prior and the generic band" } }
     },
     {
       "id": "clarity", "spec_id": "OF-3", "kind": "score",
@@ -70,7 +72,8 @@
         { "metric": "P-04", "variant": "kick_band", "weight": 0.20, "sense": "preserve" },
         { "metric": "P-13", "weight": 0.15, "sense": "minimize" }
       ],
-      "constraints_emphasis": ["S-03", "S-04"]
+      "constraints_emphasis": ["S-03", "S-04"],
+      "params": { "kick_band_hz": { "default": [40, 120], "unit": "Hz", "range": [20, 200], "description": "Band of the P-07 playable_band term" } }
     },
     {
       "id": "translation", "spec_id": "OF-5", "kind": "gate",

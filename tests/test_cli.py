@@ -102,7 +102,11 @@ def test_doctor_shape(cli):
         assert r["packages"][name]["required"] is True
     for name in ("pyloudnorm", "librosa"):
         assert name in r["packages"]
-    assert r["models"]["status"].startswith("registry not implemented")
+    models = r["models"]
+    assert models["status"] in ("ok", "none_available")
+    for k in ("official", "candidate", "byow"):
+        assert isinstance(models[k], int) and models[k] >= 0
+    assert models["official"] >= 1 and isinstance(models["downloaded"], list)
     assert r["gpu"]["status"] in ("none", "nvidia")
     if r["ffmpeg"]["found"]:
         assert r["ffmpeg"]["build"] in ("lgpl", "gpl", "nonfree", "unknown")
@@ -181,8 +185,7 @@ def test_doctor_strict_from_env(monkeypatch):
 # stubs, global behaviour, bad input
 # ---------------------------------------------------------------------------
 
-STUBS = {"stem": "M4", "separate": "M6", "clean": "M5", "mix": "M4", "run": "M4", "model": "M6",
-         "serve": "M8"}
+STUBS = {"stem": "M4", "clean": "M5", "mix": "M4", "run": "M4"}
 
 
 @pytest.mark.parametrize("group", sorted(STUBS))

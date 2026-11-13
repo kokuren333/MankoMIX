@@ -12,7 +12,8 @@ Contract between the GUI (`src/backend/LocalBackend.ts`) and the local server st
 - Writes coming from the GUI are journaled with `actor: "human"`. Agents use CLI/MCP and are journaled as `"agent"`; the deterministic planner as `"planner"`.
 - No absolute paths in any response (core `_face_safe` scrubbing). Paths are project-relative; audio URLs are server paths under `/api/files/...`.
 - `variant` is a project variant id (`project.variants[].id`).
-- Errors: non-2xx status with body `{"error": {"code": "<core error code>", "message": "...", "details": {...}}}`. Suggested status mapping: input error → 400, not found / not generated → 404 (`code: "not_found"` / `"not_generated"`), conflict with a newer canonical (SPEC 9.5) → 409, environment error → 500/503.
+- Errors: non-2xx status with the same error object as the CLI and MCP (`MankoError.to_dict()`): `{"error": "<core error code>", "message": "...", "details": {...}}` (`LocalBackend` also accepts the nested form `{"error": {"code", "message", "details"}}`). Status mapping: input / validation error → 400, workspace escape or foreign Host/Origin → 403 (`path_outside_workspace` / `forbidden`), not found / not generated / unknown job → 404 (`not_found` / `not_generated` / `unknown_job`), a job already running on the project → 409 (`project_busy`), environment error → 503, unexpected → 500.
+- The server (`core/server/`, `mankomix serve`) binds to 127.0.0.1 by default and refuses a non-loopback address without `--allow-remote`; requests with a non-loopback `Host` header and cross-origin writes are refused. Every path stays inside the `--root` workspace; `/api/files/...` serves files inside the open project only.
 - Long operations (render, export, analysis, separation, model pull) return a `Job` immediately and report progress via `GET /api/jobs/{id}` and `job` events.
 
 ## Endpoints
@@ -23,28 +24,34 @@ Contract between the GUI (`src/backend/LocalBackend.ts`) and the local server st
 | GET | `/api/project` | — | `Project` (project.json, schema `schemas/project.schema.json`) | `project_get` / `status` |
 | PATCH | `/api/project` | `{ "ops": PatchOp[], "reason"?: string }` (RFC 6902) | `{ "applied": n, "content_hash": "..." }` | `patch` |
 | POST | `/api/import` | multipart, field `files` (one or more audio files) | `Job` or `{ "applied": n, "content_hash" }` | `import_files` |
-| GET | `/api/history` | `?limit=50` | `{ "entries": HistoryEntry[] }` newest first | `history` |
+| GET | `/api/history` | `?limit=50` | `{ "entries": HistoryEntry[] }` newest first (`summary` = the journal reason) | `history` |
 | POST | `/api/history/undo` | `{}` | `{ "undone": ..., "content_hash" }` | `undo` |
 | GET | `/api/objectives` | — | `objectives/catalog.json` shape (`{ default, objectives[] }`) or an array | `objective_list` |
 | GET | `/api/profiles` | — | `{ profiles: MediaProfile[] }` or an array | `profile_list` |
 | GET | `/api/deliveries` | — | `{ formats: DeliveryFormat[] }` or an array | delivery list |
-| GET | `/api/models` | — | `registry/models.json` shape, entries may add `installed: bool` | `model_list` |
-| POST | `/api/models/{id}/pull` | `{}` | `Job` | `model_pull` |
-| GET | `/api/variants` | — | `VariantSummary[]` (if 404 the GUI derives it from `project.variants`) | — |
-| GET | `/api/analysis` | `?variant=` | `Analysis` | `analyze` (cached result) |
+| GET | `/api/models` | — | `{ models[], defaults, ... }`, entries with `installed`, `license`, `state` | `model_list` |
+| GET | `/api/models/{id}` | — | model detail (license evidence, files) | `model_show` |
+| POST | `/api/models/{id}/pull` | `{ "allow_candidate"?, "force"? }` | `Job` | `model_pull` |
+| GET | `/api/variants` | — | `VariantSummary[]` (+ `rendered`, `has_master_chain`) | `variant_list` |
+| GET | `/api/analysis` | `?variant=` | `Analysis` (404 `not_generated` before `analyze`) | `analysis_view` |
 | POST | `/api/analyze` | `{}` | `Job` | `analyze` |
-| GET | `/api/proposals` | `?variant=` | `{ proposals: Proposal[] }` (planner and agent proposals, any status) | — |
-| POST | `/api/plan/propose` | `{ "stage": "cleanup"\|"mix"\|"master", "variant" }` | `Proposal` | `plan_propose` |
-| POST | `/api/plan/apply` | `{ "proposal_id", "edits": { "<processor id>": { "<param>": value } } }` | `{ "applied": n, "content_hash" }` | `plan_apply` |
-| POST | `/api/plan/reject` | `{ "proposal_id", "reason" }` | `{}` (journaled) | — |
-| POST | `/api/render` | `{ "variant", "range": { "start_s", "end_s" } \| null }` | `Job` | `render_preview` |
-| POST | `/api/export` | `{ "variant" }` | `Job` | `export_run` |
-| GET | `/api/jobs/{id}` | — | `Job` | — |
-| GET | `/api/verify` | `?variant=` | `Verification` (last result) | `verify_run` (cached) |
-| POST | `/api/verify` | `{ "variant" }` | `Verification` or `Job` | `verify_run` |
-| GET | `/api/report` | `?variant=&lang=ja\|en` | `Report` (schema `schemas/report.schema.json`) | `report_get` |
-| GET | `/api/audio` | `?variant=` | `AudioSet` | — |
-| GET | `/api/files/...` | — | audio bytes (renders / listening copies), `Accept-Ranges` recommended | — |
+| GET | `/api/proposals` | `?variant=&stage=&status=` | `{ proposals: Proposal[] }` (planner and agent proposals, any status, newest first) | `proposal_list` |
+| GET | `/api/proposals/{id}` | — | `{ view: Proposal, proposal }` | `proposal_get` |
+| POST | `/api/plan/propose` | `{ "stage": "cleanup"\|"mix"\|"master", "variant", "profile"?, "max_iter"?, "async"? }` | `Proposal` (runs as a job and waits; `async: true` returns the `Job`) | `plan_propose` + `proposal_get` |
+| POST | `/api/plan/apply` | `{ "proposal_id", "edits": { "<processor id>": { "<param>": value } } }` | `{ "applied", "content_hash", ... }` | `plan_apply` (`edits`) |
+| POST | `/api/plan/reject` | `{ "proposal_id", "reason" }` | rejection record (journaled) | `plan_reject` |
+| POST | `/api/render` | `{ "variant", "range": { "start_s", "end_s" } \| null }` | `Job` (`range` is not supported by the core yet: the whole variant is rendered) | `render` |
+| POST | `/api/export` | `{ "variant" }` | `Job` | `export` |
+| GET | `/api/jobs` / `/api/jobs/{id}` | — | `{ jobs: Job[] }` / `Job` | — |
+| GET | `/api/verify` | `?variant=` | `Verification` (last result; 404 `not_generated` before the first run; `stale` when the project changed) | `verification_get` |
+| POST | `/api/verify` | `{ "variant", "recheck_codecs"? }` | `Job` (result: `Verification`) | `verify` + `verification_get` |
+| GET | `/api/report` | `?variant=&lang=ja\|en` | `Report` (schema `schemas/report.schema.json`) | `report` (not written) |
+| GET | `/api/audio` | `?variant=` | `AudioSet` (+ `before_kind`, `deltas`); file entries are `/api/files/...` URLs | `audio_set` |
+| GET | `/api/files/...` | — | project files (audio, deltas, reports) with `Accept-Ranges: bytes`, `Range` → 206 / 416 | — |
+| POST | `/api/import` | multipart `files` | `{ "applied", "content_hash", "assets", "check_counts" }`; several files are imported as one folder (export sets) | `import_files` |
+| POST | `/api/separate` | `{ "model"?, "source"?, "mode"?, "stems"?, "device"?, "excerpt_s"?, ... }` | `Job` | `separate` |
+| GET | `/api/separations` | — | `{ separations[] }` | `separation_list` |
+| GET | `/api/status` | — | project summary | `status` |
 | GET | `/api/events` | — | Server-Sent Events stream (below) | — |
 
 ## Server-Sent Events (`GET /api/events`)
@@ -53,8 +60,8 @@ Contract between the GUI (`src/backend/LocalBackend.ts`) and the local server st
 
 | event | data | When |
 |---|---|---|
-| `project_changed` | `{ "seq": 12, "actor": "agent", "content_hash": "...", "summary": "..." }` | Any journaled change to project.json (GUI, CLI, MCP). The GUI reloads the visible screen and shows who changed it. |
-| `proposal` | `{ "proposal_id": "...", "author": "agent", "stage": "mix" }` | A new or updated proposal (e.g. an agent proposal awaiting approval). |
+| `project_changed` | `{ "seq": 12, "actor": "agent", "op": "set", "content_hash": "...", "summary": "..." }` | project.json or journal.jsonl changed on disk (GUI, CLI, MCP; polled about once a second). The GUI reloads the visible screen and shows who changed it. |
+| `proposal` | `{ "proposal_id": "...", "author": "agent", "stage": "mix", "status": "pending", "variant": "..." }` | A new or updated proposal file under `cache/proposals/` (e.g. an agent proposal awaiting approval). |
 | `job` | `{ "job": Job }` | Job progress / completion. |
 
 Send a comment line (`: ping`) every ~15 s to keep the connection alive. If `EventSource` is unavailable the GUI falls back to polling `GET /api/history?limit=1`.
@@ -70,5 +77,5 @@ Defined in `src/types.ts`. The ones not covered by a JSON Schema in `schemas/`:
 - `Analysis`: `{ schema_version: 1, variant, loudness: { hop_s, before[], after[], integrated_lufs, true_peak_dbtp, lra_lu }, ltas: { freqs_hz[], before[], after[], reference?: { label, low[], high[] } }, band_correlation: { bands: [{ id, lo_hz, hi_hz, before, after }] }, stems: [{ track, centroid_hz, depth (0..1, 1 = near), level_db, pan }], masking: [{ a, b, band_hz: [lo, hi], amount_db, severity: "info"|"warning"|"critical" }], diagnostics: [{ id, metric, label, value, unit, threshold, status: "ok"|"warning"|"fail"|"not_run", note }], metrics?: [{ id, label, before, after, unit }] }`. Loudness values are short-term LUFS; before/after metrics are level-matched.
 - `Verification`: `{ schema_version: 1, variant, overall, constraints: [{ id: "S-nn", status: "pass"|"fail"|"warning"|"not_run", value, limit, note }], gate: { status, checks: [{ id, label, status, note }] }, profiles: [{ profile, delivery, status, lufs_i, true_peak_dbtp, note }], noise_return: { status, delta_db, tolerance_db, note }, codec: [{ codec, status, true_peak_dbtp, ceiling_dbtp, note }] }`. A check that could not run (e.g. encoder unavailable) is `not_run`, never `pass` (SPEC 6.7).
 - `AudioSet`: `{ variant, files: { before, after, delta?, before_level_matched?, fullmix_reference? } (URL or null), match_gain_db, match_target: "before"|"after", measurements?: { before: { lufs_i, true_peak_dbtp }, after: {...} }, note? }`. `match_gain_db` (≤ 0) is applied by the player to `match_target`, the louder side (SPEC 15.2: match by lowering the louder one). The GUI never computes loudness itself.
-- `Job`: `{ job_id, kind: "render"|"export"|"analyze"|"verify", state: "queued"|"running"|"done"|"failed", progress?: 0..1, result?, error? }`.
+- `Job`: `{ job_id, kind: "render"|"export"|"analyze"|"verify"|"plan"|"separate"|"model_pull", state: "queued"|"running"|"done"|"failed", progress?: 0..1, result?, error? (message), error_detail? (error object) }`. One job per project at a time (`project_busy`).
 - `Label`: a string or `{ "ja": "...", "en": "..." }`.

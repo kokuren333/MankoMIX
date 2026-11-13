@@ -88,10 +88,12 @@ def default_summary(r: Any) -> Any:
 
 def _sum_doctor(r: dict) -> dict:
     ff = r.get("ffmpeg") or {}
+    models = r.get("models") or {}
     return {"status": r.get("status"), "engine_version": r.get("engine_version"),
             "ffmpeg": {k: ff.get(k) for k in ("found", "version", "build") if k in ff},
             "gpu": (r.get("gpu") or {}).get("status"),
-            "models": (r.get("models") or {}).get("status"),
+            "models": {k: models.get(k) for k in ("status", "official", "candidate", "byow", "downloaded",
+                                                   "byow_available") if k in models},
             "issues": [{"level": i.get("level"), "code": i.get("code")} for i in r.get("issues") or []]}
 
 
@@ -215,6 +217,41 @@ def _keep(r: dict) -> dict:
     return r
 
 
+def _sum_models(r: dict) -> dict:
+    return {"models": [{k: m.get(k) for k in ("id", "tier", "status", "task", "stems", "license_weights",
+                                              "usage_restrictions", "state", "installed", "cpu_ok", "light",
+                                              "default_for")}
+                       for m in r.get("models") or [] if isinstance(m, dict)],
+            "defaults": r.get("defaults"), "byow_notice": r.get("byow_notice"),
+            "hint": "model_get for license evidence and files; detail='full' for everything"}
+
+
+def _sum_separate(r: dict) -> dict:
+    return {k: r.get(k) for k in ("separation", "model_id", "model_sha256", "mode", "source_asset", "excerpt",
+                                  "stems", "assets_added", "tracks_added", "tracks_muted", "device",
+                                  "elapsed_s", "attribution", "restriction", "warnings")} | {
+        "license": {k: (r.get("license") or {}).get(k) for k in ("code", "weights", "usage_restrictions")},
+        "residual_db": (r.get("postprocess") or {}).get("residual_db")}
+
+
+def _sum_proposals(r: dict) -> dict:
+    return {"count": r.get("count"),
+            "proposals": [{k: p.get(k) for k in ("id", "stage", "variant", "author", "status", "created_at",
+                                                 "score", "reject_reason")} | {"steps": len(p.get("steps") or [])}
+                          for p in r.get("proposals") or [] if isinstance(p, dict)]}
+
+
+def _sum_analysis_view(r: dict) -> dict:
+    loud = r.get("loudness") or {}
+    return {"variant": r.get("variant"), "before_kind": r.get("before_kind"), "files": r.get("files"),
+            "integrated_lufs": loud.get("integrated_lufs"), "true_peak_dbtp": loud.get("true_peak_dbtp"),
+            "lra_lu": loud.get("lra_lu"), "metrics": r.get("metrics"),
+            "stems": [{k: s.get(k) for k in ("track", "role", "centroid_hz", "level_db", "pan")}
+                      for s in r.get("stems") or []],
+            "diagnostics": [d for d in r.get("diagnostics") or [] if d.get("status") != "ok"],
+            "hint": "detail='full' adds the loudness series, LTAS and band correlation"}
+
+
 def _sum_plan(r: dict) -> dict:
     """Stage proposal: ids, chain, per-metric breakdown, constraints, gate (the core's own summary)."""
     if not isinstance(r.get("summary"), dict) or "proposal_id" not in r:
@@ -321,7 +358,8 @@ SPECS: list[ToolSpec] = [
     ToolSpec("compare_audio", ("compare_audio",), "Level-matched comparison of two audio files (b - a).",
              summary=_sum_compare),
     # intent and outlets
-    ToolSpec("objective_list", ("objective_list",), "List objective functions.", summary=_keep),
+    ToolSpec("objective_list", ("objective_list",), "List objective functions (full=true: the complete "
+             "definitions).", summary=_keep),
     ToolSpec("objective_get", ("objective_show",), "Show one objective function."),
     ToolSpec("objective_set", ("objective_set",), "Set the project objective (or a variant's override): "
              "blend of objectives with weights, intensity 0-1, declared overrides, lead stem. Safety "
@@ -335,7 +373,10 @@ SPECS: list[ToolSpec] = [
              kinds={"path_or_json": "path_or_json"},
              schema={"path_or_json": {"description": "definition or catalog object, JSON text, a .json file "
                                                       "relative to the workspace, or a spec"}}),
-    ToolSpec("profile_list", ("profile_list",), "List media profiles and delivery formats.", summary=_keep),
+    ToolSpec("profile_list", ("profile_list",), "List media profiles and delivery formats "
+             "(full=true: the complete definitions).", summary=_keep),
+    ToolSpec("delivery_list", ("delivery_list",), "List delivery formats (container, sample rate, bit depth, "
+             "dither).", summary=_keep),
     ToolSpec("profile_get", ("profile_show",), "Show one media profile or delivery format."),
     ToolSpec("reference_add", ("reference_add",), "Register a reference track: only its level-matched "
              "measurement vector is stored, never the audio (targets then come from the references).",
@@ -352,9 +393,17 @@ SPECS: list[ToolSpec] = [
                                                   "default: the project's"},
                      "max_iter": {"description": "planner iteration cap (default 6)"}}),
     ToolSpec("plan_apply", ("plan_apply",), "Approve and apply a proposal (by proposal_id); the variant stores "
-             "the chain, the objective evaluation and the decisions.",
+             "the chain, the objective evaluation and the decisions. Optional edits change processor "
+             "parameters first.",
              rename={"proposal_or_id": "proposal"},
-             schema={"proposal": {"description": "proposal_id from plan_propose (or the proposal object)"}}),
+             schema={"proposal": {"description": "proposal_id from plan_propose (or the proposal object)"},
+                     "edits": {"type": ["object", "null"],
+                               "description": "{\"<processor id>\": {\"<param>\": value}} applied before approval"}}),
+    ToolSpec("plan_list", ("proposal_list",), "List saved proposals (planner and agent, any status), newest "
+             "first, as reviewable steps.", summary=_sum_proposals,
+             schema={"stage": {"enum": ["master", "mix", "clean", "cleanup", None]},
+                     "status": {"enum": ["pending", "applied", "rejected", None]}}),
+    ToolSpec("plan_get", ("proposal_get",), "Show one saved proposal: reviewable steps and the full proposal."),
     ToolSpec("plan_reject", ("plan_reject",), "Reject a proposal with a reason (journaled) and get hints for "
              "requesting an alternative."),
     ToolSpec("plan_run", ("planner_run",), "Run the planner loop for the master stage (measure, preview, "
@@ -368,6 +417,15 @@ SPECS: list[ToolSpec] = [
     ToolSpec("history_undo", ("undo",), "Undo the last operation (journaled).", summary=_keep),
     ToolSpec("history_checkout", ("checkout",), "Restore the project to a journal sequence number.",
              summary=_keep),
+    # views shared with the GUI (SPEC 10.1: no face has a feature the others lack)
+    ToolSpec("variant_list", ("variant_list",), "List variants (objective x media profile) with objective blend, "
+             "outputs and render state.", summary=_keep),
+    ToolSpec("analysis_get", ("analysis_view",), "Analysis view of the cached measurements: loudness over time, "
+             "LTAS, band correlation, stem placement, diagnostics, before/after metrics.", long=True,
+             summary=_sum_analysis_view),
+    ToolSpec("audio_get", ("audio_set",), "Listening set of a variant: before / after / delta files "
+             "(project-relative) and the level-match gain (louder side lowered).", long=True),
+    ToolSpec("verify_get", ("verification_get",), "The last verification of a variant without re-running it."),
     # knowledge
     ToolSpec("knowledge_lookup", ("knowledge_lookup",), "Look up knowledge data: decision rules R-01..R-33, "
              "perceptual vocabulary terms and bands, genre priors, thresholds. Free-text match on ids, labels "
@@ -384,13 +442,29 @@ SPECS: list[ToolSpec] = [
     ToolSpec("stems_edit", ("stems_edit", "stem_edit"), "Edit stems: remove, move, mute, role."),
     ToolSpec("stems_remove", ("stems_remove", "stem_remove"), "Remove a stem."),
     ToolSpec("stems_export", ("stems_export", "stem_export"), "Export stems.", long=True),
-    ToolSpec("separate_run", ("separate_run", "separate"), "Separate a full mix into stems.", long=True),
-    ToolSpec("model_list", ("model_list",), "List registered models."),
-    ToolSpec("model_get", ("model_show", "model_get"), "Show one registered model."),
-    ToolSpec("model_pull", ("model_pull",), "Download a catalogue model.", long=True),
-    ToolSpec("model_register", ("model_register",), "Register a local model (BYOW)."),
-    ToolSpec("model_verify", ("model_verify",), "Verify model files against the registry."),
-    ToolSpec("model_remove", ("model_remove",), "Remove a model from the registry."),
+    ToolSpec("separate_run", ("separate_run", "separate"), "Separate a project asset (default: the full mix) "
+             "into stems with a registered model. mode 'preview' = loudest excerpt, assets only; 'full' = whole "
+             "file plus tracks restricted to balance operations (R-22). Never downloads weights.",
+             long=True, kinds={"source": "plain"}, summary=_sum_separate,
+             schema={"model": {"description": "model id (default: the registry default for the mode)"},
+                     "source": {"description": "asset id to separate (default: the full mix)"},
+                     "mode": {"enum": ["preview", "full"]}, "device": {"enum": ["auto", "cpu", "cuda"]},
+                     "excerpt_s": {"description": "preview excerpt length in seconds (default 30)"}}),
+    ToolSpec("separate_list", ("separation_list",), "List the project's separation records (model, sha256, "
+             "license, attribution, stems)."),
+    ToolSpec("model_list", ("model_list",), "List models (official catalogue and BYOW) with license, status and "
+             "local state.", summary=_sum_models),
+    ToolSpec("model_get", ("model_show", "model_get"), "Show one model: license evidence, attribution, pinned "
+             "files and whether they are present."),
+    ToolSpec("model_pull", ("model_pull",), "Download a catalogue model from its pinned official source and "
+             "verify the sha256 (verified entries only unless allow_candidate).", long=True, mutates=True),
+    ToolSpec("model_register", ("model_register",), "Register your own weights (BYOW): the file is hashed in "
+             "place, never copied; the declared license is the user's responsibility.", mutates=True,
+             schema={"path": {"description": "weights file, relative to the workspace"},
+                     "license_weights": {"description": "license of the weights ('unknown' if not known)"}}),
+    ToolSpec("model_verify", ("model_verify",), "Re-hash a model's local weight files against the pinned sha256."),
+    ToolSpec("model_remove", ("model_remove",), "Delete downloaded weights (official) or forget a BYOW "
+             "registration (the file itself is kept).", mutates=True),
     ToolSpec("clean_plan", ("clean_plan",), "Propose a cleanup plan."),
     ToolSpec("clean_apply", ("clean_apply",), "Apply a cleanup plan."),
     ToolSpec("clean_delta", ("clean_delta",), "Write the removed (delta) audio of the cleanup.", long=True),

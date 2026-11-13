@@ -89,7 +89,12 @@ export class LocalBackend implements Backend {
       }
     }
     if (!res.ok) {
-      const err = (data as { error?: { code?: string; message?: string; details?: unknown } } | undefined)?.error;
+      // The server sends the CLI/MCP error object { error: "<code>", message, details };
+      // the nested form { error: { code, message, details } } is accepted as well.
+      const body = data as
+        | { error?: string | { code?: string; message?: string; details?: unknown }; message?: string; details?: unknown }
+        | undefined;
+      const err = typeof body?.error === "string" ? { code: body.error, message: body.message, details: body.details } : body?.error;
       throw new BackendError(err?.message ?? `${method} ${path} failed (${res.status})`, res.status, err?.code, err?.details);
     }
     return data as T;

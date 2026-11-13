@@ -40,7 +40,7 @@ python -m mankomix.mcp --root <作業フォルダ>
 | 作業フォルダの制限 | パス引数はすべて作業フォルダ基準で解決し、外に出るもの（`..`、外の絶対パス、ドライブ相対パス、外を指すシンボリックリンクやジャンクション）は `path_outside_workspace` で拒否する。結果に絶対パスは含めない |
 | `project` 引数 | 作業フォルダ内のプロジェクトフォルダ。省略時は `.`（作業フォルダ自体） |
 | 要約と詳細 | 応答は要約が既定（件数、主要な測定値、ID）。`detail: "full"` で API の結果をそのまま返す |
-| ジョブ | 時間のかかるツール（`analyze_run`、将来の `separate_run` `render_preview` `export_run` など）は `async: true` でジョブ ID を返す。`job_status` / `job_result` / `job_list` で問い合わせる。同じプロジェクトで同時に動くジョブは 1 つまで（`project_busy`） |
+| ジョブ | 時間のかかるツール（`analyze_run`、`separate_run`、`model_pull`、`render_preview`、`export_run` など）は `async: true` でジョブ ID を返す。`job_status` / `job_result` / `job_list` で問い合わせる。同じプロジェクトで同時に動くジョブは 1 つまで（`project_busy`） |
 | 操作者 | プロジェクトを変更するツールは、履歴に actor `agent` を記録する（引数では変えられない） |
 | エラー | ツールの失敗は `isError: true` の結果で返す（`{"error", "message", "details"}`。CLI と同じコード）。未知のメソッドや不正なパラメータは JSON-RPC のエラー |
 
@@ -70,9 +70,21 @@ python -m mankomix.mcp --root <作業フォルダ>
 | `profile_list` / `profile_get` | `profile_list` / `profile_show` | `profile list` / `show` | 媒体プロファイルと納品形式 |
 | `history_list` / `history_undo` / `history_checkout` | `history` / `undo` / `checkout` | `history` / `undo` / `checkout` | 操作履歴 |
 | `knowledge_lookup` | `knowledge_lookup` | `knowledge` | `knowledge/*.json` の検索（判断規則 R-01〜R-33、知覚語彙、帯域、ジャンル prior、閾値）。id、ラベル、注記の自由語検索 |
+| `plan_list` / `plan_get` | `proposal_list` / `proposal_get` | `plan list` / `show` | 保存済みの提案（全状態、新しい順、提案者つき）。`plan_apply` の `edits` で適用前にパラメータを編集できる |
+| `variant_list` | `variant_list` | `variant list` | バリアント、出口、レンダリング済みか |
+| `analysis_get` | `analysis_view` | `analysis` | 解析の表示用データ（ラウドネスの時系列、LTAS、帯域別相関、ステムの配置、診断、前後の指標。ジョブ可） |
+| `audio_get` | `audio_set` | `listen` | 試聴セット（処理前／処理後／除去分のプロジェクト相対パスと、レベルマッチのゲイン。ジョブ可） |
+| `verify_get` | `verification_get` | `verify --last` | 直前の検証結果（再実行しない） |
+| `delivery_list` | `delivery_list` | `profile deliveries` | 納品形式。`profile_list` / `objective_list` は `full: true` で完全な定義 |
+| `model_list` / `model_get` | `model_list` / `model_show` | `model list` / `show` | モデルレジストリ（公式と BYOW）、ライセンスと根拠、ローカルの状態 |
+| `model_pull` | `model_pull` | `model pull` | 固定された公式配布元から取得し sha256 を照合（ジョブ可）。`verified` 以外は `allow_candidate` |
+| `model_register` / `model_verify` / `model_remove` | 同名 | `model register` / `verify` / `remove` | BYOW の登録（`path` は作業フォルダ内）、再ハッシュ照合、削除 |
+| `separate_run` / `separate_list` | `separate` / `separation_list` | `separate` / `separate --records` | ステム分離（ジョブ可。`source` は素材 ID）と分離の記録。ウェイトは取得しない（S-10） |
 | `job_status` / `job_result` / `job_list` | — | — | ジョブの問い合わせ（サーバー側の機能） |
 
-後続マイルストーンのツール（`clean_*` / `mix_*` / `master_*`、`render_preview`、`render_spectrogram`、`export_run`、`verify_run`、`report_get`、`separate_run`、`model_*`、`stems_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。
+`plan_propose` / `plan_run` で作った提案には `author: "agent"` が記録され、GUI では承認待ちのエージェント提案として表示される（D-035）。
+
+後続マイルストーンのツール（`clean_*` / `mix_*`、`render_spectrogram`、`stems_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。`render_preview` / `export_run` / `verify_run` / `report_get` / `master_plan` / `master_apply` は `render` / `export` / `verify` / `report` / `master_plan` / `master_apply` を包む。
 
 `project_get` と `knowledge_lookup` もコア API（`api.project_get`、`api.knowledge_lookup`、実体は `core/knowledge.py`）を包む。判断規則の索引（R-01〜R-33）は `knowledge/rules.json` のデータで、`knowledge_lookup` の `kind: "rule"` として引ける。
 

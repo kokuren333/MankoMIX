@@ -27,12 +27,9 @@ ACTORS = ("human", "agent", "planner")
 # command surface is stable, but exit with EXIT_INPUT_ERROR for now.
 STUB_GROUPS = {
     "stem": ("M4", "remix operations: list/add/replace/remove/move/mute/role/export"),
-    "separate": ("M6", "stem separation"),
     "clean": ("M5", "cleanup plan/apply/delta"),
     "mix": ("M4", "mix plan/apply"),
     "run": ("M4", "one-shot pipeline with the planner"),
-    "model": ("M6", "model registry"),
-    "serve": ("M8", "local GUI server"),
 }
 OBJECTIVE_STUBS: dict[str, str] = {}
 
@@ -147,7 +144,11 @@ def cmd_checkout(a):
 
 
 def cmd_profile_list(a):
-    return api.profile_list()
+    return api.profile_list(full=True) if a.detail else api.profile_list()
+
+
+def cmd_profile_deliveries(a):
+    return api.delivery_list()
 
 
 def cmd_profile_show(a):
@@ -155,7 +156,7 @@ def cmd_profile_show(a):
 
 
 def cmd_objective_list(a):
-    return api.objective_list()
+    return api.objective_list(full=True) if a.detail else api.objective_list()
 
 
 def cmd_objective_show(a):
@@ -186,11 +187,20 @@ def cmd_reference_remove(a):
 
 def cmd_plan_propose(a):
     return api.plan_propose(_project(a), a.stage, variant=a.variant, profile=a.profile, delivery=a.delivery,
-                            objective=a.objective, max_iter=a.max_iter)
+                            objective=a.objective, max_iter=a.max_iter, actor=a.actor)
 
 
 def cmd_plan_apply(a):
-    return api.plan_apply(_project(a), _read_arg_or_file(a.proposal), actor=a.actor)
+    edits = _read_arg_or_file(a.edits) if a.edits else None
+    return api.plan_apply(_project(a), _read_arg_or_file(a.proposal), edits=edits, actor=a.actor)
+
+
+def cmd_plan_list(a):
+    return api.proposal_list(_project(a), variant=a.variant, stage=a.stage, status=a.status)
+
+
+def cmd_plan_show(a):
+    return api.proposal_get(_project(a), a.proposal_id)
 
 
 def cmd_plan_reject(a):
@@ -243,11 +253,82 @@ def cmd_export(a):
 
 
 def cmd_verify(a):
+    if a.last:
+        return api.verification_get(_project(a), a.variant)
     return api.verify(_project(a), a.variant, recheck_codecs=a.recheck_codecs)
+
+
+def cmd_variant_list(a):
+    return api.variant_list(_project(a))
+
+
+def cmd_listen(a):
+    return api.audio_set(_project(a), a.variant)
+
+
+def cmd_analysis(a):
+    return api.analysis_view(_project(a), a.variant)
+
+
+def _csv(value: str | None) -> list[str] | None:
+    if value is None:
+        return None
+    return [x.strip() for x in value.split(",") if x.strip()]
+
+
+def cmd_model_list(a):
+    return api.model_list()
+
+
+def cmd_model_show(a):
+    return api.model_show(a.id)
+
+
+def cmd_model_pull(a):
+    return api.model_pull(a.id, allow_candidate=a.allow_candidate, force=a.force)
+
+
+def cmd_model_register(a):
+    runtime = None
+    if a.runtime:
+        try:
+            runtime = json.loads(_read_arg_or_file(a.runtime))
+        except ValueError:
+            runtime = None
+        if not isinstance(runtime, dict):
+            raise InputError("--runtime must be a JSON object, '@file' or '-'")
+    return api.model_register(a.path, id=a.id, license_weights=a.license_weights, license_code=a.license_code,
+                              usage_restrictions=a.usage_restrictions, evidence_url=a.evidence_url, task=a.task,
+                              architecture=a.architecture, stems=_csv(a.stems), runtime=runtime,
+                              attribution=a.attribution, note=a.note, replace=a.replace)
+
+
+def cmd_model_verify(a):
+    return api.model_verify(a.id)
+
+
+def cmd_model_remove(a):
+    return api.model_remove(a.id)
+
+
+def cmd_separate(a):
+    if a.records:
+        return api.separation_list(_project(a))
+    return api.separate(_project(a), model=a.model, source=a.source, mode=a.mode, stems=_csv(a.stems),
+                        device=a.device, allow_candidate=a.allow_candidate, add_tracks=a.add_tracks,
+                        excerpt_s=a.excerpt_s, actor=a.actor)
 
 
 def cmd_report(a):
     return api.report(_project(a), a.variant, lang=a.lang, write=not a.no_write)
+
+
+def cmd_serve(a):
+    # Serves HTTP until interrupted; prints one JSON line with the address first. Nothing
+    # else is printed to stdout, so leave through SystemExit like `mcp`.
+    from mankomix.core.server import run_server
+    raise SystemExit(run_server(root=a.root, project=a.project, host=a.host, port=a.port, static=a.static,
+                                allow_remote=a.allow_remote))
 
 
 def cmd_mcp(a):
@@ -342,13 +423,16 @@ def build_parser() -> argparse.ArgumentParser:
     grp = add("profile", None, "media profiles and delivery formats")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
     gsub.required = True
-    add("list", cmd_profile_list, "list media profiles and delivery formats", gsub)
+    add("list", cmd_profile_list, "list media profiles and delivery formats", gsub) \
+        .add_argument("--detail", action="store_true", help="full definitions instead of ids and labels")
     add("show", cmd_profile_show, "show one profile or delivery format", gsub).add_argument("id")
+    add("deliveries", cmd_profile_deliveries, "list delivery formats (container, rate, bit depth, dither)", gsub)
 
     grp = add("objective", None, "objective functions")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
     gsub.required = True
-    add("list", cmd_objective_list, "list objectives", gsub)
+    add("list", cmd_objective_list, "list objectives", gsub) \
+        .add_argument("--detail", action="store_true", help="full definitions (terms, constraint emphasis)")
     add("show", cmd_objective_show, "show one objective", gsub).add_argument("id")
     sp = add("set", cmd_objective_set, "set the project objective (blend, intensity, overrides, lead)", gsub)
     sp.add_argument("spec", help="'comfort', 'bass_heavy:0.7', 'comfort:0.6+bass_heavy:0.4', JSON inline, "
@@ -388,6 +472,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--max-iter", dest="max_iter", type=int, help="planner iteration cap (default 6)")
     sp = add("apply", cmd_plan_apply, "approve and apply a proposal", gsub)
     sp.add_argument("proposal", help="proposal id, JSON inline, '@file' or '-'")
+    sp.add_argument("--edits", help="parameter edits applied first: {\"<processor id>\": {\"<param>\": value}} "
+                                    "inline, '@file' or '-'")
+    sp = add("list", cmd_plan_list, "list saved proposals (planner and agent, any status), newest first", gsub)
+    sp.add_argument("--variant")
+    sp.add_argument("--stage", choices=("master", "mix", "clean", "cleanup"))
+    sp.add_argument("--status", choices=("pending", "applied", "rejected"))
+    sp = add("show", cmd_plan_show, "show one saved proposal (reviewable steps and the full proposal)", gsub)
+    sp.add_argument("proposal_id")
     sp = add("reject", cmd_plan_reject, "reject a proposal and ask for an alternative (journaled)", gsub)
     sp.add_argument("proposal_id")
     sp.add_argument("--reason", required=True, help="why the proposal is rejected")
@@ -437,11 +529,77 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("variant", nargs="?")
     sp.add_argument("--recheck-codecs", dest="recheck_codecs", action="store_true",
                     help="re-run codec round trips even if the render-time results are still valid")
+    sp.add_argument("--last", action="store_true", help="show the last verification without running it again")
+
+    grp = add("variant", None, "variants (objective x media profile)")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    add("list", cmd_variant_list, "list variants with objective blend, outputs and render state", gsub)
+
+    sp = add("listen", cmd_listen, "listening set: before / after / delta files and the level-match gain")
+    sp.add_argument("variant", nargs="?")
+
+    sp = add("analysis", cmd_analysis, "analysis view: loudness over time, LTAS, band correlation, stems, metrics")
+    sp.add_argument("variant", nargs="?")
+
+    grp = add("model", None, "model registry: official catalogue and BYOW (SPEC 12)")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    add("list", cmd_model_list, "list models with license, status and local state", gsub)
+    add("show", cmd_model_show, "show one model (license evidence, attribution, files)", gsub).add_argument("id")
+    sp = add("pull", cmd_model_pull, "download a catalogue model from its pinned source (sha256 verified)", gsub)
+    sp.add_argument("id")
+    sp.add_argument("--allow-candidate", dest="allow_candidate", action="store_true",
+                    help="also pull a candidate entry whose license evidence is not fully verified")
+    sp.add_argument("--force", action="store_true", help="download again even if the files are present")
+    sp = add("register", cmd_model_register, "register your own weights (BYOW; hashed in place, never copied)",
+             gsub)
+    sp.add_argument("path", help="weights file")
+    sp.add_argument("--id", required=True, help="model id ([a-z0-9][a-z0-9_.-]*)")
+    sp.add_argument("--license-weights", dest="license_weights", required=True,
+                    help="license of the weights (use 'unknown' if you do not know it)")
+    sp.add_argument("--license-code", dest="license_code", help="license of the inference code")
+    sp.add_argument("--usage-restrictions", dest="usage_restrictions", default="unknown",
+                    help="none, non_commercial, research_only, unknown, ... (default unknown)")
+    sp.add_argument("--evidence-url", dest="evidence_url", help="where the license is stated (http(s) URL)")
+    sp.add_argument("--task", default="separation")
+    sp.add_argument("--architecture")
+    sp.add_argument("--stems", help="comma-separated stem names, e.g. vocals,drums,bass,other")
+    sp.add_argument("--runtime", help="runtime JSON (backend, cpu_ok, light, sample_rate, config), '@file' or '-'")
+    sp.add_argument("--attribution", default="")
+    sp.add_argument("--note", default="")
+    sp.add_argument("--replace", action="store_true", help="overwrite an existing BYOW registration")
+    add("verify", cmd_model_verify, "re-hash local weight files against the pinned sha256", gsub).add_argument("id")
+    add("remove", cmd_model_remove, "delete downloaded weights (official) or forget a BYOW registration", gsub) \
+        .add_argument("id")
+
+    sp = add("separate", cmd_separate, "separate a project asset into stems with a registered model (SPEC 6.2)")
+    sp.add_argument("--model", help="model id (default: the registry default for the mode)")
+    sp.add_argument("--source", help="asset id to separate (default: the full mix)")
+    sp.add_argument("--mode", choices=("preview", "full"), default="preview",
+                    help="preview: loudest excerpt, assets only (default); full: whole file, adds tracks")
+    sp.add_argument("--stems", help="comma-separated subset of the model's stems")
+    sp.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    sp.add_argument("--allow-candidate", dest="allow_candidate", action="store_true")
+    sp.add_argument("--add-tracks", dest="add_tracks", action="store_true", default=None,
+                    help="add tracks for the stems (default: only in full mode)")
+    sp.add_argument("--no-add-tracks", dest="add_tracks", action="store_false")
+    sp.add_argument("--excerpt-s", dest="excerpt_s", type=float,
+                    help="preview excerpt length in seconds (default 30)")
+    sp.add_argument("--records", action="store_true", help="list the project's separation records instead")
 
     sp = add("report", cmd_report, "build the Mix Report (JSON + Markdown, ja/en)")
     sp.add_argument("variant", nargs="?")
     sp.add_argument("--lang", choices=("ja", "en", "both"), default="both")
     sp.add_argument("--no-write", dest="no_write", action="store_true", help="do not write files under reports/")
+
+    sp = add("serve", cmd_serve, "local server for the GUI (HTTP + Server-Sent Events, loopback only by default)")
+    sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")
+    sp.add_argument("--host", default="127.0.0.1", help="bind address (default 127.0.0.1)")
+    sp.add_argument("--port", type=int, default=8765, help="port (default 8765; 0 = any free port)")
+    sp.add_argument("--static", help="built GUI folder to serve at / (default: gui/dist when present)")
+    sp.add_argument("--allow-remote", dest="allow_remote", action="store_true",
+                    help="allow a non-loopback bind address (exposes the project to the network)")
 
     sp = add("mcp", cmd_mcp, "MCP server over stdio (JSON-RPC 2.0) for AI agents")
     sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")

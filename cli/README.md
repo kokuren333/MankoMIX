@@ -39,9 +39,25 @@
 | `report [VARIANT] [--lang ja\|en\|both] [--no-write]` | `report` | Mix Report（JSON と Markdown）。5 章に指標別の内訳、6 章に制約とゲート |
 | `get [POINTER]` | `project_get` | project.json 全体、または JSON pointer の位置の値 |
 | `knowledge [QUERY...] [--id ID] [--kind K] [--source S]` | `knowledge_lookup` | 判断規則（R-01〜R-33）、知覚語彙、帯域、ジャンル prior、閾値の検索 |
+| `profile list --detail` / `profile deliveries` | `profile_list(full=True)` / `delivery_list` | プロファイルの完全な定義、納品形式（コンテナ、レート、ビット深度、ディザ） |
+| `objective list --detail` | `objective_list(full=True)` | 目的関数の完全な定義（項、制約の強調） |
+| `plan apply PROPOSAL [--edits JSON]` | `plan_apply` | `--edits '{"<処理 id>": {"<パラメータ>": 値}}'` で提案のパラメータを編集してから適用（既存のパラメータのみ） |
+| `plan list [--variant V] [--stage S] [--status pending\|applied\|rejected]` / `plan show ID` | `proposal_list` / `proposal_get` | 保存済みの提案（プランナーとエージェント、全状態、新しい順）。提案者（`author`）と状態つき |
+| `verify [VARIANT] --last` | `verification_get` | 直前の検証結果を再実行せずに表示（制約、プロファイル、コーデック、ノイズ戻りの行。正本が変わっていれば `stale`） |
+| `variant list` | `variant_list` | バリアント（目的関数 × 媒体）、出口、レンダリング済みか |
+| `listen [VARIANT]` | `audio_set` | 試聴セット: 処理前（フルミックス、またはステムの静的合算）、処理後、除去分、レベルマッチのゲイン（大きい方を下げる） |
+| `analysis [VARIANT]` | `analysis_view` | 解析の表示用データ: ラウドネスの時系列、LTAS、帯域別相関、ステムの配置、診断、前後の指標（先に `analyze`） |
+| `model list` / `model show ID` | `model_list` / `model_show` | モデルレジストリ（公式カタログと BYOW）、ライセンスと根拠、ローカルの状態 |
+| `model pull ID [--allow-candidate] [--force]` | `model_pull` | 固定された公式配布元から取得し sha256 を照合。`verified` 以外は `--allow-candidate` が要る |
+| `model register PATH --id ID --license-weights L [--usage-restrictions U] [--evidence-url URL] [--stems a,b] [--runtime JSON] [--replace]` | `model_register` | 手持ちのウェイトの登録（BYOW）。ハッシュを取るだけで、コピー・配布はしない |
+| `model verify ID` / `model remove ID` | `model_verify` / `model_remove` | ウェイトの再ハッシュ照合 / 取得済みウェイトの削除（BYOW は登録の解除のみ） |
+| `separate [--model M] [--source ASSET] [--mode preview\|full] [--stems a,b] [--device auto\|cpu\|cuda] [--excerpt-s N] [--add-tracks\|--no-add-tracks]` | `separate` | ステム分離（§6.2）。モデルは別プロセスで実行し、ここでは取得しない。`preview` は最も大きい区間だけ、`full` は全尺でトラックも追加（操作はバランスに限定、R-22）。`--records` で分離の記録の一覧（`separation_list`） |
+| `serve [--root DIR] [--host 127.0.0.1] [--port 8765] [--static gui/dist] [--allow-remote]` | — | GUI 用のローカルサーバー（`core/server/`。HTTP と Server-Sent Events）。`--project` で開くプロジェクトを指定。既定は 127.0.0.1 だけで待ち受け、それ以外のアドレスは `--allow-remote` がないと拒否する。起動時に `{"serving": ...}` を 1 行出力 |
 | `mcp [--root DIR]` | — | MCP サーバー（標準入出力） |
 
-後続マイルストーンのコマンド（`stem` `separate` `clean` `mix` `run` `model` `serve`）は登録済みで、現時点では `not implemented yet (milestone Mx)` を返して終了コード 2 で終わる。
+`doctor` の `models` は、公式（verified）／候補／BYOW の件数と、ウェイトが手元にあるモデル（`downloaded`、`byow_available`）を返す。
+
+後続マイルストーンのコマンド（`stem` `clean` `mix` `run`）は登録済みで、現時点では `not implemented yet (milestone Mx)` を返して終了コード 2 で終わる。
 
 ```
 mankomix init song.mmx --title "Example Song" --genre jpop
@@ -53,5 +69,8 @@ mankomix -p song.mmx plan propose --profile spotify
 mankomix -p song.mmx plan apply mpl_0123456789ab
 mankomix -p song.mmx render var_spotify
 mankomix -p song.mmx report var_spotify --lang ja
+mankomix model list
+mankomix -p song.mmx separate --mode preview
+mankomix serve --project song.mmx
 python -m mankomix.cli doctor
 ```

@@ -40,6 +40,23 @@ npm test               # vitest + jsdom
 npm run typecheck
 ```
 
+## ローカルサーバーにつなぐ（`mankomix serve`）
+
+`mankomix serve` はコアと同じ Python プロセスで動くローカルサーバー（`core/server/`、標準ライブラリのみ）。`/api` に `API.md` の契約を実装し、`gui/dist/` があれば `/` で GUI を配る。
+
+```
+cd gui && npm run build && cd ..
+mankomix serve --project song.mmx                      # http://127.0.0.1:8765/ を開く
+mankomix serve --root ./work --project song.mmx --port 0   # 作業フォルダを指定、空きポート
+```
+
+- 起動時に `{"serving": "http://127.0.0.1:8765/", ...}` を 1 行出力し、Ctrl+C で止まる
+- 待ち受けは既定で 127.0.0.1 だけ。それ以外のアドレスは `--allow-remote` がないと拒否する（指定すると警告を出す）。Host ヘッダーがループバック名でない要求と、別オリジンからの書き込みも拒否する
+- パスは `--root` の作業フォルダの中に限る（MCP と同じ制限）。`/api/files/...` は開いているプロジェクトの中のファイルだけを配り、`Range` に対応する（試聴のシーク）
+- GUI からの変更は履歴に `human` として記録される。CLI / MCP（エージェント）が同じプロジェクトを変えると、サーバーが約 1 秒ごとに `project.json` / `journal.jsonl` / `cache/proposals/` を見て `project_changed` / `proposal` イベントを送る
+- 解析、レンダリング、書き出し、検証、分離、モデル取得、プランナーはジョブとして動き、`/api/jobs/{id}` と `job` イベントで進捗を返す
+- 開発時は `mankomix serve --project song.mmx` を起動したうえで `npm run dev`（`/api` を `MANKOMIX_API`、既定 `http://127.0.0.1:8765` へプロキシ）
+
 ## ビルド
 
 ```

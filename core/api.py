@@ -399,6 +399,45 @@ def _strict_mode(arg: bool | None) -> tuple[bool, str]:
     return False, "default"
 
 
+def _doctor_models(issue: Callable[[str, str, str], None]) -> dict:
+    """Model registry state for doctor: counts per tier/status and what is available locally.
+
+    Only file presence is checked here (no hashing); ``model verify`` re-hashes."""
+    try:
+        res = _mod("registry").model_list()
+    except MankoError as e:
+        issue("warning", "model_registry_unreadable", f"model registry could not be read: {e.message}")
+        return {"status": "error", "message": e.message}
+    models = [m for m in res.get("models") or [] if isinstance(m, dict)]
+    official = [m for m in models if m.get("tier") == "official"]
+    verified = [m for m in official if m.get("status") == "verified"]
+    candidate = [m for m in official if m.get("status") != "verified"]
+    byow = [m for m in models if m.get("tier") == "byow"]
+    downloaded = sorted(m["id"] for m in official if m.get("state") == "installed")
+    partial = sorted(m["id"] for m in official if m.get("state") == "partial")
+    byow_ok = sorted(m["id"] for m in byow if m.get("state") == "registered")
+    byow_missing = sorted(m["id"] for m in byow if m.get("state") != "registered")
+    if byow_missing:
+        issue("warning", "byow_weights_missing",
+              "registered BYOW weights are not at their registered location: " + ", ".join(byow_missing))
+    if not downloaded and not byow_ok:
+        issue("info", "no_models_available",
+              "no separation model is available locally (only needed for stem separation); "
+              "see `mankomix model list` and `mankomix model pull <id>`")
+    return {
+        "status": "ok" if (downloaded or byow_ok) else "none_available",
+        "official": len(verified),
+        "candidate": len(candidate),
+        "byow": len(byow),
+        "downloaded": downloaded,
+        "partial": partial,
+        "byow_available": byow_ok,
+        "byow_missing": byow_missing,
+        "defaults": res.get("defaults") or {},
+        "weights_location": res.get("weights_location"),
+    }
+
+
 @_face_safe
 def doctor(strict_lgpl: bool | None = None) -> dict:
     """Inspect the environment (SPEC 10.2 doctor, 13.3)."""
@@ -490,7 +529,9 @@ def doctor(strict_lgpl: bool | None = None) -> dict:
             if gpu["devices"]:
                 gpu["status"] = "nvidia"
     if gpu["status"] == "none":
-        issue("info", "no_gpu", "no NVIDIA GPU detected; stem separation will use CPU models (M6)")
+        issue("info", "no_gpu", "no NVIDIA GPU detected; stem separation will use CPU models")
+
+    models = _doctor_models(issue)
 
     levels = {i["level"] for i in issues}
     overall = "error" if "error" in levels else "warning" if "warning" in levels else "ok"
@@ -503,7 +544,7 @@ def doctor(strict_lgpl: bool | None = None) -> dict:
         "ffprobe": ffprobe,
         "strict_lgpl": {"enabled": strict, "source": strict_src},
         "gpu": gpu,
-        "models": {"status": "registry not implemented until M6"},
+        "models": models,
         "issues": issues,
     }
 
@@ -928,14 +969,25 @@ def _label(item: dict) -> Any:
 
 
 @_face_safe
-def profile_list() -> dict:
+def profile_list(full: bool = False) -> dict:
+    """Media profiles and delivery formats (ids and labels; ``full`` returns the complete definitions)."""
     cfg = _mod("config")
-    profiles = [{"id": p.get("id"), "label": _label(p)} for p in _items(cfg.load_profiles(), "profiles")]
+    raw_profiles = _items(cfg.load_profiles(), "profiles")
     try:
-        deliveries = [{"id": d.get("id"), "use": d.get("use")} for d in _items(cfg.load_deliveries(), "formats")]
+        raw_deliveries = _items(cfg.load_deliveries(), "formats")
     except MankoError:
-        deliveries = []
+        raw_deliveries = []
+    if full:
+        return {"profiles": raw_profiles, "deliveries": raw_deliveries}
+    profiles = [{"id": p.get("id"), "label": _label(p)} for p in raw_profiles]
+    deliveries = [{"id": d.get("id"), "use": d.get("use")} for d in raw_deliveries]
     return {"profiles": profiles, "deliveries": deliveries}
+
+
+@_face_safe
+def delivery_list() -> dict:
+    """Delivery formats (container, rate, bit depth, dither), SPEC 5.3."""
+    return {"formats": _items(_mod("config").load_deliveries(), "formats")}
 
 
 def _lookup(getter, ident: str, kind: str):
@@ -965,11 +1017,15 @@ def profile_show(id: str) -> dict:
 
 
 @_face_safe
-def objective_list() -> dict:
+def objective_list(full: bool = False) -> dict:
+    """Objective catalogue (ids and labels; ``full`` returns the complete definitions)."""
     cfg = _mod("config")
     raw = cfg.load_objectives()
     items = _items(raw, "objectives")
     default = raw.get("default") if isinstance(raw, dict) else None
+    if full:
+        return {"default": default, "note": raw.get("note") if isinstance(raw, dict) else None,
+                "objectives": items}
     return {"default": default,
             "objectives": [{"id": o.get("id"), "spec_id": o.get("spec_id"), "kind": o.get("kind"),
                             "label": _label(o)} for o in items]}
@@ -1346,45 +1402,98 @@ def proposal_summary(prop: dict) -> dict:
     }
 
 
+_STAGE_ALIASES = {"cleanup": "clean"}
+
+
+def _proposal_author(actor: str) -> str:
+    """Who authored a proposal: an agent's request is an agent proposal; otherwise the planner made it."""
+    return "agent" if actor == "agent" else "planner"
+
+
 @_face_safe
 def plan_propose(project_path: str | Path, stage: str = "master", *, variant: str | None = None,
                  profile: str | None = None, delivery: str | None = None, objective: Any = None,
-                 max_iter: int | None = None) -> dict:
+                 max_iter: int | None = None, actor: str = "human") -> dict:
     """Propose a stage plan (R-31): the deterministic planner refines the stage plan against the
     objective (level-matched previews, small moves) and returns parameters, rationale with rule ids,
     alternatives and the per-metric evaluation. Saved under cache/proposals/<id>.json; nothing is applied.
+    ``actor`` records who asked for it (an agent's proposal awaits approval in the GUI, D-035).
     """
     proj = _open(project_path)
+    _mod("journal").check_actor(actor)
     if max_iter is not None and (isinstance(max_iter, bool) or int(max_iter) < 0):
         raise InputError("max_iter must be >= 0")
+    stage = _STAGE_ALIASES.get(stage, stage) if isinstance(stage, str) else stage
     prop = _mod("planner").propose(proj, stage, variant_id=variant, profile_id=profile, delivery_id=delivery,
                                    max_iter=None if max_iter is None else int(max_iter),
                                    objective=_objective_arg(objective))
     prop["status"] = "proposed"
     prop["proposed_at"] = _now_iso()
+    prop["author"] = _proposal_author(actor)
+    prop["requested_by"] = actor
     rel = _save_proposal(proj, prop)
     return {"proposal_id": prop["proposal_id"], "proposal_path": rel, "stage": prop.get("stage"),
             "applied": False, "summary": proposal_summary(prop), "proposal": prop}
 
 
+def _apply_edits(prop: dict, edits: Any, actor: str) -> tuple[dict, list[str]]:
+    """Proposal with edited processor parameters: {processor id: {param: value}} (R-31: every
+    proposal can be edited before it is applied). Only parameters the processor already has."""
+    edits = _parse_json_value(edits, "edits")
+    if not isinstance(edits, dict) or not all(isinstance(v, dict) for v in edits.values()):
+        raise InputError('edits must be an object {"<processor id>": {"<param>": value}}')
+    prop = json.loads(json.dumps(prop))
+    chain = [p for p in prop.get("chain") or [] if isinstance(p, dict)]
+    by_id = {p.get("id"): p for p in chain}
+    changed: list[str] = []
+    for pid, params in edits.items():
+        proc = by_id.get(pid)
+        if proc is None:
+            raise InputError(f"proposal {prop.get('proposal_id')} has no processor '{pid}'",
+                             details={"processors": list(by_id)})
+        current = proc.get("params") if isinstance(proc.get("params"), dict) else {}
+        for k, v in params.items():
+            if k not in current:
+                raise InputError(f"processor '{pid}' has no parameter '{k}'", details={"params": sorted(current)})
+            if isinstance(current[k], (int, float)) and not isinstance(current[k], bool) and                     (isinstance(v, bool) or not isinstance(v, (int, float))):
+                raise InputError(f"parameter '{pid}.{k}' must be a number")
+            if current[k] != v:
+                current[k] = v
+                changed.append(f"{pid}.{k}")
+        proc["params"] = current
+    if changed:
+        prop["edits"] = {"by": actor, "at": _now_iso(), "params": edits, "changed": changed}
+    return prop, changed
+
+
 @_face_safe
-def plan_apply(project_path: str | Path, proposal_or_id: Any, *, actor: str = "human") -> dict:
+def plan_apply(project_path: str | Path, proposal_or_id: Any, *, edits: Any = None,
+               actor: str = "human") -> dict:
     """Approve and apply a stage proposal (R-31). The variant stores the chain, the objective
-    evaluation (score + per-metric breakdown, constraints, gate) and the decisions."""
+    evaluation (score + per-metric breakdown, constraints, gate) and the decisions. ``edits``
+    ({processor id: {param: value}}) changes parameters of the proposed chain before applying."""
     proj = _open(project_path)
     prop, path = _load_stage_proposal(proj, proposal_or_id)
     if prop.get("status") == "rejected":
         raise InputError(f"proposal {prop.get('proposal_id')} was rejected; propose again to get a new plan",
                          details={"rejection": prop.get("rejection")})
+    changed: list[str] = []
+    if edits not in (None, {}, ""):
+        prop, changed = _apply_edits(prop, edits, actor)
     res = _mod("planner").apply(proj, prop, actor=actor)
     entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
     _mark_proposal(path, prop, status="applied",
                    applied={"actor": actor, "at": _now_iso(), "journal_seq": entries[-1].get("seq")})
     variant = _mod("mastering").find_variant(proj.data, prop.get("variant")) or {}
-    return {**res, "evaluation_stored": bool(variant.get("evaluation")),
-            "decisions_stored": bool(variant.get("decisions")),
-            "score": (variant.get("evaluation") or {}).get("score"),
-            "send_back": prop.get("send_back"), "project": _project_summary(proj)}
+    out = {**res, "evaluation_stored": bool(variant.get("evaluation")),
+           "decisions_stored": bool(variant.get("decisions")),
+           "score": (variant.get("evaluation") or {}).get("score"),
+           "send_back": prop.get("send_back"), "project": _project_summary(proj)}
+    if changed:
+        out["edited"] = changed
+        out["note"] = ("the stored objective evaluation was computed for the proposed parameters; "
+                       "propose again to evaluate the edited chain")
+    return out
 
 
 @_face_safe
@@ -1430,6 +1539,8 @@ def planner_run(project_path: str | Path, *, variant: str | None = None, profile
                            max_iter=int(max_iter), objective=_objective_arg(objective))
     prop["status"] = "proposed"
     prop["proposed_at"] = _now_iso()
+    prop["author"] = _proposal_author(actor)
+    prop["requested_by"] = actor
     rel = _save_proposal(proj, prop)
     its = (prop.get("planner") or {}).get("iterations") or []
     out = {"proposal_id": prop["proposal_id"], "proposal_path": rel, "applied": False,
@@ -1519,3 +1630,660 @@ def knowledge_lookup(query: str | None = None, *, id: str | None = None, kind: s
     """Look up knowledge data (SPEC 7.3, 10.3): rules R-01..R-33, perceptual vocabulary and bands,
     genre priors, thresholds, objective metric tables. Free text matches ids, labels and notes."""
     return _mod("knowledge").knowledge_lookup(query, id=id, kind=kind, source=source, limit=limit, detail=detail)
+
+
+# ---------------------------------------------------------------------------
+# Model registry and stem separation (M6: SPEC 6.2, 12, S-10, S-11, D-060)
+# ---------------------------------------------------------------------------
+
+def _model_entries() -> dict[str, dict]:
+    reg = _mod("registry")
+    entries = list(reg.load_catalog().get("models") or []) + list(reg.load_byow().get("models") or [])
+    return {m["id"]: m for m in entries if isinstance(m, dict) and m.get("id")}
+
+
+def _license_block(entry: dict) -> dict:
+    lic = entry.get("license") if isinstance(entry.get("license"), dict) else {}
+    return {"code": lic.get("code"), "weights": lic.get("weights"),
+            "usage_restrictions": lic.get("usage_restrictions"),
+            "evidence": [e for e in lic.get("evidence") or [] if isinstance(e, dict)],
+            "caveats": list(lic.get("caveats") or [])}
+
+
+@_face_safe
+def model_list() -> dict:
+    """Registered models: the official catalogue and local BYOW registrations, with local state
+    (``installed`` = weights present). Weights are never bundled (SPEC 12.1)."""
+    res = _mod("registry").model_list()
+    entries = _model_entries()
+    for m in res.get("models") or []:
+        e = entries.get(m.get("id")) or {}
+        m["installed"] = m.get("state") in ("installed", "registered")
+        m["license"] = _license_block(e)
+        m["attribution"] = e.get("attribution")
+        if e.get("status_reason"):
+            m["status_reason"] = e["status_reason"]
+    return res
+
+
+@_face_safe
+def model_show(id: str) -> dict:
+    """One model: license with evidence, attribution, pinned files and whether they are present."""
+    return _mod("registry").model_show(id)
+
+
+@_face_safe
+def model_pull(id: str, *, allow_candidate: bool = False, force: bool = False) -> dict:
+    """Download a catalogue model from its pinned official source and verify the sha256.
+    Only 'verified' entries are pulled unless ``allow_candidate`` (SPEC 12.2, S-10)."""
+    return _mod("registry").model_pull(id, allow_candidate=allow_candidate, force=force)
+
+
+@_face_safe
+def model_register(path: str | Path, *, id: str, license_weights: str, license_code: str | None = None,
+                   usage_restrictions: str = "unknown", evidence_url: str | None = None,
+                   task: str = "separation", architecture: str | None = None, stems: list[str] | None = None,
+                   runtime: dict | None = None, attribution: str = "", note: str = "",
+                   replace: bool = False) -> dict:
+    """Register your own weights (BYOW, SPEC 12.4): the file is hashed in place, never copied,
+    downloaded or redistributed; the declared license is recorded and is the user's responsibility."""
+    runtime = _parse_json_value(runtime, "runtime") if isinstance(runtime, str) else runtime
+    if isinstance(stems, str):
+        stems = [s.strip() for s in stems.split(",") if s.strip()]
+    return _mod("registry").model_register(
+        path, id=id, license_weights=license_weights, license_code=license_code,
+        usage_restrictions=usage_restrictions, evidence_url=evidence_url, task=task,
+        architecture=architecture, stems=stems, runtime=runtime, attribution=attribution, note=note,
+        replace=replace)
+
+
+@_face_safe
+def model_verify(id: str) -> dict:
+    """Re-hash a model's local weight files (no cache) against the pinned sha256."""
+    return _mod("registry").model_verify(id)
+
+
+@_face_safe
+def model_remove(id: str) -> dict:
+    """Official model: delete the downloaded weights. BYOW: forget the registration (file untouched)."""
+    return _mod("registry").model_remove(id)
+
+
+@_face_safe
+def separate(project_path: str | Path, *, model: str | None = None, source: str | None = None,
+             mode: str = "preview", stems: list[str] | None = None, device: str = "auto",
+             allow_candidate: bool = False, add_tracks: bool | None = None, excerpt_s: float | None = None,
+             actor: str = "human") -> dict:
+    """Separate a project asset (default: the full mix) into stems with a registered model (SPEC 6.2).
+
+    ``mode`` 'preview' separates the loudest excerpt (``excerpt_s``, default 30 s) and adds assets
+    only; 'full' separates the whole file and also adds tracks restricted to balance operations
+    (R-22). The model runs in a worker subprocess (D-060); nothing is downloaded here (S-10) and
+    the source asset is never modified (S-11)."""
+    _mod("journal").check_actor(actor)
+    if isinstance(stems, str):
+        stems = [s.strip() for s in stems.split(",") if s.strip()]
+    proj = _open(project_path)
+    kw: dict[str, Any] = {}
+    if excerpt_s is not None:
+        kw["excerpt_s"] = float(excerpt_s)
+    return _mod("separation").separate(proj, model_id=model, source_asset=source, mode=mode, stems=stems,
+                                       device=device, allow_candidate=allow_candidate, add_tracks=add_tracks,
+                                       actor=actor, **kw)
+
+
+@_face_safe
+def separation_list(project_path: str | Path) -> dict:
+    """Separation records of a project (model id and sha256, license, attribution, stems)."""
+    recs = _mod("separation").separation_records(_open(project_path))
+    return {"separations": recs, "count": len(recs)}
+
+
+# ---------------------------------------------------------------------------
+# Views for the GUI and the other faces (M8, SPEC 11, 15.2). Read-only compositions
+# of project data, proposals, renders, verification and analysis results; every
+# face gets the same view (SPEC 10.1).
+# ---------------------------------------------------------------------------
+
+LISTEN_DIR = "cache/listen"
+
+
+class NotGenerated(InputError):
+    code = "not_generated"
+
+
+def _write_json_atomic(path: Path, obj: Any) -> None:
+    """Like _write_json, with a unique temp file (the GUI server reads views from several threads)."""
+    import threading
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _file_key(path: Path) -> str:
+    st = path.stat()
+    return f"{path.name}|{st.st_size}|{st.st_mtime_ns}"
+
+
+def _safe_name(rel: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", rel).strip("_")[:120] or "x"
+
+
+def _listen_cached(proj, name: str, key: str, compute: Callable[[], Any]) -> Any:
+    """Derived data cached under cache/listen/<name>.json, recomputed when ``key`` changes."""
+    f = Path(proj.root) / LISTEN_DIR / f"{_safe_name(name)}.json"
+    try:
+        stored = json.loads(f.read_text(encoding="utf-8"))
+        if isinstance(stored, dict) and stored.get("key") == key:
+            return stored.get("value")
+    except (OSError, ValueError):
+        pass
+    value = _jsonable(compute())
+    try:
+        _write_json_atomic(f, {"key": key, "value": value})
+    except OSError:
+        pass   # only a cache
+    return value
+
+
+def _variant_ids(data: dict) -> list[str]:
+    return [v.get("id") for v in data.get("variants", []) or [] if isinstance(v, dict)]
+
+
+def _find_variant(data: dict, vid: str | None) -> dict | None:
+    return next((v for v in data.get("variants", []) or [] if isinstance(v, dict) and v.get("id") == vid), None)
+
+
+def _rendered_files(proj, vid: str) -> dict:
+    """Rendered files of a variant on disk: archive master and outputs (Paths or None)."""
+    render_mod, cfg = _mod("render"), _mod("config")
+    vdir = render_mod.variant_dir(proj, vid)
+    out: dict[str, Any] = {"archive": None, "outputs": []}
+    try:
+        ad = cfg.get_delivery(render_mod.ARCHIVE_DELIVERY)
+        archive = vdir / f"master__{render_mod.ARCHIVE_DELIVERY}.{render_mod.output_ext(ad)}"
+        out["archive"] = archive if archive.is_file() else None
+    except MankoError:
+        pass
+    for o in (_find_variant(proj.data, vid) or {}).get("outputs") or []:
+        try:
+            prof = cfg.get_profile(o.get("profile"))
+            d = cfg.get_delivery(o.get("delivery"))
+        except MankoError:
+            continue
+        p = vdir / render_mod.output_name(prof["id"], d)
+        out["outputs"].append({"profile": prof["id"], "delivery": d["id"], "path": p if p.is_file() else None})
+    return out
+
+
+def _after_file(proj, vid: str | None) -> Path | None:
+    if not vid:
+        return None
+    files = _rendered_files(proj, vid)
+    return files["archive"] or next((o["path"] for o in files["outputs"] if o["path"]), None)
+
+
+def _route_of(proj, vid: str | None) -> str:
+    v = _find_variant(proj.data, vid) if vid else None
+    if v is not None:
+        return _mod("render").variant_route(proj, v)
+    return _mod("routes").select_route(proj)["route"]
+
+
+def _before_file(proj, vid: str | None) -> tuple[Path | None, str, str | None]:
+    """The unprocessed 'before' of SPEC 15.2 -> (file, kind, analysis key).
+
+    Full-mix route: the full-mix asset itself. Stem routes: the static stem sum (gain 0 dB,
+    no processing), written once to cache/listen/ and keyed by the stem hashes and the rate."""
+    data = proj.data
+    route = _route_of(proj, vid)
+    fm = _mod("routes").fullmix_asset_id(data)
+    if route == "full_mix" and fm:
+        p = Path(proj.asset_path(fm))
+        return (p if p.is_file() else None), "fullmix", fm
+    ids = {a.get("id") for a in _asset_list(data)}
+    stems = [s for s in _stem_ids(data) if s in ids]
+    if not stems:
+        return None, "none", None
+    rate = _project_rate(data) or 48000
+    shas = {a["id"]: a.get("sha256") for a in _asset_list(data)}
+    key = hashlib.sha256(json.dumps({"rate": rate, "stems": [[s, shas.get(s)] for s in sorted(stems)]},
+                                    sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    d = Path(proj.root) / LISTEN_DIR
+    f = d / f"before_stem_sum_{key}.wav"
+    if not f.is_file():
+        import threading
+
+        import numpy as np
+        x = _stem_sum_signal(proj, stems, rate)
+        d.mkdir(parents=True, exist_ok=True)
+        tmp = d / f".{f.stem}.{os.getpid()}.{threading.get_ident()}.tmp.wav"
+        _mod("audio_io").write(tmp, x.astype(np.float32), rate, subtype="FLOAT")
+        os.replace(tmp, f)
+        for old in d.glob("before_stem_sum_*.wav"):
+            if old != f:
+                try:
+                    old.unlink()
+                except OSError:
+                    pass
+    return f, "stem_sum", STEM_SUM_ID
+
+
+def _level(proj, path: Path) -> dict:
+    def compute():
+        x, sr = _mod("audio_io").read(path)
+        ld = _mod("measure.loudness")
+        lufs, tp = float(ld.integrated(x, sr)), float(ld.true_peak_dbtp(x, sr))
+        return {"lufs_i": round(lufs, 2) if math.isfinite(lufs) else None,
+                "true_peak_dbtp": round(tp, 2) if math.isfinite(tp) else None}
+    return _listen_cached(proj, "level_" + proj.rel(path), _file_key(path), compute)
+
+
+def _label2(ja: str, en: str) -> dict:
+    return {"ja": ja, "en": en}
+
+
+@_face_safe
+def variant_list(project_path: str | Path) -> dict:
+    """Variants (objective x media profile) with their objective blend, outputs and render state."""
+    proj = _open(project_path)
+    data = proj.data
+    out = []
+    for v in data.get("variants", []) or []:
+        if not isinstance(v, dict):
+            continue
+        obj = v.get("objective") if isinstance(v.get("objective"), dict) else data.get("objective")
+        obj = obj if isinstance(obj, dict) else None
+        blend = sorted([b for b in (obj or {}).get("blend") or [] if isinstance(b, dict)],
+                       key=lambda b: -float(b.get("weight") or 0))
+        outs = [o for o in v.get("outputs") or [] if isinstance(o, dict)]
+        files = _rendered_files(proj, v["id"])
+        out.append({
+            "id": v.get("id"), "label": v.get("label"),
+            "objectives": [b.get("id") for b in blend], "objective": obj,
+            "profile": outs[0].get("profile") if outs else "",
+            "deliveries": [o.get("delivery") for o in outs],
+            "intensity": (obj or {}).get("intensity"),
+            "available": True,
+            "has_master_chain": bool((v.get("master") or {}).get("chain")),
+            "rendered": files["archive"] is not None or any(o["path"] for o in files["outputs"]),
+        })
+    return {"variants": out, "count": len(out)}
+
+
+def _proposal_files(proj) -> list[Path]:
+    d = Path(proj.root) / PROPOSAL_DIR
+    if not d.is_dir():
+        return []
+    files = [p for p in d.glob("*.json") if p.is_file()]
+    return sorted(files, key=lambda p: (p.stat().st_mtime_ns, p.name), reverse=True)
+
+
+_PROPOSAL_STATUS = {"proposed": "pending", "pending": "pending", "applied": "applied", "rejected": "rejected"}
+
+
+def proposal_view(prop: dict) -> dict:
+    """A stage proposal as reviewable steps (target, processor with rule ids, editable params) plus
+    status and author: what a reviewer approves, edits or rejects (R-31, D-035)."""
+    stage = prop.get("stage")
+    steps: list[dict] = []
+    if isinstance(prop.get("steps"), list):
+        steps = [s for s in prop["steps"] if isinstance(s, dict)]
+    else:
+        for p in prop.get("chain") or []:
+            if not isinstance(p, dict):
+                continue
+            proc = dict(p)
+            proc.setdefault("reason", "")
+            params = proc.get("params") if isinstance(proc.get("params"), dict) else {}
+            steps.append({"target": p.get("target") or "master", "processor": proc, "editable": sorted(params)})
+    ev = prop.get("objective_evaluation") or {}
+    score = ev.get("score")
+    vid = prop.get("variant")
+    sc = f" (score {score:.3f})" if isinstance(score, (int, float)) else ""
+    rej = prop.get("rejection") if isinstance(prop.get("rejection"), dict) else {}
+    edits = prop.get("edits") if isinstance(prop.get("edits"), dict) else {}
+    return {
+        "id": prop.get("proposal_id"), "proposal_id": prop.get("proposal_id"),
+        "stage": "cleanup" if stage == "clean" else stage, "variant": vid,
+        "author": prop.get("author") or "planner",
+        "status": _PROPOSAL_STATUS.get(prop.get("status") or "proposed", "pending"),
+        "created_at": prop.get("proposed_at"),
+        "summary": _label2(f"{stage} の計画" + (f"（{vid}）" if vid else "") + sc,
+                           f"{stage} plan" + (f" for {vid}" if vid else "") + sc),
+        "steps": steps,
+        "score": _r4(score),
+        "alternatives": prop.get("alternatives") or [],
+        "reject_reason": rej.get("reason"),
+        "edited": edits.get("changed"),
+    }
+
+
+@_face_safe
+def proposal_list(project_path: str | Path, *, variant: str | None = None, stage: str | None = None,
+                  status: str | None = None) -> dict:
+    """Stage proposals saved under cache/proposals/ (planner and agent proposals, any status),
+    newest first, as reviewable steps. ``status``: pending, applied or rejected."""
+    proj = _open(project_path)
+    stage = _STAGE_ALIASES.get(stage, stage) if stage else None
+    out = []
+    for f in _proposal_files(proj):
+        try:
+            prop = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(prop, dict) or not prop.get("proposal_id"):
+            continue
+        if (variant and prop.get("variant") != variant) or (stage and prop.get("stage") != stage):
+            continue
+        view = proposal_view(prop)
+        if status and view["status"] != status:
+            continue
+        out.append(view)
+    return {"proposals": out, "count": len(out)}
+
+
+@_face_safe
+def proposal_get(project_path: str | Path, proposal_id: str) -> dict:
+    """One saved proposal: its reviewable view and the full proposal."""
+    proj = _open(project_path)
+    f = _proposal_file(proj, proposal_id)
+    if not f.is_file():
+        raise NotGenerated(f"proposal not found: {proposal_id}")
+    try:
+        prop = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise InputError(f"cannot read proposal {f.name}: {e}") from None
+    return {"view": proposal_view(prop), "proposal": prop}
+
+
+_CHECK_STATUS = {"pass": "pass", "fail": "fail", "warning": "warning", "not_run": "not_run",
+                 "not_evaluated": "not_run", "incomplete": "not_run", "missing": "fail"}
+_STATUS_RANK = {"fail": 3, "warning": 2, "not_run": 1, "pass": 0}
+
+
+def _first_measured(check: dict) -> Any:
+    m = check.get("measured")
+    if isinstance(m, dict) and m:
+        return next(iter(m.values()))
+    return check.get("value")
+
+
+def verification_view(report: dict, variant: dict | None = None) -> dict:
+    """A verify report (reports/verify_<variant>.json) as constraint, profile, codec and noise rows.
+    Checks that could not run stay 'not_run', never 'pass' (SPEC 6.7)."""
+    outputs = [o for o in report.get("outputs") or [] if isinstance(o, dict)]
+    worst: dict[str, tuple[str, dict, dict]] = {}
+    profiles, codecs = [], []
+    noise: dict | None = None
+    for o in outputs:
+        checks = o.get("checks") if isinstance(o.get("checks"), dict) else {}
+        for cid, c in checks.items():
+            if not isinstance(c, dict):
+                continue
+            st = _CHECK_STATUS.get(str(c.get("status")))
+            if st is None:          # not_applicable
+                continue
+            if cid not in worst or _STATUS_RANK[st] > _STATUS_RANK[worst[cid][0]]:
+                worst[cid] = (st, c, o)
+        meas = o.get("measured") or {}
+        profiles.append({"profile": o.get("profile"), "delivery": o.get("delivery"),
+                         "status": _CHECK_STATUS.get(str(o.get("overall")), "not_run"),
+                         "lufs_i": meas.get("lufs_i"), "true_peak_dbtp": meas.get("true_peak_dbtp"),
+                         "note": (checks.get("render") or {}).get("reason")})
+        s02 = checks.get("S-02") if isinstance(checks.get("S-02"), dict) else {}
+        for codec, r in (s02.get("codecs") or {}).items():
+            if isinstance(r, dict):
+                codecs.append({"codec": codec, "status": _CHECK_STATUS.get(str(r.get("status")), "not_run"),
+                               "true_peak_dbtp": r.get("true_peak_dbtp"),
+                               "ceiling_dbtp": s02.get("codec_after_ceiling_dbtp"),
+                               "note": f"{o.get('profile')} / {o.get('delivery')}"
+                                       + (f": {r['reason']}" if r.get("reason") else "")})
+        s08 = checks.get("S-08")
+        if isinstance(s08, dict) and noise is None:
+            noise = {"status": _CHECK_STATUS.get(str(s08.get("status")), "not_run"),
+                     "delta_db": s08.get("delta_db"), "tolerance_db": s08.get("tolerance_db"),
+                     "note": s08.get("reason")}
+    constraints = []
+    for cid in sorted(worst):
+        st, c, o = worst[cid]
+        limit = c.get("ceiling_dbtp", c.get("window_lufs_i", c.get("limit")))
+        constraints.append({"id": cid, "status": st, "value": _first_measured(c), "limit": limit,
+                            "note": c.get("reason") or (f"{o.get('profile')} / {o.get('delivery')}"
+                                                        if len(outputs) > 1 else None)})
+    g = ((variant or {}).get("evaluation") or {}).get("gate") or {}
+    gate = {"status": _CHECK_STATUS.get(str(g.get("status")), "not_run") if g else "not_run",
+            "checks": [{"id": c.get("id"), "label": c.get("label") or c.get("id"),
+                        "status": _CHECK_STATUS.get(str(c.get("status")), "not_run"), "note": c.get("reason")}
+                       for c in g.get("checks") or [] if isinstance(c, dict)]}
+    return {"schema_version": 1, "variant": report.get("variant"),
+            "overall": _CHECK_STATUS.get(str(report.get("overall")), "not_run"),
+            "constraints": constraints, "gate": gate, "profiles": profiles,
+            "noise_return": noise or {"status": "not_run", "delta_db": None, "tolerance_db": None,
+                                      "note": "no rendered output"},
+            "codec": codecs}
+
+
+@_face_safe
+def verification_get(project_path: str | Path, variant: str | None = None) -> dict:
+    """The last verification of a variant (reports/verify_<variant>.json) without re-running it,
+    as constraint/profile/codec rows; ``stale`` when the project changed since."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    f = Path(proj.root) / "reports" / f"verify_{vid}.json"
+    if not f.is_file():
+        raise NotGenerated(f"variant '{vid}' has not been verified yet",
+                           details={"hint": "run verify (CLI `mankomix verify`, MCP verify_run)"})
+    try:
+        rep = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise InputError(f"cannot read {f.name}: {e}") from None
+    view = verification_view(rep, _find_variant(proj.data, vid))
+    try:
+        stale = rep.get("project_hash") != proj.content_hash()
+    except Exception:
+        stale = None
+    return {**view, "passed": rep.get("passed"), "stale": stale, "path": proj.rel(f),
+            "outputs": rep.get("outputs"), "archive": rep.get("archive")}
+
+
+@_face_safe
+def audio_set(project_path: str | Path, variant: str | None = None) -> dict:
+    """Listening set of a variant (SPEC 15.2): before (unprocessed: the full mix, or the static
+    stem sum), after (the rendered master), the cleanup delta, and the level-match gain that lowers
+    the louder side (``match_gain_db`` <= 0 applied to ``match_target``). Paths are project-relative."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    after = _after_file(proj, vid)
+    before, kind, _key = _before_file(proj, vid)
+    fm = _mod("routes").fullmix_asset_id(proj.data)
+    fm_path = Path(proj.asset_path(fm)) if fm else None
+    deltas: dict[str, str] = {}
+    ddir = Path(proj.root) / "renders" / "delta"
+    if ddir.is_dir():
+        for p in sorted(ddir.glob("*.wav")):
+            deltas[p.stem] = proj.rel(p)
+    if kind == "fullmix" and fm:
+        delta = deltas.get(fm)
+    else:
+        delta = next(iter(deltas.values())) if len(deltas) == 1 else None
+    out: dict[str, Any] = {
+        "variant": vid, "before_kind": kind,
+        "files": {"before": proj.rel(before) if before else None, "after": proj.rel(after) if after else None,
+                  "delta": delta, "before_level_matched": None,
+                  "fullmix_reference": proj.rel(fm_path) if (kind != "fullmix" and fm_path is not None
+                                                             and fm_path.is_file()) else None},
+        "deltas": deltas, "match_gain_db": 0.0, "match_target": "after", "measurements": {},
+    }
+    if before is not None:
+        out["measurements"]["before"] = _level(proj, before)
+    if after is not None:
+        out["measurements"]["after"] = _level(proj, after)
+    lb = (out["measurements"].get("before") or {}).get("lufs_i")
+    la = (out["measurements"].get("after") or {}).get("lufs_i")
+    if lb is not None and la is not None:
+        if lb > la:
+            out["match_target"], out["match_gain_db"] = "before", round(la - lb, 2)
+        else:
+            out["match_target"], out["match_gain_db"] = "after", round(lb - la, 2)
+        out["note"] = _label2("レベルマッチ: 大きい方を下げて統合ラウドネスを揃える（R-01）",
+                              "level match: the louder side is lowered to equal integrated loudness (R-01)")
+    elif after is None:
+        out["note"] = _label2("処理後の音声がまだない。render を実行する", "no rendered output yet: run render")
+    return out
+
+
+def _vector_of(proj, index: dict, key: str | None) -> dict | None:
+    if not key:
+        return None
+    rec = index.get(key) if isinstance(index, dict) else None
+    rel = rec.get("path") if isinstance(rec, dict) and rec.get("path") else f"{ANALYSIS_DIR}/{key}.json"
+    try:
+        stored = json.loads((Path(proj.root) / rel).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    v = stored.get("vector") if isinstance(stored, dict) else None
+    return v if isinstance(v, dict) else None
+
+
+def _file_vector(proj, path: Path) -> dict:
+    return _listen_cached(proj, "vector_" + proj.rel(path), _file_key(path),
+                          lambda: _mod("measure.vector").measure_file(path))
+
+
+def _st_series(proj, path: Path, hop_s: float = 1.0) -> list:
+    def compute():
+        x, sr = _mod("audio_io").read(path)
+        ld = _mod("measure.loudness")
+        st = ld.short_term(x, sr)
+        step = max(1, int(round(hop_s / ld.HOP_S)))
+        return [round(float(v), 2) if math.isfinite(float(v)) and float(v) > ld.ABS_GATE_LUFS else None
+                for v in st[::step]]
+    return _listen_cached(proj, f"series_{hop_s}_" + proj.rel(path), _file_key(path), compute)
+
+
+def _g(d: Any, *keys: str) -> Any:
+    for k in keys:
+        if not isinstance(d, dict):
+            return None
+        d = d.get(k)
+    return d
+
+
+def _num(v: Any, nd: int = 2) -> Any:
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+        return round(float(v), nd)
+    return None
+
+
+def _centroid_hz(vec: dict) -> float | None:
+    lt = _g(vec, "LTAS", "third_octave") or {}
+    num = den = 0.0
+    for c, lv in zip(lt.get("center_hz") or [], lt.get("level_db") or []):
+        if isinstance(lv, (int, float)) and isinstance(c, (int, float)):
+            p = 10.0 ** (lv / 10.0)
+            num += c * p
+            den += p
+    return round(num / den, 1) if den > 0 else None
+
+
+_METRIC_ROWS = (
+    ("integrated_lufs", ("P-03", "integrated_lufs"), "LUFS", "Integrated loudness", "in_range"),
+    ("true_peak_dbtp", ("P-14", "true_peak_dbtp"), "dBTP", "True peak", "lower"),
+    ("lra_lu", ("P-03", "lra_lu"), "LU", "Loudness range", "in_range"),
+    ("plr_db", ("P-03", "plr_db"), "dB", "Peak to loudness ratio", "higher"),
+    ("psr_db", ("P-03", "psr_db"), "dB", "Peak to short-term ratio", "higher"),
+    ("correlation", ("P-05", "full_band", "correlation"), "", "Stereo correlation", "higher"),
+    ("mono_loss_db", ("P-06", "full_band", "mono_loss_db"), "dB", "Mono fold-down loss", "lower"),
+)
+
+
+@_face_safe
+def analysis_view(project_path: str | Path, variant: str | None = None) -> dict:
+    """Cached measurements arranged for display (SPEC 11.2 analysis and mix map): short-term
+    loudness over time, LTAS, band correlation, stem placement, ingest diagnostics and key metrics,
+    before (unprocessed) and after (the variant's rendered master, when there is one). Needs
+    ``analyze`` first; derived data is cached under cache/listen/, project.json is not changed."""
+    proj = _open(project_path)
+    data = proj.data
+    vid = None if (variant is None and not _variant_ids(data)) else _variant_or_default(proj, variant)
+    index = data.get("analysis_index") if isinstance(data.get("analysis_index"), dict) else {}
+    vb = None
+    before, kind, key = None, "none", None
+    if index:
+        before, kind, key = _before_file(proj, vid)
+        vb = _vector_of(proj, index, key)
+    if before is None or vb is None:
+        raise NotGenerated("no analysis yet: run analyze first",
+                           details={"hint": "CLI `mankomix analyze`, MCP analyze_run"})
+    after = _after_file(proj, vid)
+    va = _file_vector(proj, after) if after is not None else None
+
+    lt_b = _g(vb, "LTAS", "third_octave") or {}
+    lt_a = _g(va, "LTAS", "third_octave") or {}
+    a_map = {round(c, 1): lv for c, lv in zip(lt_a.get("center_hz") or [], lt_a.get("level_db") or [])}
+    freqs = [round(c, 1) for c in lt_b.get("center_hz") or []]
+    bands_b = _g(vb, "P-05", "bands") or {}
+    bands_a = _g(va, "P-05", "bands") or {}
+    band_rows = []
+    for bid, b in bands_b.items():
+        rng = (b or {}).get("range_hz") or [None, None]
+        band_rows.append({"id": bid, "lo_hz": rng[0], "hi_hz": rng[1],
+                          "before": _num((b or {}).get("correlation"), 3),
+                          "after": _num((bands_a.get(bid) or {}).get("correlation"), 3) if va else None})
+
+    stems = []
+    depth_order = [t for t in (_g(data, "mix", "declared_depth_order") or []) if isinstance(t, str)]
+    for t in data.get("tracks", []) or []:
+        if not isinstance(t, dict) or t.get("role") == "fullmix" or t.get("muted"):
+            continue
+        aids = [c.get("asset") for c in t.get("clips") or [] if isinstance(c, dict) and c.get("asset")]
+        vec = _vector_of(proj, index, aids[0]) if aids else None
+        if vec is None:
+            continue
+        lufs = _num(_g(vec, "P-03", "integrated_lufs"))
+        tid = t.get("id")
+        declared = tid in depth_order
+        depth = (1.0 - depth_order.index(tid) / max(1, len(depth_order))) if declared else 0.5
+        stems.append({"track": tid, "role": t.get("role"), "centroid_hz": _centroid_hz(vec),
+                      "depth": round(depth, 3), "depth_source": "declared" if declared else "default",
+                      "level_db": None if lufs is None else round(lufs + float(t.get("gain_db") or 0.0), 2),
+                      "pan": _num(_g(t, "pan", "position"), 3) or 0.0})
+
+    level_map = {"error": "fail", "warning": "warning", "info": "ok"}
+    diagnostics = [{"id": c.get("check") or c.get("id"), "metric": c.get("check"),
+                    "label": c.get("message") or c.get("check"), "value": None,
+                    "status": level_map.get(str(c.get("level")), "ok"), "note": c.get("asset")}
+                   for c in (_g(data, "ingest", "checks") or []) if isinstance(c, dict)]
+
+    metrics = [{"id": mid, "label": label, "unit": unit, "better": better,
+                "before": _num(_g(vb, *path), 3), "after": _num(_g(va, *path), 3) if va else None}
+               for mid, path, unit, label, better in _METRIC_ROWS]
+
+    def pair(*path):
+        return {"before": _num(_g(vb, *path)), "after": _num(_g(va, *path)) if va else None}
+
+    return {
+        "schema_version": 1, "variant": vid, "before_kind": kind,
+        "files": {"before": proj.rel(before), "after": proj.rel(after) if after else None},
+        "loudness": {"hop_s": 1.0, "before": _st_series(proj, before),
+                     "after": _st_series(proj, after) if after is not None else None,
+                     "integrated_lufs": pair("P-03", "integrated_lufs"),
+                     "true_peak_dbtp": pair("P-14", "true_peak_dbtp"), "lra_lu": pair("P-03", "lra_lu")},
+        "ltas": {"freqs_hz": freqs, "before": [_num(v) for v in lt_b.get("level_db") or []],
+                 "after": [_num(a_map.get(f)) for f in freqs] if va else None, "reference": None},
+        "band_correlation": {"bands": band_rows},
+        "stems": stems,
+        "masking": [],
+        "diagnostics": diagnostics,
+        "metrics": metrics,
+        "notes": ["metrics are not level-matched; masking pairs need the mix-stage analysis (M4)"],
+    }
+
+
+__all__ += [
+    "model_list", "model_show", "model_pull", "model_register", "model_verify", "model_remove",
+    "separate", "separation_list", "delivery_list", "variant_list", "proposal_list", "proposal_get",
+    "proposal_view", "verification_view", "verification_get", "audio_set", "analysis_view", "NotGenerated",
+]
