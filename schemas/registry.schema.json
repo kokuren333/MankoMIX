@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mankomix.invalid/schemas/registry.schema.json",
+  "title": "MankoMIX model registry",
+  "description": "Validates registry/models.json and BYOW registrations (docs/SPEC.md section 12.2). Entries without license metadata (license.weights, license.evidence) are invalid. Entries with usage restrictions cannot be in the official tier. A 'verified' entry must pin a download URL and sha256.",
+  "type": "object",
+  "required": ["schema_version", "models"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["draft", "provisional", "verified"] },
+    "note": { "type": "string" },
+    "models": { "type": "array", "items": { "$ref": "#/$defs/model" } },
+    "excluded_from_standard_route": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "reason", "allowed_via"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "reason": { "type": "string" },
+          "allowed_via": { "const": "byow" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "url": { "type": "string", "pattern": "^https?://[^\\s]+$" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "model": {
+      "type": "object",
+      "required": ["id", "task", "license", "tier", "status"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]*$" },
+        "task": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "stems": { "type": "array", "items": { "type": "string" } },
+        "architecture": { "type": "string" },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "backend": { "type": "string" },
+            "min_vram_gb": { "type": ["number", "null"], "minimum": 0 },
+            "cpu_ok": { "type": "boolean" }
+          }
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "source_url": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/url" }] },
+            "sha256": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[0-9a-f]{64}$" }] },
+            "size_bytes": { "type": ["integer", "null"], "minimum": 0 }
+          }
+        },
+        "license": {
+          "type": "object",
+          "required": ["weights", "evidence", "usage_restrictions"],
+          "additionalProperties": true,
+          "properties": {
+            "code": { "type": ["string", "null"] },
+            "weights": { "type": "string", "minLength": 1 },
+            "usage_restrictions": { "type": "string", "minLength": 1 },
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["url", "checked_on"],
+                "additionalProperties": true,
+                "properties": {
+                  "url": { "$ref": "#/$defs/url" },
+                  "checked_on": { "$ref": "#/$defs/date" },
+                  "note": { "type": "string" }
+                }
+              }
+            },
+            "caveats": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "attribution": { "type": "string" },
+        "tier": { "enum": ["official", "byow"] },
+        "status": { "enum": ["candidate", "draft", "verified", "rejected", "deprecated"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "tier": { "const": "official" } }, "required": ["tier"] },
+          "then": {
+            "properties": {
+              "license": {
+                "properties": {
+                  "usage_restrictions": { "const": "none" },
+                  "weights": { "not": { "enum": ["unknown", "Unknown", "UNKNOWN"] } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "verified" } }, "required": ["status"] },
+          "then": {
+            "required": ["weights"],
+            "properties": {
+              "weights": {
+                "required": ["source_url", "sha256"],
+                "properties": {
+                  "source_url": { "$ref": "#/$defs/url" },
+                  "sha256": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

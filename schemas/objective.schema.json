@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mankomix.invalid/schemas/objective.schema.json",
+  "title": "MankoMIX objective definitions",
+  "description": "Validates objectives/catalog.json (a catalog with an 'objectives' array) or a single user-defined objective file (docs/SPEC.md sections 4.4, 4.8). Objectives only weight measurements; they can never relax safety invariants (S-nn), so fields that look like a relaxation are rejected. The per-objective weight sum (1.0 for kind 'score') is checked by core/schema.py.",
+  "if": { "type": "object", "required": ["objectives"] },
+  "then": { "$ref": "#/$defs/catalog" },
+  "else": { "$ref": "#/$defs/standalone" },
+  "$defs": {
+    "no_relaxation_names": {
+      "propertyNames": {
+        "not": { "pattern": "[Rr]elax|[Ww]aive|[Ss]uspend|[Dd]isable|[Bb]ypass|[Ii]gnore_constraint|[Cc]onstraints?_override" }
+      }
+    },
+    "localized": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string" },
+      "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" }
+    },
+    "metric_id": { "type": "string", "pattern": "^P-(0[1-9]|1[0-9]|2[0-2])$" },
+    "constraint_id": { "type": "string", "pattern": "^S-(0[1-9]|1[01])$" },
+    "status": { "enum": ["draft", "provisional", "calibrated", "verified", "deprecated"] },
+
+    "term": {
+      "type": "object",
+      "required": ["metric", "weight", "sense"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": { "$ref": "#/$defs/metric_id" },
+        "variant": { "type": "string", "pattern": "^[a-z0-9_+]+$" },
+        "weight": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "sense": { "enum": ["keep_in_range", "minimize", "minimize_excess", "keep_order", "preserve", "raise_to_target"] },
+        "params": { "type": "object" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "param": {
+      "type": "object",
+      "required": ["default"],
+      "additionalProperties": true,
+      "properties": {
+        "default": {},
+        "unit": { "type": "string" },
+        "range": { "type": "array" },
+        "description": { "type": "string" }
+      }
+    },
+
+    "objective": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "allOf": [{ "$ref": "#/$defs/no_relaxation_names" }],
+      "additionalProperties": false,
+      "patternProperties": { "^x_[a-z0-9_]+$": {} },
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "spec_id": { "type": "string", "pattern": "^OF-[0-9]+$" },
+        "schema_version": { "const": 1 },
+        "kind": { "enum": ["score", "gate"] },
+        "status": { "$ref": "#/$defs/status" },
+        "provisional": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/localized" },
+        "summary": { "$ref": "#/$defs/localized" },
+        "terms": { "type": "array", "items": { "$ref": "#/$defs/term" } },
+        "checks": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+        "always_applied": { "type": "boolean" },
+        "constraints_emphasis": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/constraint_id" } },
+        "params": {
+          "type": "object",
+          "allOf": [{ "$ref": "#/$defs/no_relaxation_names" }],
+          "additionalProperties": { "$ref": "#/$defs/param" }
+        },
+        "report_notes": { "type": "array", "items": { "type": "string" } },
+        "evidence": { "type": "string" }
+      },
+      "if": { "properties": { "kind": { "const": "score" } } },
+      "then": { "required": ["terms"], "properties": { "terms": { "minItems": 1 } } },
+      "else": { "required": ["checks"] }
+    },
+
+    "standalone": {
+      "allOf": [
+        { "$ref": "#/$defs/objective" },
+        { "required": ["schema_version"] }
+      ]
+    },
+
+    "catalog": {
+      "type": "object",
+      "required": ["schema_version", "objectives"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1 },
+        "status": { "$ref": "#/$defs/status" },
+        "note": { "type": "string" },
+        "default": { "type": "string" },
+        "objectives": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/objective" } }
+      }
+    }
+  }
+}

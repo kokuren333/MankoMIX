@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Import-check thresholds (docs/SPEC.md 6.1.4, 6.1.5). Checks only measure and report; they never modify files and never trigger a conversion (A-12, D-030). Values marked 'practice' are conventions subject to calibration; 'decision' values are fixed defaults that may still be edited here.",
+  "length_mismatch": {
+    "reference": "longest_asset",
+    "reject_above": { "seconds": 0.5, "fraction_of_length": 0.005, "combine": "max" },
+    "below_or_equal": "warning",
+    "evidence": "decision",
+    "decision": "D-054",
+    "note": "Differences up to max(0.5 s, 0.5 % of the longest length) pass with a warning (trailing-silence trims). Larger differences suggest mixed renders and are rejected; alignment is asked, never time-stretched."
+  },
+  "silence": {
+    "peak_dbfs_below": -120.0,
+    "all_exact_zero_is_silent": true,
+    "level": "reject",
+    "evidence": "practice",
+    "note": "A stem whose samples are all exactly zero or whose peak stays below the threshold is reported as a failed export. Import still records it; the user decides to drop it or re-export."
+  },
+  "dc_offset": {
+    "warn_abs_mean_dbfs_above": -50.0,
+    "evidence": "practice"
+  },
+  "clipping": {
+    "clip_level_abs": 0.999,
+    "min_run_samples": 3,
+    "warn_min_runs": 1,
+    "report_over_full_scale": true,
+    "evidence": "practice",
+    "note": "A run is consecutive samples at or above clip_level_abs on one channel. Float files may legitimately exceed 1.0; that is reported separately as over-full-scale."
+  },
+  "head_click": {
+    "window_ms": 50.0,
+    "reference_ms": 500.0,
+    "min_jump_dbfs": -40.0,
+    "jump_over_reference_db": 12.0,
+    "reference_percentile": 99.9,
+    "evidence": "practice",
+    "note": "Largest sample-to-sample jump in the first window_ms (including the jump from silence to the first sample) compared with the high percentile of jumps in the following reference_ms."
+  },
+  "non_finite": {
+    "level": "warning"
+  },
+  "headroom": {
+    "over_limiting": { "true_peak_dbtp_above": -0.3, "plr_db_below": 8.0 },
+    "fallback": { "sample_peak_dbfs_above": -0.3, "crest_db_below": 8.0 },
+    "level": "warning",
+    "evidence": "practice",
+    "message": "likely master-bus processed (little headroom and low peak-to-loudness ratio)",
+    "note": "A mix for mastering should keep headroom without loudness maximising. The fallback (sample peak and RMS crest factor) is used only when the loudness module is unavailable."
+  },
+  "stem_sum": {
+    "level": "info",
+    "record_only": true,
+    "note": "Plain sum of all stems at gain 0, head-aligned at the project rate, compared with the bundled full mix: null residual in dB relative to the full mix and Pearson correlation. AI service stem exports often do not sum to their full mix, so this is never a reject; it feeds the mastering route choice (SPEC 6.6.1)."
+  }
+}

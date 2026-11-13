@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mankomix.invalid/schemas/profile.schema.json",
+  "title": "MankoMIX media profiles",
+  "description": "Validates profiles/media_profiles.json (docs/SPEC.md section 5.2). Loudness values are playback normalization levels (gates), not sound-design goals. Cross-file checks (default_delivery exists, target inside window, unique ids and aliases) are done by core/schema.py.",
+  "type": "object",
+  "required": ["schema_version", "profiles"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["draft", "provisional", "calibrated", "verified"] },
+    "as_of": { "$ref": "#/$defs/date" },
+    "note": { "type": "string" },
+    "profiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/profile" } }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "localized": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string" }
+    },
+    "lufs": { "type": "number", "minimum": -70, "maximum": 0 },
+    "dbtp": { "type": "number", "minimum": -20, "maximum": 0 },
+    "lufs_window": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/lufs" } }
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "required": ["id", "label", "kind", "loudness", "true_peak", "codec_checks", "playback_assumptions", "default_delivery", "source"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "aliases": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "label": { "$ref": "#/$defs/localized" },
+        "kind": { "enum": ["streaming", "sns", "club", "physical", "broadcast", "other"] },
+        "loudness": {
+          "type": "object",
+          "required": ["target_lufs_i", "window_lufs_i", "normalization", "policy"],
+          "additionalProperties": true,
+          "properties": {
+            "target_lufs_i": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/lufs" }] },
+            "window_lufs_i": { "$ref": "#/$defs/lufs_window" },
+            "normalization": { "enum": ["both", "down_only", "none", "varies", "context_dependent", "none_in_practice"] },
+            "scope": { "enum": ["track", "album"] },
+            "policy": { "enum": ["gate", "range", "objective_driven"] }
+          },
+          "if": { "properties": { "policy": { "enum": ["gate", "range"] } } },
+          "then": { "properties": { "target_lufs_i": { "type": "number" }, "window_lufs_i": { "type": "array" } } }
+        },
+        "true_peak": {
+          "type": "object",
+          "required": ["ceiling_dbtp"],
+          "additionalProperties": true,
+          "properties": {
+            "ceiling_dbtp": { "$ref": "#/$defs/dbtp" },
+            "range_dbtp": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/dbtp" } },
+            "post_codec_ceiling_dbtp": { "$ref": "#/$defs/dbtp" },
+            "conditional": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["when", "ceiling_dbtp"],
+                "additionalProperties": false,
+                "properties": {
+                  "when": { "type": "string", "pattern": "^lufs_i (<|<=|>|>=) -?[0-9]+(\\.[0-9]+)?$" },
+                  "ceiling_dbtp": { "$ref": "#/$defs/dbtp" }
+                }
+              }
+            }
+          }
+        },
+        "codec_checks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["aac", "opus", "mp3", "ogg_vorbis"] }
+        },
+        "playback_assumptions": {
+          "type": "object",
+          "required": ["mono_low_band_hz", "small_speaker_check", "mono_fold_check", "low_level_check"],
+          "additionalProperties": true,
+          "properties": {
+            "mono_low_band_hz": { "type": "number", "exclusiveMinimum": 0, "maximum": 500 },
+            "small_speaker_check": { "type": "boolean" },
+            "mono_fold_check": { "type": "boolean" },
+            "mono_fold_strict": { "type": "boolean" },
+            "low_level_check": { "type": "boolean" }
+          }
+        },
+        "default_delivery": { "$ref": "#/$defs/id" },
+        "source": {
+          "type": "object",
+          "required": ["confidence"],
+          "additionalProperties": true,
+          "properties": {
+            "confidence": { "enum": ["official", "consensus", "measured_consensus", "reported", "no_official_value", "practice"] },
+            "as_of": { "$ref": "#/$defs/date" },
+            "urls": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

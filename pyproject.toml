@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mankomix"
+version = "0.1.0"
+description = "Agent-first, deterministic mixing and mastering for AI-generated songs and stems"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "soundfile>=0.12",
+  "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+test-crosscheck = ["pyloudnorm>=0.1"]
+test = ["pytest>=7"]
+
+[project.scripts]
+mankomix = "mankomix.cli.main:main"
+mmx = "mankomix.cli.main:main"
+
+[tool.setuptools]
+package-dir = { "mankomix" = "mankomix", "mankomix.core" = "core", "mankomix.dsp" = "dsp", "mankomix.cli" = "cli", "mankomix.mcp" = "mcp" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mankomix*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+  "sample: regression tests that need the official sample set (set MANKOMIX_SAMPLE_DIR)",
+  "ffmpeg: tests that need an ffmpeg executable on PATH",
+  "slow: slow tests",
+]

@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mankomix.invalid/schemas/project.schema.json",
+  "title": "MankoMIX project (project.json)",
+  "description": "Canonical project document (docs/SPEC.md section 9). All paths are relative to the project folder. Semantic checks (reference resolution, unique ids, path hygiene, catalog lookups) are done by core/project.py in addition to this schema.",
+  "type": "object",
+  "required": ["schema_version", "id", "title", "timebase", "assets", "tracks", "buses", "mix", "objective", "engine"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x_[a-z0-9_]+$": {}
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^prj_[A-Za-z0-9_-]+$" },
+    "title": { "type": "string" },
+    "genre": { "type": ["string", "null"] },
+    "timebase": { "$ref": "#/$defs/timebase" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
+    "fullmix_asset": { "type": ["string", "null"] },
+    "ingest": { "$ref": "#/$defs/ingest" },
+    "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
+    "buses": { "type": "array", "items": { "$ref": "#/$defs/bus" } },
+    "mix": { "$ref": "#/$defs/mix" },
+    "objective": { "$ref": "#/$defs/objective" },
+    "references": { "type": "array", "items": { "$ref": "#/$defs/reference" } },
+    "listening_assumption": { "$ref": "#/$defs/listening_assumption" },
+    "variants": { "type": "array", "items": { "$ref": "#/$defs/variant" } },
+    "sections": { "type": "array", "items": { "$ref": "#/$defs/section" } },
+    "analysis_index": { "type": "object" },
+    "engine": { "$ref": "#/$defs/engine" },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "relpath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project-relative POSIX path. No drive letters, no leading slash, no backslashes, no '..' segments.",
+      "not": { "pattern": "(^[A-Za-z]:)|(^/)|(\\\\)|(^|/)\\.\\.(/|$)" }
+    },
+    "samples": { "type": "integer", "minimum": 0 },
+    "role": {
+      "enum": ["vocals", "backing_vocals", "drums", "percussion", "bass", "guitar", "keyboard", "synth", "strings", "brass", "woodwinds", "fx", "other", "fullmix"]
+    },
+    "label": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object", "additionalProperties": { "type": "string" } }
+      ]
+    },
+
+    "timebase": {
+      "type": "object",
+      "required": ["sample_rate", "bpm", "key", "length_samples", "conform_policy"],
+      "additionalProperties": true,
+      "properties": {
+        "sample_rate": { "type": ["integer", "null"], "exclusiveMinimum": 0 },
+        "bpm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "key": { "type": ["string", "null"] },
+        "length_samples": { "type": ["integer", "null"], "minimum": 0 },
+        "conform_policy": {
+          "type": "object",
+          "required": ["sample_rate", "alignment", "short_assets"],
+          "additionalProperties": true,
+          "properties": {
+            "sample_rate": { "const": "majority" },
+            "alignment": { "const": "head" },
+            "short_assets": { "const": "pad_silence_at_render" },
+            "applied": { "type": "array" }
+          }
+        }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "boolean", "null"] },
+      "properties": {
+        "source": { "type": ["string", "null"] },
+        "service": { "type": ["string", "null"] },
+        "input_kind": { "type": ["string", "null"] },
+        "detected_by": { "type": ["string", "null"] },
+        "declared_by_user": { "type": ["boolean", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "asset": {
+      "type": "object",
+      "required": ["id", "path", "sha256", "role", "origin"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "path": { "$ref": "#/$defs/relpath" },
+        "original_name": { "type": ["string", "null"] },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "format": { "type": ["string", "null"] },
+        "container": { "type": ["string", "null"] },
+        "subtype": { "type": ["string", "null"] },
+        "channels": { "type": ["integer", "null"], "minimum": 1 },
+        "sample_rate": { "type": ["integer", "null"], "exclusiveMinimum": 0 },
+        "length_samples": { "type": ["integer", "null"], "minimum": 0 },
+        "duration_s": { "type": ["number", "null"], "minimum": 0 },
+        "role": { "$ref": "#/$defs/role" },
+        "role_source": { "enum": ["filename_pattern", "filename_keyword", "user", "default"] },
+        "origin": { "enum": ["native_stem", "separated", "reference_fullmix", "derived", "added"] },
+        "linked": { "type": "boolean" }
+      },
+      "if": { "properties": { "linked": { "const": true } }, "required": ["linked"] },
+      "then": { "properties": { "path": { "pattern": "^linked/[^/]+$" } } }
+    },
+
+    "ingest": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "adapter": { "type": ["string", "null"] },
+        "input_kind": { "type": ["string", "null"] },
+        "detected_by": { "type": ["string", "null"] },
+        "files": { "type": "array" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["check", "level", "message"],
+            "additionalProperties": true,
+            "properties": {
+              "check": { "type": "string" },
+              "level": { "enum": ["info", "warning", "reject"] },
+              "asset": { "type": ["string", "null"] },
+              "message": { "type": "string" },
+              "values": { "type": "object" }
+            }
+          }
+        },
+        "conform": { "type": "object" },
+        "imported_at_seq": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+
+    "importance": {
+      "type": "object",
+      "required": ["value", "source"],
+      "additionalProperties": true,
+      "properties": {
+        "value": { "type": "number", "minimum": 0 },
+        "source": { "enum": ["default", "genre_prior", "user", "agent"] },
+        "by_section": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
+      }
+    },
+
+    "processor": {
+      "type": "object",
+      "required": ["id", "type", "params", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+        "params": { "type": "object" },
+        "reason": { "type": "string" },
+        "backend": { "type": ["string", "null"] },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "chain": { "type": "array", "items": { "$ref": "#/$defs/processor" } },
+
+    "clip": {
+      "type": "object",
+      "required": ["id", "asset", "source_start", "length", "timeline_start"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "asset": { "type": "string" },
+        "source_start": { "$ref": "#/$defs/samples" },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "timeline_start": { "$ref": "#/$defs/samples" },
+        "gain_db": { "type": "number" },
+        "fade_in": { "$ref": "#/$defs/samples" },
+        "fade_out": { "$ref": "#/$defs/samples" },
+        "muted": { "type": "boolean" }
+      }
+    },
+
+    "track": {
+      "type": "object",
+      "required": ["id", "role"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "audio" },
+        "name": { "type": "string" },
+        "role": { "$ref": "#/$defs/role" },
+        "is_lead": { "type": "boolean" },
+        "importance": { "$ref": "#/$defs/importance" },
+        "clips": { "type": "array", "items": { "$ref": "#/$defs/clip" } },
+        "cleanup": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "plan": { "type": ["string", "object", "null"] },
+            "overrides": { "type": "object" }
+          }
+        },
+        "chain": { "$ref": "#/$defs/chain" },
+        "gain_db": { "type": "number" },
+        "pan": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "position": { "type": "number", "minimum": -1, "maximum": 1 },
+            "width": { "type": "number", "minimum": 0 }
+          }
+        },
+        "muted": { "type": "boolean" },
+        "solo": { "type": "boolean" },
+        "sends": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bus"],
+            "additionalProperties": true,
+            "properties": {
+              "bus": { "type": "string" },
+              "level_db": { "type": "number" },
+              "pre_fader": { "type": "boolean" }
+            }
+          }
+        },
+        "output": { "type": "string" },
+        "automation": { "type": "object" }
+      }
+    },
+
+    "bus": {
+      "type": "object",
+      "required": ["id", "kind", "chain"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["mix", "fx", "group", "aux"] },
+        "name": { "type": "string" },
+        "chain": { "$ref": "#/$defs/chain" },
+        "gain_db": { "type": "number" },
+        "output": { "type": "string" }
+      }
+    },
+
+    "mix": {
+      "type": "object",
+      "required": ["pan_law_center_db"],
+      "additionalProperties": true,
+      "properties": {
+        "pan_law_center_db": { "type": "number", "maximum": 0, "minimum": -6 },
+        "declared_depth_order": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "objective": {
+      "type": "object",
+      "required": ["blend", "intensity"],
+      "additionalProperties": false,
+      "properties": {
+        "blend": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "weight"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "weight": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "intensity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "overrides": { "type": "object", "additionalProperties": { "type": "object" } },
+        "lead_stem": { "type": ["string", "null"] }
+      }
+    },
+    "objective_override": {
+      "description": "Variant-level objective override; null keeps the project objective.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/objective" }
+      ]
+    },
+
+    "reference": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" },
+        "vector": { "$ref": "#/$defs/relpath" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+
+    "listening_assumption": {
+      "type": "object",
+      "required": ["system", "level"],
+      "additionalProperties": true,
+      "properties": {
+        "system": { "type": "string" },
+        "level": { "type": "string" }
+      }
+    },
+
+    "variant": {
+      "type": "object",
+      "required": ["id", "outputs"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/label" },
+        "objective": { "$ref": "#/$defs/objective_override" },
+        "master": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "route": { "enum": ["stem_mix", "fullmix", "auto"] },
+            "chain": { "$ref": "#/$defs/chain" }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["profile", "delivery"],
+            "additionalProperties": true,
+            "properties": {
+              "profile": { "type": "string" },
+              "delivery": { "type": "string" },
+              "target_lufs_i": { "type": ["number", "null"] },
+              "ceiling_dbtp": { "type": ["number", "null"], "maximum": 0 }
+            }
+          }
+        },
+        "track_overrides": { "type": "object" }
+      }
+    },
+
+    "section": {
+      "type": "object",
+      "required": ["id", "start", "length"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" },
+        "start": { "$ref": "#/$defs/samples" },
+        "length": { "$ref": "#/$defs/samples" }
+      }
+    },
+
+    "engine": {
+      "type": "object",
+      "required": ["min_version"],
+      "additionalProperties": true,
+      "properties": {
+        "min_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([.+-][0-9A-Za-z.+-]*)?$" }
+      }
+    }
+  }
+}

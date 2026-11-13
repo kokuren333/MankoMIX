@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "File-name patterns used by the file input adapter to recognise export sets and to estimate stem roles (docs/SPEC.md 6.1.1, 6.1.3; D-028..D-032, D-037). Detection is always an estimate from names and is recorded as such. Names are matched after Unicode NFC normalisation; 'stem_regex' / 'fullmix_regex' see the file name without extension as-is, 'role_map' keys and keyword rules see the normalised name (casefolded, runs of '_', '-', '.' and whitespace collapsed to one space). New services or DAWs are added by appending a pattern set; no code change is needed.",
+  "role_vocabulary": ["vocals", "backing_vocals", "drums", "percussion", "bass", "guitar", "keyboard", "synth", "strings", "brass", "woodwinds", "fx", "other", "fullmix"],
+  "pattern_sets": [
+    {
+      "id": "suno_studio_multitrack_export",
+      "label": "Suno Studio multitrack export",
+      "input_kind": "suno_studio_multitrack_export",
+      "provenance": { "source": "ai_generated", "service": "suno" },
+      "stem_regex": "^(?P<number>[1-9][0-9]*) (?P<part>\\S.*)$",
+      "fullmix_regex": "^0 (?P<title>\\S.*)$",
+      "requires": {
+        "fullmix_count": 1,
+        "min_stems": 1,
+        "unique_numbers": true,
+        "all_audio_files_match": true
+      },
+      "typical_max_stems": 12,
+      "role_map": {
+        "woodwinds": "woodwinds",
+        "brass": "brass",
+        "fx": "fx",
+        "synth": "synth",
+        "strings": "strings",
+        "percussion": "percussion",
+        "keyboard": "keyboard",
+        "guitar": "guitar",
+        "bass": "bass",
+        "drums": "drums",
+        "backing vocals": "backing_vocals",
+        "vocals": "vocals"
+      },
+      "unknown_part_role": "other",
+      "notes": "Stem count varies per song (up to 12 observed); the count is never assumed. Roles come from the part name, never from the number. Number 0 carries the song title and is the bundled full mix."
+    }
+  ],
+  "derived_sum_patterns": {
+    "note": "Files that are sums of other stems (e.g. 'other' and 'no_vocals' found next to a conformed Suno set, D-037). Importing them would add the same sound twice, so they are skipped by default with a warning. 'other' is only treated as a sum when the folder also holds stems for several of the roles such a sum would contain; a lone 'other' stem from a 4-stem separator is a real stem.",
+    "rules": [
+      { "regex": "^(no ?vocals?|without ?vocals?|instrumental|inst|karaoke|off ?vocals?|minus ?one)$", "condition": "always" },
+      { "regex": "^other$", "condition": "overlaps_roles", "roles": ["guitar", "keyboard", "synth", "strings", "brass", "woodwinds", "fx", "percussion", "backing_vocals"], "min_overlap": 3 }
+    ]
+  },
+  "generic_keyword_rules": {
+    "note": "Fallback for folders that match no pattern set. Ordered: the first matching rule wins, so specific words (bass drum, bassoon, backing vocals, full mix) come before generic ones (bass, vocal, mix). Regexes are case-insensitive and run on the normalised name.",
+    "rules": [
+      { "regex": "(full ?mix|\\b2 ?mix|two ?mix|\\bmaster(ed)?\\b|mixdown|stereo ?mix|マスター)", "role": "fullmix" },
+      { "regex": "(back(ing|ground)? ?vo|\\bbgv\\b|\\bbvox?\\b|chorus|harmon(y|ies)|choir|ad ?libs?|コーラス)", "role": "backing_vocals" },
+      { "regex": "(vocal|\\bvox\\b|voice|\\bvo\\b|ボーカル|ヴォーカル|歌)", "role": "vocals" },
+      { "regex": "(woodwind|flute|clarinet|oboe|bassoon|piccolo|\\bsax|木管)", "role": "woodwinds" },
+      { "regex": "(bass ?drum|drum|\\bkick|\\bkik\\b|\\bbd\\b|snare|\\bsn\\b|hi ?hats?|\\bhh\\b|cymbal|\\btoms?\\b|overheads?|\\boh\\b|\\bkit\\b|ドラム)", "role": "drums" },
+      { "regex": "(perc|shaker|conga|bongo|tambourine|\\btamb\\b|\\bclaps?\\b|パーカッション)", "role": "percussion" },
+      { "regex": "(bass|\\b808\\b|\\bsub\\b|ベース)", "role": "bass" },
+      { "regex": "(guitar|\\bgtr\\b|\\bgt\\b|ギター)", "role": "guitar" },
+      { "regex": "(keyboard|\\bkeys?\\b|piano|\\bpno\\b|rhodes|organ|\\bep\\b|ピアノ|キーボード)", "role": "keyboard" },
+      { "regex": "(synth|\\bpads?\\b|\\barp\\b|シンセ)", "role": "synth" },
+      { "regex": "(string|violin|viola|cello|orchestra|\\borch\\b|ストリングス)", "role": "strings" },
+      { "regex": "(brass|trumpet|trombone|\\bhorns?\\b|tuba|金管)", "role": "brass" },
+      { "regex": "(\\bfx\\b|\\bsfx\\b|effect|riser|impact|sweep|効果音)", "role": "fx" },
+      { "regex": "^other$", "role": "other" },
+      { "regex": "(\\bmix\\b|\\bfull\\b|bounce)", "role": "fullmix" }
+    ]
+  }
+}

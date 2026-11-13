@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mankomix.invalid/schemas/report.schema.json",
+  "title": "MankoMIX Mix Report (report.json)",
+  "description": "Skeleton for the Mix Report (docs/SPEC.md section 6.8). Deliberately permissive: sections are typed, extra fields are allowed. Paths inside a report are project-relative.",
+  "type": "object",
+  "required": ["summary"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "language": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "project": { "type": "string" },
+        "objective": { "type": "object" },
+        "profiles": { "type": "array" },
+        "outputs": { "type": "array" },
+        "result": { "enum": ["pass", "fail", "warning", "incomplete"] }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "assets": { "type": "array" },
+        "provenance": { "type": ["object", "null"] },
+        "ingest_checks": { "type": "array" },
+        "stem_sum_consistency": { "type": ["object", "null"] }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "before": { "type": "object" },
+        "after": { "type": "object" },
+        "level_matched": { "type": "boolean" }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "description": "Decision log grouped by the six elements.",
+      "additionalProperties": { "$ref": "#/$defs/decision_list" },
+      "properties": {
+        "balance": { "$ref": "#/$defs/decision_list" },
+        "panning": { "$ref": "#/$defs/decision_list" },
+        "frequency": { "$ref": "#/$defs/decision_list" },
+        "depth": { "$ref": "#/$defs/decision_list" },
+        "dynamics": { "$ref": "#/$defs/decision_list" },
+        "interest": { "$ref": "#/$defs/decision_list" }
+      }
+    },
+    "objective_breakdown": {
+      "type": ["array", "object"],
+      "description": "Per-metric contributions; never only a single total score."
+    },
+    "constraints": {
+      "type": ["array", "object"],
+      "description": "S-nn results, translation gate, media profile conformance."
+    },
+    "cleanup": { "type": ["array", "object"] },
+    "tradeoffs": { "type": "array" },
+    "listening_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "time_s": { "type": ["number", "null"], "minimum": 0 },
+          "point": {},
+          "conditions": {}
+        }
+      }
+    },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "project_hash": { "type": "string" },
+        "engine_version": { "type": "string" },
+        "backends": { "type": ["array", "object"] },
+        "definitions": { "type": "object" },
+        "models": { "type": "array" }
+      }
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "measured": {},
+        "rule": { "type": ["string", "null"] },
+        "action": {},
+        "alternatives": { "type": "array" },
+        "result": {}
+      }
+    },
+    "decision_list": { "type": "array", "items": { "$ref": "#/$defs/decision" } }
+  }
+}
