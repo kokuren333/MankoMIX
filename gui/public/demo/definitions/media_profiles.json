@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "status": "draft",
-  "as_of": "2026-11-13",
+  "as_of": "2026-11-14",
   "note": "Values are time-stamped survey values, not delivery specifications. Loudness targets are playback normalization levels and are treated as gates, not as sound-design goals. See docs/SPEC.md section 5. Defaults for ranged profiles (sns_hot, club, cd) were confirmed in decision D-046; window widths remain initial values subject to calibration.",
   "profiles": [
     {
@@ -13,7 +13,7 @@
       "codec_checks": ["aac", "opus", "mp3"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "consensus" }
+      "source": { "confidence": "consensus", "as_of": "2026-11-14" }
     },
     {
       "id": "spotify",
@@ -24,7 +24,7 @@
       "codec_checks": ["ogg_vorbis", "aac"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "official" }
+      "source": { "confidence": "official", "as_of": "2026-11-14", "urls": ["https://support.spotify.com/us/artists/article/loudness-normalization/", "https://support.spotify.com/us/article/audio-quality/"] }
     },
     {
       "id": "youtube",
@@ -36,7 +36,7 @@
       "codec_checks": ["aac", "opus"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "measured_consensus" }
+      "source": { "confidence": "measured_consensus", "as_of": "2026-11-14", "urls": ["https://support.google.com/youtube/answer/1722171?hl=en", "https://support.google.com/youtube/answer/6039860?hl=en"], "note": "No official loudness target published; codec facts from the official encoding pages (D-064)." }
     },
     {
       "id": "apple_music",
@@ -47,7 +47,7 @@
       "codec_checks": ["aac"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "consensus" }
+      "source": { "confidence": "consensus", "as_of": "2026-11-14", "urls": ["https://www.apple.com/apple-music/apple-digital-masters/docs/apple-digital-masters.pdf", "https://help.apple.com/itc/videoaudioassetguide/en.lproj/static.html"], "note": "Sound Check raises or lowers track volume; Apple publishes no LUFS target. -16 LUFS rests on industry consensus until the AES TD1008 text is checked (D-064)." }
     },
     {
       "id": "amazon_music",
@@ -55,10 +55,10 @@
       "kind": "streaming",
       "loudness": { "target_lufs_i": -14.0, "window_lufs_i": [-15.0, -13.5], "normalization": "down_only", "policy": "gate" },
       "true_peak": { "ceiling_dbtp": -2.0, "conditional": [] },
-      "codec_checks": ["aac", "opus"],
+      "codec_checks": ["opus"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "reported" }
+      "source": { "confidence": "reported", "as_of": "2026-11-14", "urls": ["https://developer.amazon.com/docs/music/audio-formats.html"], "note": "Loudness normalization is a user-enabled app setting; target, direction and true peak are not published by Amazon (values are reported, not official). Standard quality is Opus, HD/UHD is FLAC: no AAC (D-064)." }
     },
     {
       "id": "tidal",
@@ -69,7 +69,7 @@
       "codec_checks": ["aac"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "measured_consensus" }
+      "source": { "confidence": "measured_consensus", "as_of": "2026-11-14", "urls": ["https://support.tidal.com/hc/en-us/articles/17412130162961-HiRes-FLAC-audio"], "note": "No official normalization article found; loudness values are measured consensus (D-064)." }
     },
     {
       "id": "sns_safe",
@@ -80,7 +80,7 @@
       "codec_checks": ["aac"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "no_official_value" }
+      "source": { "confidence": "no_official_value", "as_of": "2026-11-14" }
     },
     {
       "id": "sns_hot",
@@ -91,7 +91,7 @@
       "codec_checks": ["aac"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": false },
       "default_delivery": "hires_native",
-      "source": { "confidence": "practice" }
+      "source": { "confidence": "practice", "as_of": "2026-11-14" }
     },
     {
       "id": "club",
@@ -102,7 +102,7 @@
       "codec_checks": [],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": false, "mono_fold_check": true, "mono_fold_strict": true, "low_level_check": false },
       "default_delivery": "dj_wav",
-      "source": { "confidence": "practice" }
+      "source": { "confidence": "practice", "as_of": "2026-11-14" }
     },
     {
       "id": "cd",
@@ -113,7 +113,7 @@
       "codec_checks": [],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "cd_redbook",
-      "source": { "confidence": "practice" }
+      "source": { "confidence": "practice", "as_of": "2026-11-14" }
     },
     {
       "id": "soundcloud",
@@ -124,7 +124,7 @@
       "codec_checks": ["opus", "mp3"],
       "playback_assumptions": { "mono_low_band_hz": 120, "small_speaker_check": true, "mono_fold_check": true, "low_level_check": true },
       "default_delivery": "hires_native",
-      "source": { "confidence": "practice" }
+      "source": { "confidence": "practice", "as_of": "2026-11-14" }
     }
   ]
 }
