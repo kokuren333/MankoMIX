@@ -97,10 +97,25 @@ def k_weighting_sos(sr: float) -> np.ndarray:
     return np.array([b_shelf + a_shelf, b_hp + a_hp], dtype=np.float64)
 
 
+def _kfilter(a: np.ndarray, sr: float) -> np.ndarray:
+    """K-weighting filter that stays fast on sparse/near-silent material.
+
+    IIR tails decaying into subnormal numbers slow sosfilt down by an order of
+    magnitude. A tiny alternating offset keeps the filter state normal; since
+    the filter is linear, its own response is subtracted again, so silence
+    stays exactly zero and results are unchanged beyond rounding.
+    """
+    sos = k_weighting_sos(sr)
+    guard = np.empty((a.shape[0], 1))
+    guard[0::2] = 1e-20
+    guard[1::2] = -1e-20
+    return sosfilt(sos, a + guard, axis=0) - sosfilt(sos, guard, axis=0)
+
+
 def k_weight(x, sr: float) -> np.ndarray:
     """Apply K-weighting per channel (filter starts from rest)."""
     a = as_frames(x)
-    return sosfilt(k_weighting_sos(sr), a, axis=0)
+    return _kfilter(a, sr)
 
 
 # --------------------------------------------------------------------------
@@ -153,7 +168,7 @@ class _Blocks:
         self.weights = channel_weights(a.shape[1]) if weights is None else np.asarray(weights, float)
         if self.weights.shape != (a.shape[1],):
             raise InputError("channel weights do not match channel count")
-        y = sosfilt(k_weighting_sos(sr), a, axis=0)
+        y = _kfilter(a, sr)
         self.seg, self.seg_len = _segment_sums(y, self.sr)
 
     def ms(self, window_s: float) -> np.ndarray:
