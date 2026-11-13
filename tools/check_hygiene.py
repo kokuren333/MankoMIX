@@ -4,7 +4,8 @@
 Scans the files that git tracks or would track (respecting .gitignore) and
 fails if any of them contains an absolute filesystem path, a personal e-mail
 address, or something that looks like an access token. Also fails if a
-forbidden directory is tracked.
+forbidden directory is tracked, if any commit was made with a non-noreply
+identity, or if any commit message carries a Co-Authored-By trailer.
 
 Usage:
     python -I tools/check_hygiene.py
@@ -54,6 +55,29 @@ def candidate_files(root: Path) -> list[str]:
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+def check_commit_identities(root: Path) -> list[str]:
+    """Every commit must use a noreply identity and carry no co-author trailer."""
+    result = subprocess.run(
+        ["git", "log", "--format=%h%x1f%ae%x1f%ce%x1f%B%x1e"],
+        cwd=root,
+        capture_output=True,
+    )
+    if result.returncode != 0:  # no commits yet
+        return []
+    problems: list[str] = []
+    for record in result.stdout.decode("utf-8", errors="replace").split(chr(30)):
+        record = record.strip()
+        if not record:
+            continue
+        short, author, committer, body = (record.split(chr(31)) + ["", "", ""])[:4]
+        for role, mail in (("author", author), ("committer", committer)):
+            if not mail.lower().endswith("users.noreply.github.com"):
+                problems.append(f"commit {short}: {role} e-mail is not a noreply address")
+        if "co-authored-by:" in body.lower():
+            problems.append(f"commit {short}: message contains a Co-Authored-By trailer")
+    return problems
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     findings: list[str] = []
@@ -77,6 +101,8 @@ def main() -> int:
                     if label == "e-mail address" and value.lower().endswith(ALLOWED_EMAIL_SUFFIXES):
                         continue
                     findings.append(f"{rel}:{lineno}: {label}: {value}")
+
+    findings.extend(check_commit_identities(root))
 
     if findings:
         print("Hygiene check FAILED:")

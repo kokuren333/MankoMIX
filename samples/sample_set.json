@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "status": "plan",
+  "note": "Planned official sample set (docs/SPEC.md section 15). No audio exists yet; files are produced in the implementation phase by the tool itself and never by hand. Listening copies (MP3) are not masters. Local locations of source material are never recorded in this repository.",
+  "title": "マンコ主義",
+  "genre": "hiphop",
+  "references": [],
+  "input": {
+    "canonical": "conformed_set",
+    "stems": 12,
+    "reference_fullmix": true,
+    "excluded_derived_files": [
+      "other",
+      "no_vocals"
+    ],
+    "also_accepted_as_is": "suno_studio_multitrack_export"
+  },
+  "before": {
+    "definition": "unity-gain sum of the 12 stems, stereo as-is, no processing"
+  },
+  "intensity": 0.5,
+  "variants": [
+    {
+      "n": 1,
+      "objective": "comfort",
+      "profile": "streaming_universal",
+      "role": "main",
+      "deliveries": [
+        "hires_native",
+        "distributor_44k16"
+      ],
+      "delta": true,
+      "level_matched_pair_file": true
+    },
+    {
+      "n": 2,
+      "objective": "bass_heavy",
+      "profile": "streaming_universal",
+      "role": "objective_axis"
+    },
+    {
+      "n": 3,
+      "objective": "vocal_forward",
+      "profile": "streaming_universal",
+      "role": "objective_axis"
+    },
+    {
+      "n": 4,
+      "objective": "clarity",
+      "profile": "streaming_universal",
+      "role": "objective_axis"
+    },
+    {
+      "n": 5,
+      "objective": "low_fatigue",
+      "profile": "streaming_universal",
+      "role": "objective_axis"
+    },
+    {
+      "n": 6,
+      "objective": "comfort",
+      "profile": "apple_music",
+      "role": "media_axis"
+    },
+    {
+      "n": 7,
+      "objective": "comfort",
+      "profile": "sns_hot",
+      "role": "media_axis"
+    },
+    {
+      "n": 8,
+      "objective": "comfort",
+      "profile": "cd",
+      "role": "media_axis",
+      "deliveries": [
+        "cd_redbook"
+      ]
+    },
+    {
+      "n": 9,
+      "objective": "comfort",
+      "profile": "club",
+      "role": "media_axis"
+    },
+    {
+      "n": 10,
+      "objective": "club_impact",
+      "profile": "club",
+      "role": "composite"
+    },
+    {
+      "n": 11,
+      "objective": "bass_heavy",
+      "profile": "club",
+      "role": "composite"
+    }
+  ],
+  "verification_only_profiles": [
+    "spotify",
+    "youtube",
+    "amazon_music",
+    "tidal",
+    "sns_safe"
+  ],
+  "storage": {
+    "repository": {
+      "path": "samples/public/",
+      "audio": "mp3_320k_listening_copies",
+      "reports": [
+        "json",
+        "md"
+      ]
+    },
+    "release_assets": [
+      "lossless_masters",
+      "input_stems"
+    ],
+    "pages_demo": "same_listening_copies"
+  },
+  "publication": {
+    "length": "full",
+    "stems": "release_assets_only",
+    "lyrics_in_repo": false,
+    "gate": "rights re-verified in the public audit milestone"
+  }
+}
