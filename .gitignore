@@ -4,6 +4,8 @@
 # ローカル起動用スクリプト（環境依存の内容を含みうる）
 /run_*.bat
 /run_*.sh
+/serve_*.bat
+/serve_*.sh
 *.local.*
 .env
 .env.*
