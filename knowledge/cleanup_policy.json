@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Cleanup (整音) policy, docs/SPEC.md 6.4. Band policy, detector thresholds and verification limits. Every numeric value is an initial value subject to calibration (SPEC 4.3, 4.9) unless marked otherwise. Reference point: the published approach of Spectral-Lifter (MIT) -- low band untouched, detection-based reduction in the high band, optional high-frequency completion; implemented independently. Neural completion is not part of the standard path (D-041).",
+  "crossover": {
+    "frequency_hz": { "value": 1000.0, "confidence": "initial", "note": "Low-band protection boundary. At and below this frequency the output equals the input (S-07). Implemented as a zero-phase complementary split of the removed component: gain exactly 0 at and below the boundary." },
+    "transition_hz": { "value": 250.0, "confidence": "initial", "note": "Width of the raised-cosine transition above the boundary in which the removed component is faded in." }
+  },
+  "stft": {
+    "window_s": { "value": 0.04, "confidence": "initial", "note": "Hann analysis/synthesis window length; rounded up to a power of two (2048 at 44.1/48 kHz, 4096 at 88.2/96 kHz)." },
+    "overlap": { "value": 4, "confidence": "initial", "note": "Window length / hop. 4 = 75 % overlap (Hann^2 sums to a constant)." }
+  },
+  "bands": [
+    { "id": "low", "range_hz": [0.0, 1000.0], "policy": "untouched", "confidence": "initial",
+      "threshold_db": null, "per_pass_max_db": 0.0, "total_max_db": 0.0, "min_reduction_db": 0.0,
+      "note": "Never changed; spliced back from the input and verified by the null test (S-07)." },
+    { "id": "presence", "range_hz": [1000.0, 5000.0], "policy": "detector_only_protected", "confidence": "initial",
+      "threshold_db": 7.0, "per_pass_max_db": 1.0, "total_max_db": 2.0, "min_reduction_db": 0.0,
+      "note": "Lead clarity band. Reduced only where the artifact detector fires strongly; small caps." },
+    { "id": "sibilance", "range_hz": [5000.0, 8000.0], "policy": "sibilance_protected", "confidence": "initial",
+      "threshold_db": 6.0, "per_pass_max_db": 2.0, "total_max_db": 4.0, "min_reduction_db": 0.0,
+      "note": "Sibilance/breath band. Protection caps the reduction during detected sibilant events." },
+    { "id": "upper_presence", "range_hz": [8000.0, 10000.0], "policy": "detector", "confidence": "initial",
+      "threshold_db": 4.5, "per_pass_max_db": 3.0, "total_max_db": 8.0, "min_reduction_db": 0.0,
+      "note": "Transition into the shimmer band." },
+    { "id": "shimmer", "range_hz": [10000.0, 14000.0], "policy": "detector_multipass", "confidence": "initial",
+      "threshold_db": 3.0, "per_pass_max_db": 4.5, "total_max_db": 13.5, "min_reduction_db": 0.0,
+      "note": "Shimmer band. Detection-based reduction of 3-6 dB per pass over several passes." },
+    { "id": "air", "range_hz": [14000.0, null], "policy": "detector_min_reduction", "confidence": "initial",
+      "threshold_db": 3.0, "per_pass_max_db": 4.5, "total_max_db": 13.5, "min_reduction_db": 1.0,
+      "note": "14 kHz up to the HF ceiling (or Nyquist). Detection-based, with a minimum reduction wherever the detector fires." },
+    { "id": "above_ceiling", "range_hz": ["ceiling", null], "policy": "artifact_removal", "confidence": "initial",
+      "threshold_db": 2.0, "per_pass_max_db": 6.0, "total_max_db": 18.0, "min_reduction_db": 2.0,
+      "note": "Only when an HF ceiling is detected: everything above it is treated as artifact candidates." }
+  ],
+  "passes": {
+    "run": { "value": 3, "confidence": "initial" },
+    "light": { "value": 2, "confidence": "initial" }
+  },
+  "strength": {
+    "run": { "value": 1.0, "confidence": "initial" },
+    "light": { "value": 0.5, "confidence": "initial" }
+  },
+  "detector": {
+    "group_hz": { "value": 94.0, "confidence": "initial", "note": "STFT bins are pooled into groups of about this width for detection." },
+    "freq_smooth_groups": { "value": 3, "confidence": "initial", "note": "Frequency smoothing of pooled power before the temporal reference (reduces periodogram variance)." },
+    "ref_window_s": { "value": 0.12, "confidence": "initial", "note": "Length of each temporal window (before and after the frame) for the steady reference." },
+    "ref_percentile": { "value": 30.0, "confidence": "initial", "note": "Percentile of the window used as the steady (non-flickering) reference level." },
+    "slope": { "value": 1.0, "confidence": "initial", "note": "dB of reduction per dB of excess above the threshold (before the per-pass cap)." },
+    "gain_smooth_frames": { "value": 3, "confidence": "initial", "note": "Temporal smoothing of the reduction (anti musical noise)." },
+    "gain_smooth_groups": { "value": 3, "confidence": "initial", "note": "Frequency smoothing of the reduction (anti musical noise)." },
+    "onset": {
+      "band_hz": { "value": [2000.0, 9000.0], "confidence": "initial", "note": "Band whose energy jump marks a musical transient (below the shimmer band, so shimmer flicker does not open the gate)." },
+      "jump_db": { "value": 6.0, "confidence": "initial" },
+      "lookback_frames": { "value": 3, "confidence": "initial" },
+      "pre_frames": { "value": 2, "confidence": "initial", "note": "Frames before the detected onset frame that are also protected (window pre-echo)." },
+      "hold_s": { "value": 0.05, "confidence": "initial", "note": "Full protection after an onset." },
+      "release_s": { "value": 0.09, "confidence": "initial", "note": "Protection then fades out linearly over this time (transient-onset release control)." },
+      "comod_db": { "value": [1.0, 4.0], "confidence": "initial", "note": "Excess of the onset band over its own steady reference mapped to protection 0..1: the high band is following a short musical event (hi-hat, snare, consonant)." }
+    },
+    "attack": {
+      "highpass_hz": { "value": 6000.0, "confidence": "initial", "note": "Sharp attacks are looked for in the high-passed mid signal." },
+      "block_ms": { "value": 1.5, "confidence": "initial" },
+      "lookback_ms": { "value": [3.0, 6.0], "confidence": "initial", "note": "The block RMS is compared with the quietest block this far before it." },
+      "rise_db": { "value": 9.0, "confidence": "initial" },
+      "near_max_db": { "value": 6.0, "confidence": "initial", "note": "The block must reach within this of the local maximum (+-local_ms/2): a real hit, not a wiggle at the bottom of a tremolo." },
+      "local_ms": { "value": 120.0, "confidence": "initial" },
+      "min_level": { "value": 1e-5, "confidence": "initial" }
+    },
+    "tonal": {
+      "prominence_db": { "value": 9.0, "confidence": "initial", "note": "A bin is a spectral peak if it is a local maximum this far above the local frequency mean." },
+      "neighborhood_bins": { "value": 17, "confidence": "initial" },
+      "continuity_frames": { "value": 5, "confidence": "initial", "note": "A peak that persists (within +-1 bin) for this many frames is a tracked partial and is never attenuated." }
+    }
+  },
+  "protection": {
+    "sibilant": {
+      "band_hz": { "value": [5000.0, 8000.0], "confidence": "initial" },
+      "ref_band_hz": { "value": [1000.0, 5000.0], "confidence": "initial" },
+      "density_ratio_db": { "value": -6.0, "confidence": "initial", "note": "Per-bin power density of the sibilant band relative to the reference band at or above which a frame can be sibilant." },
+      "min_flatness": { "value": 0.2, "confidence": "initial" },
+      "level_above_floor_db": { "value": 10.0, "confidence": "initial", "note": "Band level above its 20th percentile needed to count as an event." },
+      "dilate_s": { "value": 0.03, "confidence": "initial" },
+      "cap_db": { "value": 0.3, "confidence": "initial", "note": "Maximum total reduction inside the sibilant band during sibilant events (keeps > 93 % of the energy)." },
+      "cap_band_hz": { "value": [4500.0, 8500.0], "confidence": "initial" },
+      "upper_cap_db": { "value": 2.0, "confidence": "initial", "note": "Cap above the sibilant band (up to upper_cap_hz) during sibilant events." },
+      "upper_cap_hz": { "value": 12000.0, "confidence": "initial" }
+    },
+    "noise_event": {
+      "band_hz": { "value": [2000.0, 8000.0], "confidence": "initial", "note": "Breath and cymbal events: noise-like energy in this band." },
+      "min_flatness": { "value": 0.3, "confidence": "initial" },
+      "level_above_floor_db": { "value": 12.0, "confidence": "initial" },
+      "cap_db": { "value": 3.0, "confidence": "initial", "note": "Maximum total reduction in any band during breath/cymbal events." }
+    }
+  },
+  "clicks": {
+    "highpass_hz": { "value": 2000.0, "confidence": "initial", "note": "Detection runs on the 4th-order Butterworth high-passed signal (derivative-like emphasis of click energy)." },
+    "block_ms": { "value": 2.0, "confidence": "initial" },
+    "local_window_ms": { "value": 82.0, "confidence": "initial" },
+    "peak_ratio": { "value": 4.0, "confidence": "initial", "note": "Block peak relative to the local median block peak." },
+    "abs_min": { "value": 0.05, "confidence": "initial", "note": "Minimum high-passed peak (full scale = 1.0)." },
+    "isolation_ratio": { "value": 3.0, "confidence": "initial", "note": "Blocks 6-12 ms before and after must stay below this times the local median (a click is short; a drum hit is not)." },
+    "isolation_drop": { "value": 0.35, "confidence": "initial", "note": "... and below this fraction of the candidate block peak (rejects slowly decaying hits)." },
+    "extent_ratio": { "value": 1.0, "confidence": "initial", "note": "Click extent: samples around the peak whose high-passed magnitude exceeds this times the local level." },
+    "max_ms": { "value": 4.0, "confidence": "initial" },
+    "pad_ms": { "value": 0.3, "confidence": "initial" },
+    "context_ms": { "value": 2.0, "confidence": "initial", "note": "Context on each side for the least-squares cubic bridge. At the very start, the context before the file is taken as silence." },
+    "head_s": { "value": 0.5, "confidence": "initial", "note": "Clicks within this time from the start set the head-click flag." }
+  },
+  "ceiling": {
+    "search_min_hz": { "value": 8000.0, "confidence": "initial" },
+    "full_band_min_hz": { "value": 19500.0, "confidence": "initial", "note": "A ceiling at or above this is reported as full band (None)." },
+    "drop_db": { "value": 24.0, "confidence": "initial", "note": "Level just below minus the 95th percentile of everything above must reach this." },
+    "below_window_hz": { "value": [1500.0, 300.0], "confidence": "initial" },
+    "above_gap_hz": { "value": 300.0, "confidence": "initial" },
+    "edge_db": { "value": 12.0, "confidence": "initial", "note": "Reported ceiling = first frequency where the LTAS is this far below the level just below." },
+    "smooth_hz": { "value": 150.0, "confidence": "initial" },
+    "min_content_db": { "value": -60.0, "confidence": "initial", "note": "The level below the ceiling must be within this of the LTAS maximum (excludes naturally band-limited stems)." }
+  },
+  "completion": {
+    "auto_enable_on_ceiling": { "value": false, "confidence": "product", "note": "Completion is optional (SPEC 6.4.2 step 5). The plan proposes it as an alternative; it runs only when the plan enables it." },
+    "method": { "value": "dsp_harmonic", "confidence": "product", "note": "Deterministic DSP (half-wave rectification of the band below the ceiling). 'neural' is refused unless explicitly enabled with a registry model (D-041)." },
+    "source_bw_hz": { "value": 3000.0, "confidence": "initial" },
+    "extend_hz": { "value": 4000.0, "confidence": "initial" },
+    "max_hz": { "value": 20000.0, "confidence": "initial" },
+    "fit_window_hz": { "value": [4000.0, 300.0], "confidence": "initial", "note": "LTAS slope is fitted over [ceiling - 4000, ceiling - 300] and extrapolated." },
+    "margin_db": { "value": 6.0, "confidence": "initial", "note": "Generated band sits this far below the extrapolated slope (low level)." },
+    "fade_db_per_khz": { "value": 3.0, "confidence": "initial" },
+    "max_gain_db": { "value": 40.0, "confidence": "initial" }
+  },
+  "diagnosis": {
+    "shimmer_run_db": { "value": -40.0, "confidence": "initial", "note": "Shimmer index (flicker excess in 10-14 kHz relative to 1-8 kHz energy) at or above which spectral reduction runs." },
+    "shimmer_light_db": { "value": -50.0, "confidence": "initial" },
+    "side_shimmer_run_db": { "value": -40.0, "confidence": "initial" },
+    "side_hf_excess_db": { "value": 10.0, "confidence": "initial", "note": "Side/mid ratio in 10-16 kHz minus side/mid ratio in 1-8 kHz above which side artifacts are flagged." },
+    "side_hf_min_level_db": { "value": -60.0, "confidence": "initial", "note": "Side HF level (relative to mid 1-8 kHz) below which the side excess is ignored." },
+    "above_ceiling_run_db": { "value": -50.0, "confidence": "initial", "note": "Flicker excess above the ceiling relative to 1-8 kHz energy." },
+    "above_ceiling_min_level_db": { "value": -40.0, "confidence": "initial", "note": "Mean level above the ceiling relative to just below it; below this there is nothing worth removing." },
+    "noise_floor_percentile": { "value": 5.0, "confidence": "initial", "note": "Quiet passages = the lowest percentile of 400 ms frames (digital silence excluded)." },
+    "noise_floor_window_s": { "value": 0.4, "confidence": "initial" },
+    "silence_dbfs": { "value": -120.0, "confidence": "initial" }
+  },
+  "s07": {
+    "residual_limit_dbfs": { "value": -80.0, "confidence": "initial", "note": "Peak of (output - input) after a brick-wall low-pass at the crossover. Initial value based on prior-implementation measurements (SPEC 4.3)." }
+  },
+  "s08": {
+    "shimmer_index_tol_db": { "value": 1.5, "confidence": "initial", "note": "Allowed rise of the shimmer index after mastering (gain-invariant ratio)." },
+    "noise_floor_tol_db": { "value": 2.0, "confidence": "initial", "note": "Allowed rise of the quiet-passage noise floor after compensating the master's gain change." },
+    "noise_floor_hf_tol_db": { "value": 2.0, "confidence": "initial" },
+    "above_ceiling_tol_db": { "value": 3.0, "confidence": "initial" }
+  },
+  "p21": {
+    "bands_hz": { "value": [[20, 60], [60, 250], [250, 500], [500, 2000], [2000, 6000], [6000, 20000]], "confidence": "practice", "note": "P-22 band layout." },
+    "band_names": { "value": ["sub", "bass", "low_mid", "mid", "high_mid", "air"], "confidence": "practice" },
+    "width_tol_db": { "value": 1.0, "confidence": "initial", "note": "Max narrowing of the side ratio S/(M+S) per band, in dB." },
+    "lowmid_tol_db": { "value": 0.5, "confidence": "initial", "note": "Max change of 250-500 Hz energy." },
+    "min_band_energy_db": { "value": -100.0, "confidence": "initial", "note": "Bands below this energy (relative to full scale) are not judged." }
+  },
+  "oversuppression": {
+    "corr_threshold": { "value": 0.6, "confidence": "initial", "note": "Correlation between the 5-8 kHz envelope of the removed component and of the input above which the cleanup is suspected of eating sibilants/breaths." },
+    "min_removed_db": { "value": -20.0, "confidence": "initial", "note": "Removed 5-8 kHz energy during sibilant frames relative to the input; below this the correlation is ignored." },
+    "strength_factor": { "value": 0.5, "confidence": "initial", "note": "Strength multiplier for the single automatic rerun." }
+  }
+}
