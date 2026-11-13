@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Constants of the stem-context proxy metrics (docs/SPEC.md 4.2 P-02, P-08, P-09, P-10, P-12, P-13, P-15, P-22; 4.11; 8.1). Every value is an initial [model] or [practice] value subject to calibration (4.9). The spreading function is a two-slope Bark-domain model with a level-dependent upper slope (Terhardt-style); it is a coarse excitation model, not a full auditory model. Read by core/analysis/stems.py.",
+  "analysis": {
+    "frame_s": 0.046,
+    "hop_fraction": 0.5,
+    "band_lo_hz": 20.0,
+    "band_hi_hz": 20000.0,
+    "band_step_erb": 1.0,
+    "mix_reference_rms_dbfs": -16.0,
+    "full_scale_spl_db": 96.0,
+    "evidence": "model",
+    "note": "Power spectra (channel-averaged, Hann, ~46 ms frames, 50 % hop) are summed into 1-ERB bands. Before any level-dependent step the stems are scaled by one common gain so that the summed mix has mix_reference_rms_dbfs (level match, R-01); relative stem levels are untouched. full_scale_spl_db maps the normalized digital level to an assumed playback SPL for the level-dependent slope and the threshold in quiet."
+  },
+  "spreading": {
+    "domain": "bark",
+    "lower_slope_db_per_bark": 27.0,
+    "upper_slope_base_db_per_bark": 24.0,
+    "upper_slope_freq_term_hz": 230.0,
+    "upper_slope_level_coeff_db_per_bark_per_db": 0.2,
+    "upper_slope_min_db_per_bark": 4.0,
+    "upper_slope_max_db_per_bark": 40.0,
+    "evidence": "model",
+    "note": "Attenuation from a masker band j to a band i: lower side (i below j) lower_slope * dz; upper side (i above j) s_u * dz with s_u = base + freq_term / f_masker - level_coeff * L_masker_spl, clipped to [min, max]. Louder maskers spread further upward (upward spread of masking, 8.1). Excitations of different stems add in power."
+  },
+  "masking": {
+    "threshold_offset_db": -6.0,
+    "buried_cap_db": 30.0,
+    "use_threshold_in_quiet": true,
+    "evidence": "model",
+    "note": "Masked threshold of a target band = power sum of the other stems' spread excitation + threshold_offset_db. buried dB = max(0, threshold - target band level), capped. Bands where the target is below the threshold in quiet carry no weight. Per frame, bands are weighted by the target's own band power; frames where the target is active are averaged with equal weight."
+  },
+  "activity_gate": {
+    "abs_dbfs": -60.0,
+    "rel_db_below_p95": 30.0,
+    "merge_gap_s": 0.3,
+    "min_interval_s": 0.1,
+    "evidence": "practice",
+    "note": "A frame is active when its level is above both abs_dbfs and (95th percentile frame level - rel_db_below_p95). The absolute gate is applied to the un-normalized stem."
+  },
+  "regions_hz": {
+    "lead_low_mid": [200.0, 800.0],
+    "lead_presence": [2000.0, 5000.0],
+    "low_source_below": 250.0,
+    "low_to_mid_target": [200.0, 800.0],
+    "kick_band": [40.0, 120.0],
+    "clarity_band": [300.0, 5000.0],
+    "hf_ratio_above": 4000.0,
+    "evidence": "practice",
+    "note": "Region membership of an ERB band is decided by its centre frequency."
+  },
+  "penalties": {
+    "vs_lead": { "ok_max_db": 2.0, "scale_db": 8.0, "combine": "mean", "evidence": "model" },
+    "overall": { "ok_max_db": 3.0, "scale_db": 9.0, "evidence": "model" },
+    "low_to_mid": { "ok_max_db": 2.0, "scale_db": 8.0, "evidence": "model" },
+    "time_axis": { "ok_max_db": 3.0, "scale_db": 9.0, "evidence": "model" },
+    "note": "Penalty = 0 while the value is inside [0, ok_max]; outside, with d the distance to the bound, 1 - exp(-(d / scale)^2) (shared range_penalty of core/analysis/perceptual.py: ~0.63 at one scale, ~0.98 at two)."
+  },
+  "sidechain_sim": {
+    "depth_db": 6.0,
+    "release_note": "1/8",
+    "release_ms_without_bpm": 120.0,
+    "trigger_range_db": 20.0,
+    "kick_decay_db": 12.0,
+    "evidence": "practice",
+    "note": "time_axis: the bass excitation is ducked by depth_db * trigger (trigger from the kick-band envelope, instant attack, exponential release reaching 90 % recovery after the release time). Unmasking = kick buried dB before - after. With a bpm the release is the note value release_note (R-11); the kick decay time (to -kick_decay_db) is compared with 1/16, 1/8 and 1/4 notes."
+  },
+  "importance_defaults": {
+    "values_by_rank": [1.0, 0.8, 0.7, 0.5, 0.3],
+    "evidence": "practice",
+    "note": "Default stem importance when the project gives none: the group order from knowledge/genre_priors.json (default_stem_importance_order, or the genre's stem_importance_order) mapped onto these values (rank 1 = lead). A declared importance always wins (4.11)."
+  },
+  "p08": {
+    "harmonic_band_halfwidth_f0": 0.5,
+    "target_index_db_min": -15.0,
+    "scale_db": 15.0,
+    "missing_fundamental_hp_hz": 120.0,
+    "pitch_agree_cents": 50.0,
+    "min_agreement": 0.5,
+    "evidence": "model",
+    "note": "index = 10*log10((E(2 f0) + E(3 f0)) / E(f0)); each band is h*f0 +/- halfwidth*f0. Penalty when the index is below target_index_db_min (too little upper-harmonic support for small speakers, OF-1/OF-5). Missing-fundamental check: high-pass at missing_fundamental_hp_hz, re-run the periodicity estimator and count frames whose pitch stays within pitch_agree_cents of the original."
+  },
+  "p09": {
+    "weights": { "level": 0.4, "dr": 0.35, "hf_ratio": 0.15, "pre_delay": 0.1 },
+    "early_window_ms": 50.0,
+    "late_window_ms": 500.0,
+    "min_late_window_ms": 100.0,
+    "min_events": 2,
+    "evidence": "model",
+    "note": "Closeness = weighted sum of z-scores across stems (level of active frames, blind D/R, high-frequency ratio, pre-delay proxy); depth = -closeness. Penalty = (1 - Kendall tau) / 2 against the declared front-to-back order; without a declared order, the lead is expected in front and penalty = lead rank / (n - 1)."
+  },
+  "p10": {
+    "generic_target_db": [0.0, 6.0],
+    "relative_targets_db": { "low": [-3.0, 1.0], "mid": [0.0, 3.0], "high": [2.0, 6.0] },
+    "scale_db": 6.0,
+    "evidence": "practice",
+    "note": "Lead clarity-band (300 Hz - 5 kHz) level minus the accompaniment (sum of every other stem) in the same band, over frames where the lead is active. Below the target band -> 'buried', above -> 'floating'. Genre priors (knowledge/genre_priors.json p10_target_db) override the generic band; a prior with only a relative label uses relative_targets_db."
+  },
+  "p12": {
+    "attack_ms": 30.0,
+    "body_ms": 150.0,
+    "crest_loss_ok_db": 1.5,
+    "crest_scale_db": 4.5,
+    "attack_loss_ok_db": 1.5,
+    "attack_scale_db": 4.5,
+    "evidence": "model",
+    "note": "Band crest (peak - RMS over active frames) per P-22 band and attack-to-body energy ratio around onsets detected on the 'before' signal. Penalty from the mean band crest loss and the attack-ratio loss (mean of the two)."
+  },
+  "p13": {
+    "kick_search_hz": [30.0, 150.0],
+    "in_tune_cents": 10.0,
+    "risk_full_cents": [50.0, 150.0],
+    "separate_cents": 250.0,
+    "tonic_fold_hz": [40.0, 80.0],
+    "sub_band_hz": [20.0, 60.0],
+    "use_fundamental_min_hz": 50.0,
+    "evidence": "standard (cents formula) / practice (risk ranges)",
+    "note": "cents = 1200 * log2(f_bass / f_kick). Beating risk is 0 within in_tune_cents, rises to 1 at risk_full_cents[0], stays 1 to risk_full_cents[1] and falls to 0 at separate_cents. The tonic is folded into tonic_fold_hz; below use_fundamental_min_hz the policy hint is harmonic completion (R-16)."
+  },
+  "p15": {
+    "octave_centres_hz": [125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0],
+    "decay_start_db": 5.0,
+    "decay_end_db": 25.0,
+    "min_decay_span_db": 10.0,
+    "min_fit_r2": 0.9,
+    "dr_db_min": 3.0,
+    "dr_scale_db": 9.0,
+    "evidence": "model",
+    "note": "Blind estimates on music, not room measurements: RT60 from free-decay slopes after envelope peaks (T20 when 20 dB of decay are available, T10 otherwise), D/R from early (direct) vs late energy after onsets. Sustained notes read as reverberant. Rough; report as such."
+  },
+  "p22": {
+    "rule": "within_db_of_loudest",
+    "within_db": 6.0,
+    "min_share": 0.05,
+    "band_floor_db_below_mix": 50.0,
+    "target_owners": [1, 2],
+    "scale_owners": 2.0,
+    "bands_hz": {
+      "sub": [20.0, 60.0],
+      "bass": [60.0, 250.0],
+      "lowmid": [250.0, 500.0],
+      "mid": [500.0, 2000.0],
+      "highmid": [2000.0, 6000.0],
+      "air": [6000.0, 20000.0]
+    },
+    "evidence": "practice",
+    "note": "A stem owns a band in a section when its band energy is within within_db of the loudest stem in that band and carries at least min_share of the band energy. Bands more than band_floor_db_below_mix below the section's mix energy are skipped (empty). Target: 1-2 owners per band (R-28)."
+  }
+}
