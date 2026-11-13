@@ -89,7 +89,7 @@ def test_stage_rules():
     with pytest.raises(ChainError):
         engine.validate_chain([{"type": "eq"}], "export")
     with pytest.raises(ChainError):
-        engine.validate_chain([{"type": "reverb"}], "track")             # declared only
+        engine.validate_chain([{"type": "reverb"}], "master")            # track / bus only
     with pytest.raises(ValueError):
         engine.validate_chain([{"type": "eq", "params": {"q": 1}}], "track")
     with pytest.raises(ValueError):

@@ -65,7 +65,7 @@ MMX_API int mmx_abi_version(void);
 
 /*
  * Build information as a JSON object (static storage), e.g.
- * {"version":"0.1.0","abi":1,"compiler":"...","precision":"double",
+ * {"version":"0.2.0","abi":1,"compiler":"...","precision":"double",
  *  "layout":"planar","airwindows_commit":"..."}.
  */
 MMX_API const char* mmx_build_info(void);
@@ -116,6 +116,22 @@ MMX_API int mmx_reset(mmx_instance* inst);
 
 /* Destroys an instance. Null is accepted. */
 MMX_API void mmx_destroy(mmx_instance* inst);
+
+/*
+ * Utility kernel (added in library 0.2.0, ABI 1 compatible): decoupled
+ * attack/release one-pole smoother used by the gain computers of the
+ * dynamics processors (compressor, dynamic EQ, de-esser). In place on one
+ * contiguous buffer of `frames` doubles:
+ *
+ *   y = (x[n] > y) ? a_att * y + ia_att * x[n] : a_rel * y + ia_rel * x[n]
+ *
+ * `*state` holds y before the first sample and receives y after the last.
+ * The coefficients are passed in full (ia = 1 - a computed by the caller) so
+ * that a caller-side reference loop with the same operation order is
+ * bit-identical (no FMA contraction, see CMakeLists.txt). No allocation.
+ */
+MMX_API int mmx_smooth_attack_release(double* buf, int64_t frames, double a_att, double ia_att,
+                                      double a_rel, double ia_rel, double* state);
 
 #ifdef __cplusplus
 } /* extern "C" */

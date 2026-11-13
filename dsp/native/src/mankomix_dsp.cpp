@@ -14,7 +14,7 @@
 
 #include "mmx_processor.h"
 
-#define MMX_VERSION_STRING "0.1.0"
+#define MMX_VERSION_STRING "0.2.0"
 
 struct mmx_instance {
     const mmx::ProcessorSpec* spec;
@@ -266,6 +266,25 @@ MMX_API void mmx_destroy(mmx_instance* inst) {
     if (inst == nullptr) return;
     delete inst->proc;
     delete inst;
+}
+
+MMX_API int mmx_smooth_attack_release(double* buf, int64_t frames, double a_att, double ia_att,
+                                      double a_rel, double ia_rel, double* state) {
+    if (buf == nullptr || state == nullptr) return MMX_ERR_NULL;
+    if (frames < 0) return MMX_ERR_BAD_ARGUMENT;
+    double prev = *state;
+    for (int64_t i = 0; i < frames; ++i) {
+        const double g = buf[i];
+        // Same operation order as the Python reference loop (two products, one sum).
+        if (g > prev) {
+            prev = a_att * prev + ia_att * g;
+        } else {
+            prev = a_rel * prev + ia_rel * g;
+        }
+        buf[i] = prev;
+    }
+    *state = prev;
+    return MMX_OK;
 }
 
 }  // extern "C"

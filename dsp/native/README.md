@@ -35,7 +35,7 @@ cmake --build dsp/build/cmake --config Release
 
 | 関数 | 内容 |
 |---|---|
-| `mmx_version()` / `mmx_abi_version()` | ライブラリの版（`"0.1.0"`）と ABI 版（`1`） |
+| `mmx_version()` / `mmx_abi_version()` | ライブラリの版（`"0.2.0"`）と ABI 版（`1`） |
 | `mmx_build_info()` | 版、ABI、コンパイラ、精度、レイアウト、Airwindows のコミットを JSON で返す |
 | `mmx_processor_count()` / `mmx_processor_info(i, buf, buflen)` | プロセッサの記述を JSON で返す（snprintf と同じ規約。`buf = NULL` で長さを問い合わせる） |
 | `mmx_create(id, sample_rate, channels)` | インスタンスを作る（8 k〜768 kHz、1〜8 チャンネル）。パラメータは既定値 |
@@ -44,6 +44,7 @@ cmake --build dsp/build/cmake --config Release
 | `mmx_process(h, double* const* channels, frames)` | **planar の double、その場で処理**。`channels[c]` がチャンネル c の連続した `frames` 個のサンプル。公称フルスケール ±1.0 |
 | `mmx_reset(h)` | 信号の状態を作成直後に戻す（パラメータは保つ） |
 | `mmx_destroy(h)` | 破棄 |
+| `mmx_smooth_attack_release(buf, frames, a_att, ia_att, a_rel, ia_rel, state)` | 0.2.0 で追加（ABI 1 のまま）。ダイナミクス系のゲイン計算に使う、アタック／リリースを分けた一次平滑化を 1 本のバッファにその場で掛ける。`ia = 1 - a` も呼び出し側が渡すので、同じ演算順の Python ループとビット一致する。メモリ確保なし |
 
 戻り値は 0 以上が成功、負がエラー（`MMX_ERR_*`）。例外は ABI を越えない。
 

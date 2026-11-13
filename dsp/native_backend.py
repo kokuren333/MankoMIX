@@ -90,6 +90,11 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.mmx_reset.argtypes = [c_void_p]
     lib.mmx_destroy.restype = None
     lib.mmx_destroy.argtypes = [c_void_p]
+    # optional utility kernels (library >= 0.2.0); older builds simply lack them
+    if hasattr(lib, "mmx_smooth_attack_release"):
+        lib.mmx_smooth_attack_release.restype = c_int
+        lib.mmx_smooth_attack_release.argtypes = [c_void_p, ctypes.c_int64, c_double, c_double,
+                                                  c_double, c_double, ctypes.POINTER(c_double)]
 
 
 def _load() -> ctypes.CDLL | None:
@@ -279,6 +284,32 @@ class NativeProcessor:
             self.close()
         except Exception:
             pass
+
+
+def has_smoother() -> bool:
+    """True when the loaded library exports the attack/release smoother kernel (>= 0.2.0)."""
+    lib = _load()
+    return lib is not None and hasattr(lib, "mmx_smooth_attack_release")
+
+
+def smooth_attack_release(x: np.ndarray, a_att: float, ia_att: float, a_rel: float, ia_rel: float,
+                          state: float = 0.0) -> np.ndarray:
+    """Decoupled attack/release one-pole smoother over a 1-D float64 trace (new array).
+
+    ``y = a_att*y + ia_att*x[n]`` while ``x[n] > y``, else ``a_rel*y + ia_rel*x[n]``,
+    starting from ``state``. Bit-identical to the same loop written in Python.
+    """
+    lib = _require()
+    if not hasattr(lib, "mmx_smooth_attack_release"):
+        raise NativeBackendError("native library lacks mmx_smooth_attack_release (rebuild: "
+                                 "python -I tools/build_native.py)")
+    buf = np.array(x, dtype=np.float64, copy=True, order="C").reshape(-1)
+    st = ctypes.c_double(float(state))
+    if buf.size:
+        _check(lib.mmx_smooth_attack_release(buf.ctypes.data, buf.size, float(a_att), float(ia_att),
+                                             float(a_rel), float(ia_rel), ctypes.byref(st)),
+               "smooth_attack_release")
+    return buf
 
 
 def _blocks(frames: int, block_size: int | Iterable[int] | None) -> Iterable[tuple[int, int]]:

@@ -7,7 +7,7 @@ by ``mankomix.dsp.processors.validate_params``.
 
 from __future__ import annotations
 
-from . import basic, dynamics, export, filters, nonlinear, stereo
+from . import basic, dynamics, dyneq, export, filters, nonlinear, space, stereo
 from .truepeak import peak_per_sample, sample_peak_dbfs, true_peak_dbtp, true_peak_linear
 
 BACKEND = "reference"
@@ -18,11 +18,15 @@ IMPLEMENTATIONS = {
     "loudness_gain": basic.loudness_gain,
     "filter": filters.filt,
     "eq": filters.eq,
+    "dynamic_eq": dyneq.dynamic_eq,
     "compressor": dynamics.compressor,
+    "deesser": dyneq.deesser,
     "limiter": dynamics.limiter,
     "saturator": nonlinear.saturator,
     "clipper": nonlinear.clipper,
     "stereo": stereo.stereo,
+    "reverb": space.reverb,
+    "delay": space.delay,
     "resample": export.resample,
     "dither": export.dither,
 }

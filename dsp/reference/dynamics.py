@@ -7,6 +7,7 @@ import math
 import numpy as np
 from scipy import ndimage
 
+from . import ballistics
 from .truepeak import detector_factor, peak_per_sample
 
 _TINY = 1e-12
@@ -16,12 +17,13 @@ def gr_stats(gr_db: np.ndarray) -> dict:
     """Gain-reduction statistics (positive dB = reduction). Used for P-18 and R-11 checks."""
     if gr_db.size == 0:
         return {"median_db": 0.0, "p95_db": 0.0, "max_db": 0.0, "mean_db": 0.0, "frac_over_1db": 0.0}
+    med, p95 = np.percentile(gr_db, [50, 95])
     return {
-        "median_db": round(float(np.median(gr_db)), 4),
-        "p95_db": round(float(np.percentile(gr_db, 95)), 4),
+        "median_db": round(float(med), 4),
+        "p95_db": round(float(p95), 4),
         "max_db": round(float(np.max(gr_db)), 4),
         "mean_db": round(float(np.mean(gr_db)), 4),
-        "frac_over_1db": round(float(np.mean(gr_db > 1.0)), 6),
+        "frac_over_1db": round(float(np.count_nonzero(gr_db > 1.0) / gr_db.size), 6),
     }
 
 
@@ -46,54 +48,58 @@ def static_curve_db(level_db: np.ndarray, threshold: float, ratio: float, knee: 
 
 
 def _smooth_gr(gr: np.ndarray, a_att: float, a_rel: float) -> np.ndarray:
-    """Decoupled attack/release one-pole smoothing of a gain-reduction trace (dB)."""
-    out = np.empty_like(gr)
-    prev = 0.0
-    ia, ir = 1.0 - a_att, 1.0 - a_rel
-    vals = gr.tolist()
-    res = [0.0] * len(vals)
-    for i, g in enumerate(vals):
-        if g > prev:
-            prev = a_att * prev + ia * g
-        else:
-            prev = a_rel * prev + ir * g
-        res[i] = prev
-    out[:] = res
-    return out
+    """Decoupled attack/release one-pole smoothing of a gain-reduction trace (dB).
+
+    Runs in the native kernel when available, else in Python (bit-identical; see ballistics.py).
+    """
+    return ballistics.smooth(gr, a_att, a_rel)[0]
 
 
 def _coef(ms: float, sr: int) -> float:
-    return math.exp(-1.0 / (ms * 1e-3 * sr))
+    return ballistics.coef(ms, sr)
 
 
-def compressor(x: np.ndarray, sr: int, p: dict, **_):
-    n, ch = x.shape
+def rms_detector(x: np.ndarray, sr: int, window_ms: float) -> np.ndarray:
+    """Causal moving RMS over ``window_ms`` (per column)."""
+    w = max(1, int(round(window_ms * 1e-3 * sr)))
+    return np.sqrt(np.maximum(ndimage.uniform_filter1d(x * x, size=w, axis=0, mode="constant",
+                                                       origin=(w - 1) // 2), 0.0))
+
+
+def gr_scale(p95_db: float) -> str:
+    """SPEC 6.5.3 yardstick for compressor gain reduction."""
+    if p95_db > 10.0:
+        return "excessive"
+    if p95_db > 6.0:
+        return "heavy"
+    if p95_db >= 3.0:
+        return "even_out"
+    return "light_glue"
+
+
+def compressor(x: np.ndarray, sr: int, p: dict, *, ballistics_impl: str = "auto", **_):
     if p["detector"] == "peak":
         det = np.abs(x)
     else:
-        w = max(1, int(round(p["rms_window_ms"] * 1e-3 * sr)))
-        det = np.sqrt(np.maximum(ndimage.uniform_filter1d(x * x, size=w, axis=0, mode="constant",
-                                                          origin=(w - 1) // 2), 0.0))
-    if p["stereo_link"]:
-        det = np.max(det, axis=1, keepdims=True)
+        det = rms_detector(x, sr, p["rms_window_ms"])
+    if p["stereo_link"] and det.shape[1] > 1:
+        linked = det[:, 0].copy()
+        for c in range(1, det.shape[1]):
+            np.maximum(linked, det[:, c], out=linked)
+        det = linked[:, None]
     level = 20.0 * np.log10(np.maximum(det, _TINY))
     gr = level - static_curve_db(level, p["threshold_db"], p["ratio"], p["knee_db"])
     a_att, a_rel = _coef(p["attack_ms"], sr), _coef(p["release_ms"], sr)
-    gr_s = np.stack([_smooth_gr(gr[:, c], a_att, a_rel) for c in range(gr.shape[1])], axis=1)
-    g = 10.0 ** ((p["makeup_db"] - gr_s) / 20.0)
+    gr_s, impl = ballistics.smooth_columns(gr, a_att, a_rel, impl=ballistics_impl)
+    if gr_s.ndim == 1:
+        gr_s = gr_s[:, None]
+    g = np.exp((p["makeup_db"] - gr_s) * (math.log(10.0) / 20.0))
     y = x * g
-    trace = np.max(gr_s, axis=1)
+    trace = gr_s[:, 0] if gr_s.shape[1] == 1 else np.max(gr_s, axis=1)
     st = gr_stats(trace)
-    if st["p95_db"] > 10.0:
-        scale = "excessive"
-    elif st["p95_db"] > 6.0:
-        scale = "heavy"
-    elif st["p95_db"] >= 3.0:
-        scale = "even_out"
-    else:
-        scale = "light_glue"
-    return y, sr, {"gain_reduction": st, "gr_scale": scale, "latency_samples": 0,
-                   "times_ms": {"attack": p["attack_ms"], "release": p["release_ms"]}}
+    return y, sr, {"gain_reduction": st, "gr_scale": gr_scale(st["p95_db"]), "latency_samples": 0,
+                   "times_ms": {"attack": p["attack_ms"], "release": p["release_ms"]},
+                   "ballistics": impl}
 
 
 # ---------------------------------------------------------------------------

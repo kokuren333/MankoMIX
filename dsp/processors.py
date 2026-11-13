@@ -12,6 +12,11 @@ Representation rules that are enforced here:
 - Times are milliseconds (R-11: callers may additionally record note values).
 - Pan law is defined by the measured center attenuation (default -3 dB).
 - ``limiter`` runs only as the final step of the mastering stage (S-06).
+- Times are milliseconds; delay / reverb also take a note value at a BPM (R-11).
+- ``aw.*`` types are the Airwindows ports of the native core (backend
+  ``native`` only). Their parameter ids mirror the native processor JSON; a
+  chain step may declare a ``fallback`` reference processor used when the
+  native library is unavailable (the record shows what actually ran).
 - ``loudness_gain`` / ``resample`` / ``dither`` belong to the export module.
   ``loudness_gain`` is additionally accepted in the mastering stage as the
   limiter drive (slot 5 of the fixed order, SPEC 6.6.2).
@@ -41,6 +46,13 @@ MASTER_SLOTS = {
 
 # Order inside the export module (SPEC 5.3, 6.6.2 step 7).
 EXPORT_SLOTS = {1: "loudness_gain", 2: "resample", 3: "dither"}
+
+# Note values for time parameters (R-11): "1/4" quarter, "d" dotted (x1.5), "t" triplet (x2/3).
+NOTE_VALUES = ["none"] + [f"1/{d}{m}" for d in (1, 2, 4, 8, 16, 32, 64) for m in ("", "d", "t")]
+
+_AIRWINDOWS_ORIGIN = {"source": "airwindows", "license": "MIT",
+                      "repository": "https://github.com/airwindows/airwindows",
+                      "notice": "third_party/airwindows/LICENSE, third_party/airwindows/ORIGIN.md"}
 
 
 def _f(pid, unit, lo, hi, default, desc):
@@ -141,14 +153,20 @@ _PROCESSORS: list[dict[str, Any]] = [
     },
     {
         "type": "dynamic_eq",
-        "implemented": False,
-        "description": "Dynamic EQ band for intermittent problems (R-13). Declared only (not in M2).",
+        "implemented": True,
+        "description": "Dynamic EQ band for intermittent problems (R-13). y = x + (G(t)-1) * B(x) with "
+                       "B the band-pass (peak) or 2nd-order Butterworth low/high-pass (shelves): a "
+                       "minimum-phase peaking/shelving filter at every instant. The band's own RMS "
+                       "(linked) drives G: above threshold the band is pulled toward the threshold "
+                       "until |range_db| is used up (range < 0 cuts, > 0 boosts). Below threshold "
+                       "the output is the input, bit for bit.",
         "params": [
             _e("shape", ["peak", "low_shelf", "high_shelf"], "peak", "Band shape."),
-            _f("freq_hz", "Hz", 10.0, 24000.0, 1000.0, "Center frequency."),
-            _f("bw_oct", "oct", 0.02, 6.0, 1.0, "Bandwidth in octaves."),
-            _f("range_db", "dB", -24.0, 24.0, -3.0, "Maximum gain change."),
-            _f("threshold_db", "dBFS", -80.0, 0.0, -30.0, "Band detector threshold."),
+            _f("freq_hz", "Hz", 10.0, 24000.0, 1000.0, "Center frequency (shelves: corner)."),
+            _f("bw_oct", "oct", 0.02, 6.0, 1.0,
+               "Bandwidth in octaves between the -3 dB points of the band-pass (peak only)."),
+            _f("range_db", "dB", -24.0, 24.0, -3.0, "Maximum gain change (negative = cut)."),
+            _f("threshold_db", "dBFS", -80.0, 0.0, -30.0, "Band detector threshold (band RMS)."),
             _f("attack_ms", "ms", 0.1, 200.0, 5.0, "Attack time."),
             _f("release_ms", "ms", 5.0, 2000.0, 120.0, "Release time."),
         ],
@@ -156,7 +174,7 @@ _PROCESSORS: list[dict[str, Any]] = [
         "offline_only": False,
         "stages": ["track", "bus", "master"],
         "master_slot": 2,
-        "backends": [],
+        "backends": ["reference", "native"],
     },
     {
         "type": "compressor",
@@ -178,23 +196,27 @@ _PROCESSORS: list[dict[str, Any]] = [
         "offline_only": False,
         "stages": ["track", "bus", "master"],
         "master_slot": 2,
-        "backends": ["reference"],
+        "backends": ["reference", "native"],
     },
     {
         "type": "deesser",
-        "implemented": False,
-        "description": "Sibilance control. Declared only (not in M2).",
+        "implemented": True,
+        "description": "Split-band sibilance control: only the detector band (band-pass at freq_hz, "
+                       "bw_oct) is reduced, minimum phase, by up to range_db while its RMS exceeds "
+                       "the threshold. The default band covers about 4.6-9.2 kHz.",
         "params": [
             _f("freq_hz", "Hz", 2000.0, 16000.0, 6500.0, "Detector band center."),
             _f("bw_oct", "oct", 0.1, 4.0, 1.0, "Detector bandwidth in octaves."),
-            _f("threshold_db", "dBFS", -80.0, 0.0, -30.0, "Threshold."),
+            _f("threshold_db", "dBFS", -80.0, 0.0, -30.0, "Threshold (band RMS)."),
             _f("range_db", "dB", 0.0, 24.0, 6.0, "Maximum reduction."),
+            _f("attack_ms", "ms", 0.1, 50.0, 1.0, "Attack time."),
+            _f("release_ms", "ms", 5.0, 500.0, 60.0, "Release time."),
         ],
         "realtime": _rt(True, 0, False),
         "offline_only": False,
         "stages": ["track", "bus", "master"],
         "master_slot": 2,
-        "backends": [],
+        "backends": ["reference", "native"],
     },
     {
         "type": "saturator",
@@ -255,36 +277,58 @@ _PROCESSORS: list[dict[str, Any]] = [
     },
     {
         "type": "reverb",
-        "implemented": False,
-        "description": "Reverb described by measured vectors (RT60 per band, ER/late, D/R) (R-10). Declared only.",
+        "implemented": True,
+        "description": "Deterministic true-stereo algorithmic reverb (early-reflection taps, all-pass "
+                       "diffusers, 8-line Hadamard FDN with per-band absorption) rendered to an "
+                       "impulse response and applied by FFT convolution. Described by measured "
+                       "vectors (RT60 per band, ER/late, D/R, mono loss) recorded from its own "
+                       "impulse response (R-10). mix = 1 is the 100 % wet mode for send buses.",
         "params": [
-            _f("rt60_s", "s", 0.1, 10.0, 1.5, "Mid-band decay time."),
+            _f("rt60_s", "s", 0.1, 10.0, 1.5, "Mid-band decay time (250 Hz - 4 kHz)."),
             _f("predelay_ms", "ms", 0.0, 250.0, 20.0, "Pre-delay."),
-            _f("er_late_db", "dB", -24.0, 24.0, 0.0, "Early/late ratio."),
-            _f("mix", "0..1", 0.0, 1.0, 0.2, "Wet mix."),
-            _f("lowcut_hz", "Hz", 20.0, 2000.0, 600.0, "Return low cut."),
-            _f("highcut_hz", "Hz", 1000.0, 20000.0, 6000.0, "Return high cut."),
+            _f("er_late_db", "dB", -24.0, 24.0, 0.0, "Early/late energy ratio."),
+            _f("mix", "0..1", 0.0, 1.0, 0.2, "Wet mix: y = (1-mix)*dry + mix*wet (1 = send, 100 % wet)."),
+            _f("lowcut_hz", "Hz", 20.0, 2000.0, 600.0, "Return low cut (12 dB/oct)."),
+            _f("highcut_hz", "Hz", 1000.0, 20000.0, 6000.0,
+               "Return high cut (12 dB/oct; not applied at or above 0.45 x sample rate)."),
+            _f("rt60_low_mult", "x", 0.1, 4.0, 1.0, "RT60 multiplier below 250 Hz."),
+            _f("rt60_high_mult", "x", 0.1, 4.0, 0.7, "RT60 multiplier above 4 kHz."),
+            _f("bpm", "BPM", 0.0, 400.0, 0.0,
+               "Tempo used only to record pre-delay / RT60 as note values (R-11); 0 = unknown."),
         ],
-        "realtime": _rt(True, 0, True),
+        "realtime": _rt(True, 0, True, "offline: FFT convolution with the rendered IR; the tail "
+                                       "beyond the end of the input is not rendered"),
         "offline_only": False,
         "stages": ["track", "bus"],
         "master_slot": None,
-        "backends": [],
+        "backends": ["reference"],
     },
     {
         "type": "delay",
-        "implemented": False,
-        "description": "Delay; Haas region (localisation / fusion / echo) is explicit (R-10). Declared only.",
+        "implemented": True,
+        "description": "Feedback delay with an exact integer sample delay from time_ms or a note "
+                       "value at bpm (R-11). Band-limit filters act on the wet input (every repeat "
+                       "has the same band). route puts the wet signal on one channel for Haas "
+                       "widening. The Haas region (localisation / fusion / echo) is reported with "
+                       "the mono fold-down loss (R-10).",
         "params": [
-            _f("time_ms", "ms", 0.1, 4000.0, 250.0, "Delay time."),
+            _f("time_ms", "ms", 0.1, 4000.0, 250.0, "Delay time (used when note = none)."),
             _f("feedback", "0..1", 0.0, 0.95, 0.2, "Feedback."),
-            _f("mix", "0..1", 0.0, 1.0, 0.2, "Wet mix."),
+            _f("mix", "0..1", 0.0, 1.0, 0.2, "Wet mix: y = (1-mix)*dry + mix*wet."),
+            _e("note", NOTE_VALUES, "none",
+               "Note value (quarter note = one beat; d = dotted, t = triplet). Overrides time_ms; "
+               "needs bpm."),
+            _f("bpm", "BPM", 0.0, 400.0, 0.0, "Tempo for note values (0 = unknown)."),
+            _f("lowcut_hz", "Hz", 0.0, 2000.0, 0.0, "Wet low cut, 12 dB/oct (0 = off)."),
+            _f("highcut_hz", "Hz", 0.0, 24000.0, 0.0, "Wet high cut, 12 dB/oct (0 = off)."),
+            _e("route", ["both", "left", "right"], "both",
+               "Channels that receive the wet signal (stereo input only)."),
         ],
         "realtime": _rt(True, 0, True),
         "offline_only": False,
         "stages": ["track", "bus"],
         "master_slot": None,
-        "backends": [],
+        "backends": ["reference"],
     },
     {
         "type": "limiter",
@@ -354,6 +398,114 @@ _PROCESSORS: list[dict[str, Any]] = [
         "backends": ["reference"],
     },
 ]
+
+# Airwindows ports in the native core (dsp/native/). Parameter ids, units, ranges and defaults
+# mirror the native processor JSON (checked by tests/test_dsp_native_wiring.py). "fallback" names
+# the reference processor a chain step may fall back to (dsp/native_wiring.py maps the params).
+_NATIVE_PROCESSORS: list[dict[str, Any]] = [
+    {
+        "type": "aw.purest_drive",
+        "implemented": True,
+        "description": "Airwindows PurestDrive: program-dependent sine saturation (saturates less on "
+                       "low-level or polarity-reversing material). 0 = transparent.",
+        "params": [_f("drive", "norm", 0.0, 1.0, 0.0, "Drive (original knob scale 0..1).")],
+        "realtime": _rt(True, 0, False),
+        "offline_only": False,
+        "stages": ["track", "bus", "master"],
+        "master_slot": 3,
+        "backends": ["native"],
+        "abstract_type": "saturator",
+        "native": {"id": "aw.purest_drive", "role": "channel_drive",
+                   "origin": {**_AIRWINDOWS_ORIGIN, "plugin": "PurestDrive"}},
+        "fallback": {"type": "saturator",
+                     "mapping": "mode=tanh, drive_db=0, mix=drive (sine blend approximated by tanh)"},
+    },
+    {
+        "type": "aw.clip_only2",
+        "implemented": True,
+        "description": "Airwindows ClipOnly2: safety clipper that rounds the corner just below the "
+                       "ceiling; below the ceiling only a one-sample delay (compensated offline).",
+        "params": [
+            _f("input_gain_db", "dB", -24.0, 24.0, 0.0, "Gain before the clipper."),
+            _f("ceiling_db", "dBFS", -24.0, 0.0, -0.4, "Clip ceiling."),
+        ],
+        "realtime": _rt(True, 1, False),
+        "offline_only": False,
+        "stages": ["track", "bus", "master"],
+        "master_slot": 5,
+        "backends": ["native"],
+        "abstract_type": "clipper",
+        "native": {"id": "aw.clip_only2", "role": "safety_clipper",
+                   "origin": {**_AIRWINDOWS_ORIGIN, "plugin": "ClipOnly2"}},
+        "fallback": {"type": "clipper",
+                     "mapping": "mode=soft, softness=0.1, ceiling_db=ceiling_db, "
+                                "drive_db=max(input_gain_db, 0) (negative input gain is dropped)"},
+    },
+    {
+        "type": "aw.console7_channel",
+        "implemented": True,
+        "description": "Airwindows Console7Channel: first half of the Console7 summing pair (per "
+                       "channel, or on the 2mix before aw.console7_buss).",
+        "params": [_f("fader", "norm", 0.0, 1.0, 0.772,
+                      "Channel fader (original knob). 0.772 = unity for a full-scale sine through "
+                      "the Console7 pair.")],
+        "realtime": _rt(True, 0, False),
+        "offline_only": False,
+        "stages": ["track", "bus", "master"],
+        "master_slot": 3,
+        "backends": ["native"],
+        "abstract_type": "saturator",
+        "native": {"id": "aw.console7_channel", "role": "console_channel",
+                   "origin": {**_AIRWINDOWS_ORIGIN, "plugin": "Console7Channel"}},
+        "fallback": {"type": "gain",
+                     "mapping": "gain_db = 20*log10((fader*1.272019649514069)^2) (small-signal "
+                                "gain; saturation dropped)"},
+    },
+    {
+        "type": "aw.console7_buss",
+        "implemented": True,
+        "description": "Airwindows Console7Buss: second half of the Console7 pair (after summing). "
+                       "channel -> buss at defaults is near unity gain.",
+        "params": [_f("master", "norm", 0.0, 1.0, 1.0, "Buss master (original knob).")],
+        "realtime": _rt(True, 0, False),
+        "offline_only": False,
+        "stages": ["track", "bus", "master"],
+        "master_slot": 3,
+        "backends": ["native"],
+        "abstract_type": "saturator",
+        "native": {"id": "aw.console7_buss", "role": "console_buss",
+                   "origin": {**_AIRWINDOWS_ORIGIN, "plugin": "Console7Buss"}},
+        "fallback": {"type": "gain",
+                     "mapping": "gain_db = 20*log10(master*1.03) (small-signal gain; saturation "
+                                "dropped)"},
+    },
+    {
+        "type": "aw.pressure4",
+        "implemented": True,
+        "description": "Airwindows Pressure4: linked vari-mu style bus compressor with a sine "
+                       "output stage (output within +-1). At the default mewiness = +1 it RAISES "
+                       "the crest factor; the measured crest change is recorded, never assumed.",
+        "params": [
+            _f("pressure", "norm", 0.0, 1.0, 0.0, "Amount of compression (0 = off)."),
+            _f("speed", "norm", 0.0, 1.0, 0.2, "Release speed."),
+            _f("mewiness", "bipolar", -1.0, 1.0, 1.0, "Character (+1 default raises crest factor)."),
+            _f("output_gain", "linear", 0.0, 1.0, 1.0, "Output gain (linear)."),
+        ],
+        "realtime": _rt(True, 0, False),
+        "offline_only": False,
+        "stages": ["track", "bus", "master"],
+        "master_slot": 2,
+        "backends": ["native"],
+        "abstract_type": "compressor",
+        "native": {"id": "aw.pressure4", "role": "vari_mu_bus",
+                   "origin": {**_AIRWINDOWS_ORIGIN, "plugin": "Pressure4"}},
+        "fallback": {"type": "compressor",
+                     "mapping": "threshold_db=-6-24*pressure, ratio=1+5*pressure, knee_db=12, "
+                                "attack_ms=10, release_ms=40+460*(1-speed), detector=rms, "
+                                "makeup_db=20*log10(output_gain) (mewiness ignored)"},
+    },
+]
+_PROCESSORS += _NATIVE_PROCESSORS
 
 PROCESSORS: dict[str, dict[str, Any]] = {p["type"]: p for p in _PROCESSORS}
 for _p in _PROCESSORS:
@@ -435,6 +587,14 @@ def validate_params(type: str, params: dict | None) -> dict:
 
 
 def _cross_validate(type: str, p: dict) -> None:
+    if type in ("delay", "reverb") and 0.0 < p["bpm"] < 20.0:
+        raise ParamError(f"{type}: bpm must be 0 (unknown) or >= 20")
+    if type == "delay" and p["note"] != "none":
+        if p["bpm"] <= 0.0:
+            raise ParamError("delay: a note value needs bpm > 0")
+        ms = note_ms(p["note"], p["bpm"])
+        if ms > 4000.0:
+            raise ParamError(f"delay: note {p['note']} at {p['bpm']} BPM is {ms:.1f} ms (> 4000 ms)")
     if type == "stereo":
         xs = p["crossovers_hz"]
         if any(b <= a for a, b in zip(xs, xs[1:])):
@@ -443,6 +603,19 @@ def _cross_validate(type: str, p: dict) -> None:
             raise ParamError("stereo: crossovers_hz must lie above mono_below_hz")
         if p["widths"] and len(p["widths"]) != len(xs) + 1:
             raise ParamError("stereo: widths must have len(crossovers_hz) + 1 items")
+
+
+def note_ms(note: str, bpm: float) -> float:
+    """Duration in ms of a note value at ``bpm`` (quarter note = one beat), e.g. "1/8d"."""
+    if note not in NOTE_VALUES or note == "none":
+        raise ParamError(f"unknown note value {note!r}")
+    body = note[2:]
+    mod = 1.0
+    if body.endswith("d"):
+        mod, body = 1.5, body[:-1]
+    elif body.endswith("t"):
+        mod, body = 2.0 / 3.0, body[:-1]
+    return 4.0 * 60000.0 / bpm / int(body) * mod
 
 
 def check_runtime(type: str, params: dict, sr: int) -> None:
@@ -495,6 +668,11 @@ def graph_schema() -> dict:
                     "additionalProperties": False,
                 },
                 "backend": {"enum": ["reference", "ffmpeg", "native"]},
+                "fallback": {"oneOf": [
+                    {"type": "string"},
+                    {"type": "object", "properties": {"type": {"type": "string"},
+                                                      "params": {"type": "object"}},
+                     "required": ["type"], "additionalProperties": False}]},
                 "bypass": {"type": "boolean"},
                 "note": {"type": "string"},
             },

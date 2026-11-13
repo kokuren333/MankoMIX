@@ -12,6 +12,14 @@ Rules enforced here:
   resample (S-09);
 - float64 internally; the backend that executed each step is recorded for the
   render manifest (SPEC 3.2, 9.6).
+
+Backend selection per step: the step's ``backend`` if given, else the first
+entry of ``backend_preference`` implementing the type, else the first
+available backend the processor declares (so ``aw.*`` steps run on
+``native`` without being asked). When no backend can run a step (``aw.*``
+with the native library unavailable) the step's ``fallback`` reference
+processor is used and recorded (``step["fallback"]`` + a warning); without a
+fallback a ``DSPError`` with rule ``backend`` is raised.
 """
 
 from __future__ import annotations
@@ -28,9 +36,9 @@ import numpy as np
 
 from . import processors as P
 from . import reference
-from .errors import ChainError, NumericError, ParamError
+from .errors import ChainError, DSPError, NumericError, ParamError
 
-_STEP_KEYS = {"id", "type", "params", "backend", "bypass", "note"}
+_STEP_KEYS = {"id", "type", "params", "backend", "bypass", "note", "fallback"}
 
 
 class DitheredAudio(np.ndarray):
@@ -103,6 +111,13 @@ def _backends() -> dict[str, dict]:
             reg["ffmpeg"] = ffmpeg_backend.IMPLEMENTATIONS
     except Exception:  # pragma: no cover - ffmpeg probing must never break rendering
         pass
+    try:
+        from . import native_wiring
+        table = native_wiring.implementations()
+        if table:
+            reg["native"] = table
+    except Exception:  # pragma: no cover - native probing must never break rendering
+        pass
     return reg
 
 
@@ -114,6 +129,12 @@ def _backend_version(name: str) -> dict:
         vi = ffmpeg_backend.version_info() or {}
         return {"backend": "ffmpeg", "version": vi.get("version"), "build": vi.get("build"),
                 "configuration": vi.get("configuration")}
+    if name == "native":
+        from . import native_backend
+        try:
+            return native_backend.version_info()
+        except Exception as exc:  # pragma: no cover
+            return {"backend": "native", "error": str(exc)}
     return {"backend": name}
 
 
@@ -146,8 +167,11 @@ def validate_chain(chain: list[dict], stage: str) -> list[dict]:
             params = P.validate_params(t, raw.get("params") or {})
         except ParamError as e:
             raise ParamError(f"step {sid}: {e}", step=sid) from None
+        fallback = (_validate_fallback(raw["fallback"], t, params, sid)
+                    if raw.get("fallback") is not None else None)
         steps.append({"id": sid, "type": t, "params": params, "backend": raw.get("backend"),
-                      "bypass": bool(raw.get("bypass", False)), "note": raw.get("note")})
+                      "bypass": bool(raw.get("bypass", False)), "note": raw.get("note"),
+                      "fallback": fallback})
 
     # S-05 first: nothing after dither, whatever the stage
     for i, s in enumerate(steps):
@@ -157,6 +181,10 @@ def validate_chain(chain: list[dict], stage: str) -> list[dict]:
 
     for s in steps:
         d = P.PROCESSORS[s["type"]]
+        fb = s.get("fallback")
+        if fb and stage not in P.PROCESSORS[fb["type"]]["stages"]:
+            raise ChainError(f"step {s['id']}: fallback {fb['type']!r} is not allowed in stage {stage!r}",
+                             rule="stage", step=s["id"])
         if stage not in d["stages"]:
             rule = "S-06" if s["type"] == "limiter" else "stage"
             raise ChainError(f"{rule}: processor {s['type']!r} (step {s['id']}) is not allowed in stage "
@@ -170,6 +198,41 @@ def validate_chain(chain: list[dict], stage: str) -> list[dict]:
     elif stage == "export":
         _check_export_order(steps)
     return steps
+
+
+def _validate_fallback(spec, t: str, params: dict, sid: str) -> dict:
+    """Normalise a step's ``fallback``: a type name or {"type": ..., "params": {...}}.
+
+    A bare type (or an object without params) must be the processor's declared
+    fallback; its parameters are then mapped from the step's own parameters.
+    """
+    from . import native_wiring
+
+    if isinstance(spec, str):
+        spec = {"type": spec}
+    if (not isinstance(spec, dict) or not isinstance(spec.get("type"), str)
+            or set(spec) - {"type", "params"}):
+        raise ChainError(f"step {sid}: fallback must be a processor type or an object with "
+                         "'type' and optional 'params'", step=sid)
+    ft = spec["type"]
+    if ft not in P.PROCESSORS or "reference" not in P.PROCESSORS[ft]["backends"]:
+        raise ChainError(f"step {sid}: fallback {ft!r} must be a processor with a reference "
+                         "implementation", rule="backend", step=sid)
+    if P.PROCESSORS[ft].get("position") == "final" or ft in ("resample", "dither"):
+        raise ChainError(f"step {sid}: {ft!r} cannot be a fallback", rule="backend", step=sid)
+    declared = (P.PROCESSORS[t].get("fallback") or {}).get("type")
+    try:
+        if "params" in spec:
+            fp, notes, mapping = P.validate_params(ft, spec["params"] or {}), [], "explicit"
+        elif ft == declared:
+            _, fp, notes = native_wiring.fallback_params(t, params)
+            mapping = P.PROCESSORS[t]["fallback"].get("mapping", "declared")
+        else:
+            raise ChainError(f"step {sid}: fallback {ft!r} is not the declared fallback of {t!r} "
+                             f"({declared!r}); give explicit params", rule="backend", step=sid)
+    except ParamError as e:
+        raise ParamError(f"step {sid}: fallback: {e}", step=sid) from None
+    return {"type": ft, "params": fp, "notes": notes, "mapping": mapping}
 
 
 def _check_master_order(steps: list[dict]) -> None:
@@ -216,13 +279,17 @@ def _check_export_order(steps: list[dict]) -> None:
 
 def _select(t: str, forced: str | None, preference: Iterable[str], reg: dict, warnings: list[str],
             sid: str):
+    """Pick (implementation, backend) for a type; (None, None) when no backend can run it."""
     order = [forced] if forced else list(preference)
     for b in order:
         if b in reg and t in reg[b]:
             return reg[b][t], b
-    if forced:
-        warnings.append(f"step {sid}: backend {forced!r} unavailable for {t!r}; used 'reference'")
-    return reg["reference"][t], "reference"
+    for b in P.PROCESSORS[t]["backends"]:
+        if b in reg and t in reg[b]:
+            if forced:
+                warnings.append(f"step {sid}: backend {forced!r} unavailable for {t!r}; used {b!r}")
+            return reg[b][t], b
+    return None, None
 
 
 def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
@@ -242,11 +309,27 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
             records.append({"id": sid, "type": t, "backend": None, "params": p, "bypass": True,
                             "stats": {}, "in_peak": _peak_db(audio), "out_peak": _peak_db(audio)})
             continue
-        P.check_runtime(t, p, sr)
         fn, backend = _select(t, s["backend"], backend_preference, reg, warnings, sid)
+        exec_t, exec_p, fb_rec = t, p, None
+        if fn is None:
+            reason = _unavailable_reason(t)
+            fb = s.get("fallback")
+            if not fb:
+                raise DSPError(f"step {sid}: no available backend for {t!r} (declared "
+                               f"{P.PROCESSORS[t]['backends']}): {reason}; declare a 'fallback' "
+                               "reference processor to render without it", rule="backend", step=sid)
+            exec_t, exec_p = fb["type"], fb["params"]
+            fn, backend = reg["reference"][exec_t], "reference"
+            fb_rec = {"type": exec_t, "params": exec_p, "mapping": fb["mapping"], "reason": reason,
+                      "notes": list(fb["notes"])}
+            extra = f"; {'; '.join(fb['notes'])}" if fb["notes"] else ""
+            warnings.append(f"step {sid}: {t!r} needs backend {P.PROCESSORS[t]['backends']} "
+                            f"({reason}); rendered with fallback {exec_t!r} on 'reference' "
+                            f"(approximation){extra}")
+        P.check_runtime(exec_t, exec_p, sr)
         in_peak = _peak_db(audio)
         n_in = audio.shape[0]
-        y, sr_out, stats = fn(audio, sr, p, seed=seed)
+        y, sr_out, stats = fn(audio, sr, exec_p, seed=seed)
         y = np.asarray(y, dtype=np.float64)
         if y.ndim == 1:
             y = y[:, None]
@@ -263,10 +346,12 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
         used.add(backend)
         rec = {"id": sid, "type": t, "backend": backend, "params": p, "stats": stats,
                "in_peak": in_peak, "out_peak": _peak_db(y)}
+        if fb_rec:
+            rec["fallback"] = fb_rec
         if s.get("note"):
             rec["note"] = s["note"]
         records.append(rec)
-        warnings += _step_warnings(stage, t, p, stats, sid)
+        warnings += _step_warnings(stage, exec_t, exec_p, stats, sid)
         audio, sr = y, int(sr_out)
         if t == "dither":
             dithered = True
@@ -280,6 +365,15 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
                           warnings=warnings, stage=stage, dithered=dithered,
                           backends={b: _backend_version(b) for b in sorted(used)})
     return result
+
+
+def _unavailable_reason(t: str) -> str:
+    if "native" in P.PROCESSORS[t]["backends"]:
+        from . import native_wiring
+        if not native_wiring.native_available():
+            return f"native library unavailable: {native_wiring.unavailable_reason()}"
+        return "processor missing from the native library build"
+    return "backend unavailable"
 
 
 def _step_warnings(stage: str, t: str, p: dict, stats: dict, sid: str) -> list[str]:

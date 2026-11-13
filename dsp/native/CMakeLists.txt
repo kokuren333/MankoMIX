@@ -10,7 +10,7 @@ if(POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)  # select the MSVC runtime via CMAKE_MSVC_RUNTIME_LIBRARY
 endif()
 
-project(mankomix_dsp VERSION 0.1.0 LANGUAGES CXX)
+project(mankomix_dsp VERSION 0.2.0 LANGUAGES CXX)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
