@@ -109,6 +109,7 @@ def _vocab_band(band_id: str) -> dict | None:
 
 ELEMENTS = ("balance", "panning", "frequency", "depth", "dynamics", "interest")
 _STAGE_ELEMENT["planner_loop"] = "frequency"
+_STAGE_ELEMENT["noise_return_guard"] = "dynamics"
 
 
 def _move_words(moves: list) -> list[dict]:
@@ -145,6 +146,9 @@ def _decisions(plan: dict, stored: dict | None = None, n_refs: int = 0) -> dict:
         words = _move_words(r.get("moves"))
         if words:
             d["vocabulary"] = words
+        if r.get("steps"):
+            # corrective steps (e.g. the S-08 guard): measured -> rule -> action -> alternatives -> result
+            d["steps"] = r["steps"]
         out[el].append(d)
     for el in ELEMENTS:
         for d in (stored or {}).get(el) or []:
@@ -417,7 +421,103 @@ def _measurements(project, variant, x_in, sr_in, archive_path: Path | None, oe: 
     return res
 
 
-def _listening_checks(x, sr, plan: dict, verify: dict) -> list[dict]:
+_S08_KEYS = ("shimmer_index_db", "side_shimmer_index_db", "noise_floor_dbfs", "noise_floor_hf_dbfs",
+             "above_ceiling_level_db")
+_S08_NAMES = {"shimmer_index_db": T("シマー指数", "shimmer index"),
+              "side_shimmer_index_db": T("サイドのシマー指数", "side shimmer index"),
+              "noise_floor_dbfs": T("ノイズ床", "noise floor"),
+              "noise_floor_hf_dbfs": T("高域のノイズ床", "HF noise floor"),
+              "above_ceiling_level_db": T("天井より上の成分", "above-ceiling level")}
+_STEP_NAMES = {"click_repair": T("クリック修復", "click repair"),
+               "spectral_reduction": T("スペクトル低減", "spectral reduction"),
+               "protection": T("保護", "protection"), "completion": T("高域補完", "HF completion")}
+
+
+def _s08_output(o: dict) -> dict | None:
+    c = (o.get("checks") or {}).get("S-08")
+    if not isinstance(c, dict):
+        return None
+    deltas = {}
+    for k in _S08_KEYS:
+        d = (c.get("deltas") or {}).get(k)
+        if isinstance(d, dict) and d.get("delta_db") is not None:
+            deltas[k] = {"before": d.get("before"), "after": d.get("after"), "delta_db": d.get("delta_db"),
+                         "tolerance_db": d.get("tolerance_db"), "pass": d.get("pass"),
+                         "gain_compensated": d.get("gain_compensated")}
+    return {"profile": o.get("profile"), "delivery": o.get("delivery"), "status": c.get("status"),
+            "baseline": c.get("baseline"), "gain_db": c.get("gain_db"), "gain_source": c.get("gain_source"),
+            "frame_selection": c.get("frame_selection"), "conformed": c.get("conformed"),
+            "deltas": deltas, "suggestions": c.get("suggestions") or [],
+            "plan_send_back": c.get("plan_send_back")}
+
+
+def _cleanup_section(project, route: str, verify: dict, plan: dict) -> dict:
+    """Section 7 (SPEC 6.8): cleanup steps run / light / skip per asset, removed energy per band,
+    P-21 side effects, S-07 residual, the delta file for listening, the noise baseline and the S-08
+    result of every output (with the planner's S-08 steps)."""
+    from .cleanstage import BASELINE_FILE, cleanup_summary
+    try:
+        summ = cleanup_summary(project, route)
+    except Exception as exc:  # informative section: report the reason instead of failing
+        summ = {"status": "error", "assets": [], "error": str(exc)}
+    assets = []
+    for a in summ.get("assets") or []:
+        removed = {}
+        for band, r in (a.get("removed_energy") or {}).items():
+            rel = (r or {}).get("removed_rel_db")
+            removed[band] = {"range_hz": (r or {}).get("range_hz"), "removed_rel_db": rel,
+                             "removed_dbfs": (r or {}).get("removed_dbfs"),
+                             "sone_ratio": None if rel is None else round(ma.sone_ratio(float(rel)), 4)}
+        p21 = a.get("p21") or {}
+        width = {b: (w or {}).get("change_db") for b, w in (p21.get("width_change") or {}).items()}
+        over = a.get("oversuppression") or {}
+        steps = {k: v for k, v in (a.get("steps") or {}).items()}
+        assets.append({
+            "asset": a.get("asset"), "skipped": bool(a.get("skipped")), "plan_hash": a.get("plan_hash"),
+            "steps": steps,
+            "steps_by_action": {act: sorted(k for k, v in steps.items() if v == act) for act in ("run", "light", "skip")},
+            "reasons": a.get("reasons"),
+            "removed_energy": removed,
+            "side_effects": {"rule": "P-21", "pass": p21.get("pass"),
+                             "lowmid_250_500_change": _sone(p21.get("lowmid_250_500_change_db")),
+                             "lowmid_tolerance_db": p21.get("lowmid_tolerance_db"),
+                             "width_change_db": width, "width_tolerance_db": p21.get("width_tolerance_db")}
+            if p21 else None,
+            "s07": a.get("s07"),
+            "oversuppression": {"flagged": over.get("flagged"), "rerun": over.get("rerun")} if over else None,
+            "delta_file": a.get("delta"),
+            "record": a.get("record"),
+        })
+    s08 = [x for x in (_s08_output(o) for o in verify.get("outputs", []) or []) if x is not None]
+    guard = next((r for r in plan.get("rationale") or [] if r.get("stage") == "noise_return_guard"), None)
+    s08_plan = None
+    if guard:
+        s08_plan = {"status": ((guard.get("expected") or {}).get("s08") or {}).get("status"),
+                    "first": ((guard.get("measured") or {}).get("s08") or {}).get("status"),
+                    "action": guard.get("action"),
+                    "steps": [{"step": st.get("step"), "kind": st.get("kind"), "action": st.get("action"),
+                               "result_s08": ((st.get("result") or {}).get("s08") or {}).get("status")}
+                              for st in guard.get("steps") or []]}
+    baseline_src = next((x["baseline"].get("source") for x in s08 if isinstance(x.get("baseline"), dict)), None)
+    applied = summ.get("status") == "applied"
+    return {
+        "status": summ.get("status", "not_applied"),
+        "error": summ.get("error"),
+        "assets": assets,
+        "noise_baseline": {"file": summ.get("noise_baseline") or (BASELINE_FILE if applied else None),
+                           "source": baseline_src},
+        "neural_completion_used": bool(summ.get("neural_completion_used", False)),
+        "s08": s08,
+        "s08_plan": s08_plan,
+        "note": (T("整音は M5 の工程（ミックスとマスタリングの前。R-20）。除去分の音声（delta）を聴いて、息や子音が含まれていないかを確認する",
+                   "Cleanup runs before mixing and mastering (R-20). Listen to the removed component (delta) for breaths or consonants")
+                 if applied else
+                 T("このマスターの入力には整音を適用していない。ノイズ戻り監視（S-08）の基準は、入力そのもの（未整音）である",
+                   "No cleanup was applied to this master's input; the noise-return guard (S-08) uses the input as is (not cleaned) as its baseline")),
+    }
+
+
+def _listening_checks(x, sr, plan: dict, verify: dict, cleanup: dict | None = None) -> list[dict]:
     times = ma.section_times(x, sr)
     lim = ((plan.get("expected") or {}).get("limiter_gr")) or {}
     cond = T("音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
@@ -440,6 +540,33 @@ def _listening_checks(x, sr, plan: dict, verify: dict) -> list[dict]:
                     "point": T("最も静かな区間: ノイズやヒスが目立っていないか、静と動のコントラストが残っているか（R-26）",
                                "Quietest section: is noise or hiss exposed, is the quiet/loud contrast preserved? (R-26)"),
                     "conditions": cond})
+    for a in (cleanup or {}).get("assets") or []:
+        if a.get("skipped") or not a.get("delta_file"):
+            continue
+        out.append({"time_s": 0.0, "duration_s": times["duration_s"], "file": a["delta_file"],
+                    "point": T(f"除去分の音声（`{a['delta_file']}`、{a['asset']}）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+                               f"Listen to the removed component (`{a['delta_file']}`, {a['asset']}): does it contain breaths or consonants? (if so, the cleanup is too strong)"),
+                    "conditions": cond})
+    s08_fail = [x for x in (cleanup or {}).get("s08") or [] if x.get("status") == "fail"]
+    s08_plan = (cleanup or {}).get("s08_plan") or {}
+    corrected = any(st.get("result_s08") for st in s08_plan.get("steps") or [])
+    if s08_fail or corrected:
+        qt = times.get("quietest_start_s")
+        worst = []
+        for x_ in s08_fail:
+            for k, d in (x_.get("deltas") or {}).items():
+                if d.get("pass") is False:
+                    worst.append((x_["profile"], k, d["delta_db"], d["tolerance_db"]))
+        if s08_fail:
+            det_ja = "、".join(f"{pr}: {_S08_NAMES[k]['ja']} {dd:+.1f} dB（許容 {tl:.1f} dB）" for pr, k, dd, tl in worst[:4])
+            det_en = ", ".join(f"{pr}: {_S08_NAMES[k]['en']} {dd:+.1f} dB (tolerance {tl:.1f} dB)" for pr, k, dd, tl in worst[:4])
+            point = T(f"最も静かな区間と 10 kHz 以上: マスター後にノイズやシマー（高域のチリチリしたゆらぎ）が戻っていないか、処理前とレベルマッチで比べる。S-08 は不合格（{det_ja}）",
+                      f"Quietest section and above 10 kHz: has noise or shimmer (flickering HF grit) come back after mastering? Compare level-matched with the input. S-08 failed ({det_en})")
+        else:
+            point = T("最も静かな区間と 10 kHz 以上: ノイズ戻り監視（S-08）のためにリミッターの駆動を変えた（4 章の手順）。ノイズやシマーが戻っていないか、低域の歪みやアタックの変化がないか",
+                      "Quietest section and above 10 kHz: the limiter drive was changed for the noise-return guard (S-08; steps in section 4). Has noise or shimmer come back, and are low-end distortion or attacks affected?")
+        out.append({"time_s": qt if qt is not None else 0.0, "duration_s": 5.0, "point": point,
+                    "conditions": cond, "rule": "S-08"})
     for o in verify.get("outputs", []) or []:
         s02 = (o.get("checks") or {}).get("S-02") or {}
         if (s02.get("render_iterations") or 0) > 1:
@@ -519,7 +646,11 @@ def _tradeoffs(plan: dict, verify: dict, notes: list[dict], breakdown: dict | No
     out = []
     sb = plan.get("send_back")
     if sb:
-        out.append({"kind": "send_back", "rule": sb.get("rule"), "text": sb.get("reason"), "measured": sb.get("measured")})
+        out.append({"kind": "send_back", "rule": sb.get("rule"), "text": sb.get("reason"), "measured": sb.get("measured"),
+                    **({"suggestions": sb["suggestions"]} if sb.get("suggestions") else {})})
+        for a in sb.get("also") or []:
+            out.append({"kind": "send_back", "rule": a.get("rule"), "text": a.get("reason"), "measured": a.get("measured"),
+                        **({"suggestions": a["suggestions"]} if a.get("suggestions") else {})})
     for w in plan.get("warnings", []) or []:
         out.append({"kind": "warning", "rule": w.get("rule"), "text": w.get("message"), "code": w.get("code")})
     for o in verify.get("outputs", []) or []:
@@ -606,6 +737,7 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
     apath = variant_dir(project, variant_id) / f"master__{ARCHIVE_DELIVERY}.{output_ext(ad)}"
     outputs = variant.get("outputs") or []
     oe = _objective_evaluation(project, variant, x, sr, apath)
+    cleanup = _cleanup_section(project, route, verify, plan)
     notes = _notes(project, obj, oe)
     breakdown = _breakdown(oe, obj)
     gate = _gate_section(oe)
@@ -652,11 +784,9 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
         "constraints": _constraints(verify, gate),
         "objective_constraints": _objective_constraints(oe),
         "translation_gate": gate,
-        "cleanup": {"status": "not_evaluated", "milestone": "M5",
-                    "note": T("整音は M5 で実装する。このマスターには整音を適用していない",
-                              "Cleanup arrives in M5; no cleanup was applied to this master")},
+        "cleanup": cleanup,
         "tradeoffs": _tradeoffs(plan, verify, notes, breakdown, gate),
-        "listening_checks": _listening_checks(x, sr, plan, verify),
+        "listening_checks": _listening_checks(x, sr, plan, verify, cleanup),
         "reproducibility": _reproducibility(project, variant_id, outputs),
         "notes": notes,
         "chain": master.get("chain", []),
@@ -717,6 +847,8 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
         L.append(f"- {t(T('トランスレーション・ゲート（OF-5）', 'Translation gate (OF-5)'))}: {s.get('translation_gate')}")
     if s.get("send_back"):
         L.append(f"- **{t(T('差し戻し', 'Send back'))} ({s['send_back'].get('rule')})**: {t(s['send_back'].get('reason'))}")
+        for a in s["send_back"].get("also") or []:
+            L.append(f"- **{t(T('差し戻し', 'Send back'))} ({a.get('rule')})**: {t(a.get('reason'))}")
     for n in r.get("notes", []):
         L.append(f"- {t(n.get('text'))}")
     L.append("")
@@ -786,6 +918,19 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
                 L.append(f"  - {t(T('代替案', 'Alternatives'))}: " + "; ".join(t(x) for x in d["alternatives"]))
             if d.get("result"):
                 L.append(f"  - {t(T('結果（予測）', 'Result (expected)'))}: `{_j(d.get('result'))}`")
+            for st in d.get("steps") or []:
+                L.append(f"  - {t(T('手順', 'Step'))} {st.get('step')} [{st.get('rule')}]: {t(st.get('action'))}")
+                ms = ((st.get("measured") or {}).get("s08") or {})
+                if ms:
+                    L.append(f"    - {t(T('測定', 'Measured'))}: S-08 {ms.get('status')} `{_j(ms.get('deltas'))}`")
+                if st.get("alternatives"):
+                    L.append(f"    - {t(T('代替案', 'Alternatives'))}: " + "; ".join(t(x) for x in st["alternatives"]))
+                if st.get("result"):
+                    rs = st["result"]
+                    L.append(f"    - {t(T('結果（シミュレーション）', 'Result (simulated)'))}: S-08 {(rs.get('s08') or {}).get('status')}, "
+                             f"{rs.get('lufs_i')} LUFS, GR p95 {rs.get('limiter_gr_p95_db')} dB"
+                             + (f", {_j(rs.get('limiter_style'))}" if rs.get("limiter_style") else "")
+                             + f" `{_j((rs.get('s08') or {}).get('deltas'))}`")
     L.append("")
 
     L.append("## " + t(_SEC[5]))
@@ -867,7 +1012,7 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
     L.append("")
 
     L.append("## " + t(_SEC[7]))
-    L.append(f"- {t((r.get('cleanup') or {}).get('note'))}")
+    _render_cleanup(L, r.get("cleanup") or {}, lang)
     L.append("")
 
     L.append("## " + t(_SEC[8]))
@@ -902,6 +1047,83 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
     L.append(f"- {t(rep.get('promise'))}")
     L.append("")
     return "\n".join(L)
+
+
+def _render_cleanup(L: list, c: dict, lang: str) -> None:
+    """Markdown of section 7 (cleanup record and the noise-return guard)."""
+    t = lambda o: _txt(o, lang)  # noqa: E731
+    status = {"applied": T("適用済み", "applied"), "not_applied": T("未適用", "not applied")}.get(c.get("status"))
+    L.append(f"- {t(T('整音', 'Cleanup'))}: {t(status) if status else c.get('status')}")
+    if c.get("error"):
+        L.append(f"- {t(T('記録を読めなかった', 'Records could not be read'))}: {c['error']}")
+    L.append(f"- {t(c.get('note'))}")
+    for a in c.get("assets") or []:
+        L.append(f"### {a.get('asset')}" + (f" — {t(T('スキップ（検出なし）', 'skipped (nothing detected)'))}" if a.get("skipped") else ""))
+        steps = a.get("steps") or {}
+        if steps:
+            L.append(f"- {t(T('工程', 'Steps'))}: " + ", ".join(f"{t(_STEP_NAMES.get(k, T(k, k)))} = {v}" for k, v in steps.items()))
+        reasons = a.get("reasons") or {}
+        if isinstance(reasons, dict):
+            for k, rs in reasons.items():
+                if rs:
+                    L.append(f"  - {k}: " + "; ".join(str(x) for x in (rs if isinstance(rs, list) else [rs])))
+        elif reasons:
+            L.append("  - " + "; ".join(str(x) for x in reasons))
+        rem = a.get("removed_energy") or {}
+        if rem:
+            L.append("")
+            L.append(f"| {t(T('帯域', 'Band'))} | Hz | {t(T('除去量（入力比）', 'Removed (re input)'))} | {t(T('知覚上の大きさ（sone 比）', 'Perceived loudness (sone ratio)'))} | dBFS |")
+            L.append("|---|---|---|---|---|")
+            for band, r in rem.items():
+                rng = r.get("range_hz") or [None, None]
+                rel = r.get("removed_rel_db")
+                L.append(f"| {band} | {_fmt_num(rng[0], 0)}–{_fmt_num(rng[1], 0)} | "
+                         f"{'-' if rel is None else f'{rel:+.1f} dB'} | {_fmt_num(r.get('sone_ratio'), 3)} | {_fmt_num(r.get('removed_dbfs'), 1)} |")
+            L.append("")
+        se = a.get("side_effects")
+        if se:
+            lm = se.get("lowmid_250_500_change") or {}
+            L.append(f"- {t(T('副作用（P-21）', 'Side effects (P-21)'))}: {se.get('pass')} — 250–500 Hz "
+                     f"{_fmt_db(lm.get('delta_db'), lang) if lm else '-'} ({t(T('許容', 'tolerance'))} ±{se.get('lowmid_tolerance_db')} dB), "
+                     f"{t(T('幅の変化', 'width change'))} `{_j(se.get('width_change_db'))}` ({t(T('許容', 'tolerance'))} -{se.get('width_tolerance_db')} dB)")
+        s07 = a.get("s07") or {}
+        if s07:
+            L.append(f"- S-07 {t(T('低域保護帯の残差', 'low-band residual'))}: {_fmt_num(s07.get('residual_dbfs'), 1)} dBFS "
+                     f"({t(T('上限', 'limit'))} {s07.get('limit_dbfs')} dBFS, {s07.get('crossover_hz')} Hz) → {s07.get('pass')}")
+        ov = a.get("oversuppression") or {}
+        if ov.get("rerun"):
+            L.append(f"- {t(T('過剰除去の検出により弱めて再実行した', 'Over-suppression detected: re-run with less strength'))}")
+        if a.get("delta_file"):
+            L.append(f"- {t(T('除去分の音声（試聴用）', 'Removed component (for listening)'))}: `{a['delta_file']}`")
+    nb = c.get("noise_baseline") or {}
+    L.append(f"- {t(T('ノイズ戻り監視の基準', 'Noise-return baseline'))}: "
+             + (f"`{nb['file']}` — " if nb.get("file") else "") + (nb.get("source") or "-"))
+    sp = c.get("s08_plan")
+    if sp:
+        L.append(f"- {t(T('計画時の S-08（シミュレーション）', 'S-08 at planning (simulated)'))}: {sp.get('first')} → {sp.get('status')} — {t(sp.get('action'))}")
+        for st in sp.get("steps") or []:
+            L.append(f"  - {t(T('手順', 'step'))} {st.get('step')}: {t(st.get('action'))}" + (f" → {st['result_s08']}" if st.get("result_s08") else ""))
+    rows = c.get("s08") or []
+    if rows:
+        L.append("")
+        L.append(f"| {t(T('出口', 'Output'))} | S-08 | {t(T('ゲイン補正', 'Gain comp.'))} | "
+                 + " | ".join(t(_S08_NAMES[k]) for k in _S08_KEYS[:4]) + " |")
+        L.append("|---|---|---|" + "---|" * 4)
+        for x in rows:
+            cells = []
+            for k in _S08_KEYS[:4]:
+                d = (x.get("deltas") or {}).get(k)
+                cells.append("-" if not d else f"{d['delta_db']:+.2f} / {d['tolerance_db']:.1f}" + ("" if d.get("pass") else " ✗"))
+            L.append(f"| {x.get('profile')} × {x.get('delivery')} | {x.get('status')} | {_fmt_num(x.get('gain_db'))} dB | " + " | ".join(cells) + " |")
+        L.append("")
+        L.append(f"_{t(T('値は 増加量 / 許容幅（dB）。レベル系はマスターのゲイン変化（統合ラウドネスの差）を補正済み。マスターは基準と同じフレーム（時刻を揃えた静かな区間とオンセットのゲート）で測る', 'Values are rise / tolerance (dB). Level metrics are compensated by the master gain change (integrated loudness difference); the master is measured on the baseline frames (time-aligned quiet passages and onset gate)'))}_")
+        for x in rows:
+            for sg in x.get("suggestions") or []:
+                L.append(f"- {t(T('是正案', 'Correction'))} ({x.get('profile')}): {t(sg.get('text'))}")
+            psb = x.get("plan_send_back")
+            if psb:
+                for sg in psb.get("suggestions") or []:
+                    L.append(f"  - {t(sg.get('text'))}")
 
 
 def write_report(project, variant_id: str) -> dict:

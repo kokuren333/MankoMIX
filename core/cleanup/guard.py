@@ -4,6 +4,13 @@ The P-16 metrics of the cleaned signal are stored as the "noise baseline".
 After mastering, the same metrics are measured again; level metrics are
 compared after removing the master's overall gain change, ratio metrics
 (the shimmer index) are gain-invariant by construction.
+
+Frame selection: P-16 picks frames by level (quiet passages for the noise
+floor, the onset gate for the shimmer index). If the master chose its own
+frames, a dynamics change alone could move the selection. With a
+``reference`` (``reference_selection`` of the baseline signal), the master is
+conformed to the baseline's sample rate and length and measured on the
+baseline's frames (time aligned), so the check measures noise returning.
 """
 
 from __future__ import annotations
@@ -12,7 +19,7 @@ import numpy as np
 from scipy import fft as sfft
 
 from ._util import as_2d, db10, load_policy, rnd, v
-from .diagnose import noise_shimmer_metrics
+from .diagnose import frame_selection, noise_shimmer_metrics
 
 BASELINE_KEYS = ("noise_floor_dbfs", "noise_floor_hf_dbfs", "shimmer_index_db",
                  "side_shimmer_index_db", "hf_ceiling_hz", "above_ceiling_level_db")
@@ -40,29 +47,79 @@ def noise_baseline(x_clean, sr: float, *, policy: dict | None = None,
     return base
 
 
+def reference_selection(x_ref, sr: float, *, policy: dict | None = None) -> dict:
+    """Frame selection and P-16 metrics of the S-08 baseline signal (computed once,
+    reused for every master compared with it). In-memory only (holds arrays)."""
+    policy = policy or load_policy()
+    x2d, _ = as_2d(x_ref)
+    m, sel = frame_selection(x2d, sr, policy=policy)
+    return {"kind": "s08_reference", "sr": int(sr), "frames": int(x2d.shape[0]),
+            "channels": int(x2d.shape[1]), "metrics": m, "selection": sel,
+            "integrated_lufs": rnd(_integrated(x2d, sr))}
+
+
+def _conform(x2d: np.ndarray, sr: float, ref: dict) -> tuple[np.ndarray, dict]:
+    """Master on the reference timeline: same sample rate (polyphase resampling,
+    zero phase), same length and channel count."""
+    info: dict = {}
+    y = x2d
+    if int(round(sr)) != int(ref["sr"]):
+        from math import gcd
+        from scipy.signal import resample_poly
+        a, b = int(round(sr)), int(ref["sr"])
+        g = gcd(a, b)
+        y = resample_poly(y, b // g, a // g, axis=0)
+        info["resampled_from_hz"] = a
+        info["resampled_to_hz"] = b
+    n = int(ref["frames"])
+    if y.shape[0] != n:
+        info["length_adjusted_frames"] = int(n - y.shape[0])
+        y = y[:n] if y.shape[0] > n else np.concatenate([y, np.zeros((n - y.shape[0], y.shape[1]))], axis=0)
+    ch = int(ref["channels"])
+    if y.shape[1] != ch:
+        y = (np.repeat(y[:, :1], ch, axis=1) if y.shape[1] == 1 else np.mean(y, axis=1, keepdims=True))
+        info["channels_conformed"] = ch
+    return y, info
+
+
 def noise_return_check(baseline: dict, x_master, sr: float, gain_db: float | None = None, *,
-                       policy: dict | None = None) -> dict:
+                       policy: dict | None = None, reference: dict | None = None) -> dict:
     """S-08: compare P-16 of the master with the cleanup baseline.
 
     ``gain_db`` is the master's overall gain change relative to the cleaned
     signal; if None it is estimated from the integrated loudness difference.
     Level metrics are compensated by it before comparison.
+
+    ``reference`` (``reference_selection`` of the baseline signal): the master
+    is measured on the baseline's frames (time aligned) and compared with the
+    reference's own metrics, so both sides use the same frame selection.
+    Without it each signal chooses its own frames (stored-baseline mode).
     """
     policy = policy or load_policy()
     tol = policy["s08"]
     x2d, _ = as_2d(x_master)
-    m = noise_shimmer_metrics(x2d, sr, policy=policy, with_clicks=False)
+    conform: dict = {}
+    if reference is not None:
+        y2d, conform = _conform(x2d, sr, reference)
+        m = noise_shimmer_metrics(y2d, reference["sr"], policy=policy, with_clicks=False,
+                                  selection=reference["selection"])
+        before = reference["metrics"]
+        selection = "baseline_frames"
+    else:
+        m = noise_shimmer_metrics(x2d, sr, policy=policy, with_clicks=False)
+        before = baseline
+        selection = "independent"
     gain_source = "given"
     if gain_db is None:
         lm = _integrated(x2d, sr)
-        lb = baseline.get("integrated_lufs")
+        lb = (reference or {}).get("integrated_lufs", baseline.get("integrated_lufs"))
         gain_db = (lm - lb) if (lm is not None and lb is not None) else 0.0
         gain_source = "integrated_loudness" if (lm is not None and lb is not None) else "assumed_zero"
     g = float(gain_db)
     checks = {}
 
     def _cmp(key: str, tol_key: str, compensate: bool):
-        b = baseline.get(key)
+        b = before.get(key)
         a = m.get(key)
         if a is None or b is None:
             checks[key] = {"before": b, "after": a, "delta_db": None, "tolerance_db": None,
@@ -94,9 +151,12 @@ def noise_return_check(baseline: dict, x_master, sr: float, gain_db: float | Non
             suggestions.append({"action": "reduce_limiter_drive",
                                 "text": "reduce limiter drive / loudness target: quiet passages "
                                         "were lifted relative to the music"})
-    return {"check": "S-08", "pass": bool(ok), "gain_db": rnd(g), "gain_source": gain_source,
-            "deltas": checks, "suggestions": suggestions,
-            "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)"}
+    out = {"check": "S-08", "pass": bool(ok), "gain_db": rnd(g), "gain_source": gain_source,
+           "deltas": checks, "suggestions": suggestions, "frame_selection": selection,
+           "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)"}
+    if conform:
+        out["conformed"] = conform
+    return out
 
 
 def _spectra(x2d: np.ndarray) -> dict:

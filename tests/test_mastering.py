@@ -98,16 +98,22 @@ def test_plan_is_a_proposal_in_fixed_order(mastered):
     assert plan["stage"] == "master" and plan["route"]["route"] == "full_mix"
     assert plan["route"]["rule"] == "R-21"
     types = [p["type"] for p in plan["chain"]]
-    assert types[-1] == "limiter" and types[-2] == "loudness_gain"
+    assert types[-1] == "limiter" and "loudness_gain" in types[-3:-1]
     assert "multiband" not in " ".join(types)
     for p in plan["chain"]:
         assert p["reason"] and p["id"]
         if p["type"] == "eq":
             assert abs(p["params"]["gain_db"]) <= 2.0
     stages = [r["stage"] for r in plan["rationale"]]
-    assert stages == ["corrective_eq", "dynamics", "enhance", "stereo", "loudness", "true_peak_limiter"]
+    # chain stages in the fixed order, then the S-08 guard record
+    assert stages == ["corrective_eq", "dynamics", "enhance", "stereo", "loudness", "true_peak_limiter",
+                      "noise_return_guard"]
     for r in plan["rationale"]:
         assert {"measured", "rule", "action", "alternatives", "expected"} <= set(r)
+    guard = plan["rationale"][-1]
+    assert guard["rule"] == "S-08" and guard["measured"]["frame_selection"].startswith("baseline frames")
+    for st in guard["steps"]:
+        assert {"measured", "rule", "action", "alternatives", "result"} <= set(st)
     assert mastering.check_chain_order(plan["chain"])["status"] == "pass"
 
 
@@ -159,8 +165,18 @@ def test_loudness_and_true_peak(mastered, prof):
     s08 = checks["S-08"]
     assert s08["status"] in ("pass", "fail"), s08
     assert s08["baseline"]["cleaned"] is False and "no cleanup" in s08["baseline"]["source"]
+    assert s08["frame_selection"] == "baseline_frames"
+    plan = mastered["plans"][prof]
+    if mastering.is_normalized(profile):
+        # normalized media keep the target; the planner changed the limiter drive until S-08 passed
+        assert s08["status"] == "pass", s08
+        assert plan["expected"]["target_lufs_i"] == profile["loudness"]["target_lufs_i"]
     if s08["status"] == "fail":
-        assert {"reduce_limiter_drive"} <= {x["action"] for x in s08["suggestions"]}
+        # the planner could not pass S-08 inside the window: it said so (send back), verify fails
+        assert "S-08" in plan["send_back"]["rules"]
+        acts = {x["action"] for x in s08["suggestions"]}
+        assert {"reduce_limiter_drive", "send_back_to_mix"} <= acts
+        assert "reduce_hf_boost" not in acts  # this chain has no HF boost
     assert checks["S-07"]["status"] == "not_applicable"
     if not profile["codec_checks"]:
         assert checks["S-02"]["status"] == "not_applicable"

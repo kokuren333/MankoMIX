@@ -216,10 +216,14 @@ def build_chain(base_chain: list[dict], state: dict, base_rationale: list[dict])
     return eqs + dyn + enh + st + tail
 
 
+_TAIL_TYPES = ("loudness_gain", "clipper", "limiter")
+
+
 def _split_tail(chain: list[dict]) -> tuple[list[dict], list[dict]]:
-    """(pre-limiter processing, [loudness_gain, limiter])."""
-    pre = [p for p in chain if p.get("type") not in ("loudness_gain", "limiter")]
-    tail = [p for p in chain if p.get("type") in ("loudness_gain", "limiter")]
+    """(pre-limiter processing, [loudness_gain, (clipper), limiter]). A clipper belongs to the
+    limiter drive (slot 5, after the drive gain)."""
+    pre = [p for p in chain if p.get("type") not in _TAIL_TYPES]
+    tail = [p for p in chain if p.get("type") in _TAIL_TYPES]
     return pre, tail
 
 
@@ -247,6 +251,21 @@ class _Evaluator:
         self.cache: dict = {}
         self.base_pre_lufs = None
         self.renders = 0
+        self._s08_ref = None
+
+    def s08(self, y) -> dict | None:
+        """S-08 on the preview: the output is measured on the frames of the unprocessed preview
+        (time aligned), gain compensated by the integrated loudness difference (as verify does)."""
+        from .cleanup import noise_return_check, reference_selection
+        from .mastering import s08_planning_config, s08_reduce
+        try:
+            if self._s08_ref is None:
+                self._s08_ref = reference_selection(self.before, self.sr)
+            ref = self._s08_ref
+            r = noise_return_check(ref["metrics"], y, self.sr, reference=ref)
+            return s08_reduce(r, s08_planning_config()["margin_db"])
+        except Exception as exc:  # informative for the loop; verify is the final judge
+            return {"status": "not_run", "reason": str(exc)}
 
     def _pre_lufs(self, chain):
         from .measure.loudness import integrated
@@ -298,6 +317,7 @@ class _Evaluator:
                "presence_db": ((meas.get("perceptual") or {}).get("P-11") or {}).get("ltas_prominence_db"),
                "lufs_i": (vec.get("P-03") or {}).get("integrated_lufs"),
                "true_peak": (vec.get("P-14") or {}).get("true_peak_dbtp"),
+               "s08": self.s08(y),
                "gate_done": gate}
         self.cache[key] = out
         return out
@@ -414,6 +434,17 @@ def _apply_move(state: dict, mv: dict, boundary: float) -> dict:
     elif mv["kind"] == "mono_bass":
         s["mono_below_hz"] = boundary
     return s
+
+
+def _s08_worse(cand: dict, cur: dict, slack_db: float = 0.1) -> bool:
+    """S-08 (hard constraint) for a candidate move: it may not make the noise-return guard
+    fail, nor make an already failing guard worse."""
+    a, b = cand.get("s08") or {}, cur.get("s08") or {}
+    if a.get("status") != "fail":
+        return False
+    if b.get("status") != "fail":
+        return True
+    return (a.get("worst_excess_db") or 0.0) > (b.get("worst_excess_db") or 0.0) + slack_db
 
 
 def _valve(mv: dict, cand: dict, cur: dict) -> str | None:
@@ -625,6 +656,12 @@ def run_loop(project, *, variant_id: str | None = None, profile_id: str | None =
                 rejected_log.append({"i": i, "move": mv, "constraints": {k: v for k, v in ev["constraints"].items()
                                                                           if v == "fail"}})
                 continue
+            if _s08_worse(c, cur):
+                rejected_log.append({"i": i, "move": mv, "constraints": {"S-08": "fail"},
+                                     "s08": {k: (c.get("s08") or {}).get(k)
+                                             for k in ("status", "worst_excess_db", "deltas")},
+                                     "note": "the move would make the noise-return guard fail or worse (S-08)"})
+                continue
             vr = _valve(mv, c, cur)
             if vr:
                 valves_all.append({**mv, "reason": vr})
@@ -674,6 +711,19 @@ def run_loop(project, *, variant_id: str | None = None, profile_id: str | None =
             fe = _Evaluator(resolved, profile, ceiling, [x], sr, x, None, None, None)
             fe.base_pre_lufs = None
             final = fe.evaluate(best["chain"], gate=True)
+            # S-08 is a hard constraint: if the refined chain fails it on the full length while the
+            # starting chain passes, keep the starting chain (plan_master's S-08-aware proposal)
+            if kept_moves and (final.get("s08") or {}).get("status") == "fail":
+                # fresh evaluator: the starting chain keeps its own drive (no loudness compensation)
+                fs = _Evaluator(resolved, profile, ceiling, [x], sr, x, None, None, None)
+                start = fs.evaluate(first["chain"], gate=True)
+                if (start.get("s08") or {}).get("status") != "fail":
+                    rejected_log.append({"i": len(iterations), "constraints": {"S-08": "fail"},
+                                         "s08": {k: final["s08"].get(k) for k in ("status", "worst_excess_db", "deltas")},
+                                         "note": "full-length S-08 fails for the refined chain; reverted to the starting chain"})
+                    best, final = first, start
+                    reason = (reason or "") + "; reverted to the starting chain (S-08 on the full length)"
+                    kept_moves = []
 
     unresolved = _unresolved(final or best, blocked_all, valves_all, base, resolved)
     decisions = _decisions(kept_moves, first, final or best, resolved, bool(resolved.get("stems")),
@@ -686,7 +736,8 @@ def run_loop(project, *, variant_id: str | None = None, profile_id: str | None =
                  "evaluation": best["evaluation"], "limiter": best.get("limiter")},
         "final": None if final is None else {"scope": "full_length", "score": final["evaluation"]["score"],
                                              "evaluation": final["evaluation"], "lufs_i": final.get("lufs_i"),
-                                             "true_peak": final.get("true_peak"), "limiter": final.get("limiter")},
+                                             "true_peak": final.get("true_peak"), "limiter": final.get("limiter"),
+                                             "s08": final.get("s08")},
         "converged": converged, "reason": reason,
         "max_iter": max_iter, "min_improvement": min_improvement,
         "unresolved": unresolved, "decisions": decisions,
@@ -771,7 +822,9 @@ def propose(project, stage: str = "master", *, variant_id: str | None = None, pr
         "moves": [it["move"] for it in loop["iterations"][1:] if it.get("move")],
         "alternatives": [T("plan_master の提案をそのまま使う", "use the plan_master proposal unchanged")]
                         + [_move_text(b) for b in loop["blocked"][:3]],
-        "expected": {"score": loop["best"]["score"], "converged": loop["converged"], "reason": loop["reason"]},
+        "expected": {"score": loop["best"]["score"], "converged": loop["converged"], "reason": loop["reason"],
+                     "s08": ({k: (final.get("s08") or {}).get(k) for k in ("status", "worst_excess_db", "deltas")}
+                             if final.get("s08") else None)},
     })
     prop["rationale"] = rationale
     exp = dict(prop.get("expected") or {})

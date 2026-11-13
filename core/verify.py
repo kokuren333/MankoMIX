@@ -30,6 +30,7 @@ from .render import (ARCHIVE_DELIVERY, variant_route, codec_true_peaks, load_man
                      output_ext, output_name, variant_dir)
 from .routes import load_master_input
 from .cleanstage import route_baseline, s07_check, s08_check
+from .cleanup import reference_selection
 
 HARD_CHECKS = ("P-03", "S-01", "S-02", "S-03", "S-04", "S-05", "S-06", "S-07", "S-08", "S-09")
 
@@ -139,6 +140,43 @@ def _check_s04(y, sr, th, boundary) -> dict:
                note="full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)")
 
 
+def _s08_in_context(s08: dict, chain: list[dict], plan: dict, manifest: dict | None = None) -> dict:
+    """Make the S-08 suggestions specific to the chain (SPEC 6.7: reduce the HF boost or the
+    limiter drive): a chain without an HF boost does not get the HF-boost suggestion, and a
+    plan that already sent the master back for S-08 is referenced."""
+    if s08.get("status") != "fail":
+        return s08
+    from .mastering import _hf_boost_ids, s08_planning_config
+    out = dict(s08)
+    has_hf = bool(_hf_boost_ids(chain or [], s08_planning_config()["hf_boost_min_hz"]))
+    out["hf_boost_in_chain"] = has_hf
+    sugg = [dict(sg) for sg in s08.get("suggestions") or []
+            if has_hf or sg.get("action") != "reduce_hf_boost"]
+    if not has_hf and not any(sg.get("action") == "reduce_limiter_drive" for sg in sugg):
+        sugg.append({"action": "reduce_limiter_drive",
+                     "text": "the chain has no HF boost: the rise comes from limiter drive; lower the "
+                             "loudness target / limiter drive"})
+    extra = (manifest or {}).get("extra_limiting_db")
+    if extra is not None and extra > 0.05:
+        out["extra_limiting_db"] = extra
+        sugg.append({"action": "codec_overshoot",
+                     "text": (f"the S-02 loop lowered the limiter ceiling to {manifest.get('final_limiter_ceiling_dbtp')} "
+                              f"dBTP (planned {manifest.get('planned_limiter_ceiling_dbtp')}); the loudness window left no "
+                              f"room to lower the drive as well, so the limiter works {extra:.1f} dB harder than planned. "
+                              "Reduce the codec overshoot (HF content / transients) or plan a lower target")})
+    sb = (plan or {}).get("send_back") or {}
+    rules = sb.get("rules") or ([sb.get("rule")] if sb.get("rule") else [])
+    if "S-08" in rules:
+        s08_sb = sb if sb.get("rule") == "S-08" else next((a for a in sb.get("also") or [] if a.get("rule") == "S-08"), sb)
+        out["plan_send_back"] = {"rule": "S-08", "reason": s08_sb.get("reason"),
+                                 "suggestions": s08_sb.get("suggestions") or []}
+        sugg.append({"action": "send_back_to_mix",
+                     "text": "the master plan could not pass S-08 inside the profile window and sent the "
+                             "master back (see plan_send_back); fix it at the mix / cleanup stage"})
+    out["suggestions"] = sugg
+    return out
+
+
 def _overall(checks: dict) -> str:
     hard = [checks[k] for k in HARD_CHECKS if k in checks]
     if any(c["status"] == "fail" for c in hard):
@@ -222,7 +260,10 @@ def _verify_output(project, variant_id, out, chain_res, th, inp: dict, recheck_c
     # S-07 (cleanup leaves the low band untouched): from the cleanup records of the input
     checks["S-07"] = dict(inp["s07"])
     # S-08 (noise-return guard): P-16 of this output vs the cleaned baseline, gain compensated
-    checks["S-08"] = s08_check(inp["noise_baseline"], y, sr, lufs if np.isfinite(lufs) else None)
+    checks["S-08"] = _s08_in_context(
+        s08_check(inp["noise_baseline"], y, sr, lufs if np.isfinite(lufs) else None,
+                  reference=inp.get("noise_reference")),
+        inp.get("chain") or [], inp.get("plan") or {}, man)
     rec["measured"] = {"lufs_i": round(lufs, 3), "true_peak_dbtp": round(tp, 3), "sample_rate": sr,
                        "frames": int(y.shape[0]), "subtype": info.subtype}
     rec["checks"] = checks
@@ -252,7 +293,11 @@ def verify_variant(project, variant_id: str, *, recheck_codecs: bool = False) ->
     inp = {"frames": in_frames, "sr": int(in_sr), "lufs": float(ld.integrated(x, in_sr)),
            "dc": [float(abs(v)) for v in np.mean(x, axis=0)],
            "s07": s07_check(project, route),
-           "noise_baseline": route_baseline(project, route, x, int(in_sr))}
+           "noise_baseline": route_baseline(project, route, x, int(in_sr)),
+           # the baseline signal is the route's master input (cleaned where cleanup applies); its frame
+           # selection is imposed on every output so S-08 compares time-aligned frames
+           "noise_reference": reference_selection(x, int(in_sr)),
+           "chain": chain, "plan": (variant.get("master") or {}).get("plan") or {}}
 
     outputs = [_verify_output(project, variant_id, o, chain_res, th, inp, recheck_codecs) for o in outs]
 

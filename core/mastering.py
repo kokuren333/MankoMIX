@@ -9,6 +9,16 @@ send-back to the mix stage. Nothing is written until ``apply_master_plan``.
 The limiter is a ceiling, not a loudness device (R-14): the chain is
 simulated on the actual input and the limiter's gain-reduction statistics
 (P-18) decide whether the target is reachable.
+
+The noise-return guard (S-08, a hard constraint) is planned the same way: the
+simulated master is checked against the baseline verify will use (the
+route's master input, cleaned where cleanup applies; same frames, same gain
+compensation). On a failure the planner first reduces any HF boost of the
+chain, then lowers the loudness target within the profile window
+(non-normalized media) or keeps the target and changes how the limiter is
+driven (normalized media: release time, clipper share). The tolerance is
+never relaxed; if nothing inside the window passes, the least-failing
+candidate is kept and the master is sent back (rule S-08).
 """
 
 from __future__ import annotations
@@ -238,10 +248,34 @@ def gain_proc(gain_db: float, reason: str) -> dict:
     return _proc("mst_loudness", "loudness_gain", {"gain_db": round(float(gain_db), 3)}, reason)
 
 
-def limiter_proc(ceiling_dbtp: float, reason: str) -> dict:
+DEFAULT_RELEASE_MS = 100.0
+
+
+def limiter_proc(ceiling_dbtp: float, reason: str, release_ms: float = DEFAULT_RELEASE_MS) -> dict:
     return _proc("mst_limiter", "limiter", {"ceiling_dbtp": round(float(ceiling_dbtp), 3),
-                                            "lookahead_ms": 3.0, "release_ms": 100.0, "oversample": 4},
+                                            "lookahead_ms": 3.0, "release_ms": float(release_ms), "oversample": 4},
                  reason)
+
+
+def clipper_proc(ceiling_db: float, reason: str) -> dict:
+    """Soft clipper before the limiter (slot 5): takes the peaks above its ceiling so the
+    limiter's gain envelope moves less (clipper share)."""
+    return _proc("mst_clipper", "clipper", {"mode": "soft", "ceiling_db": round(min(0.0, float(ceiling_db)), 3),
+                                            "drive_db": 0.0, "softness": 0.3, "oversample": 4}, reason)
+
+
+def drive_tail(gain_db: float, ceiling: float, style: dict | None = None, *,
+               reasons: tuple[str, str] = ("R-18", "R-14,S-01")) -> list[dict]:
+    """Loudness reach and limiter (slots 5-6): gain, optional clipper, true-peak limiter.
+
+    ``style`` = {"release_ms": float, "clipper_headroom_db": float}; the clipper ceiling
+    sits ``clipper_headroom_db`` above the limiter ceiling (at most 0 dBFS)."""
+    style = style or {}
+    tail = [gain_proc(gain_db, reasons[0])]
+    if style.get("clipper_headroom_db") is not None:
+        tail.append(clipper_proc(ceiling + float(style["clipper_headroom_db"]), "S-08,R-14"))
+    tail.append(limiter_proc(ceiling, reasons[1], release_ms=float(style.get("release_ms") or DEFAULT_RELEASE_MS)))
+    return tail
 
 
 def limiter_ceiling(chain: list[dict]) -> float | None:
@@ -299,12 +333,22 @@ def _limiter_out_tp(result, sr: int) -> float:
 GAIN_RANGE_DB = (-60.0, 40.0)  # loudness_gain parameter range (dsp/processors.py)
 
 
+def _clipper_stats(result) -> dict | None:
+    for st in getattr(result, "steps", []) or []:
+        if st.get("type") == "clipper":
+            s = st.get("stats") or {}
+            return {"frac_samples_over_ceiling_in": s.get("frac_samples_over_ceiling_in")}
+    return None
+
+
 def _converge(pre: np.ndarray, sr: int, target: float, ceiling: float, pre_lufs: float,
-              tol: float = 0.05, max_iter: int = 6, warm: dict | None = None) -> dict:
+              tol: float = 0.05, max_iter: int = 6, warm: dict | None = None,
+              style: dict | None = None) -> dict:
     """Find the limiter drive that lands the limited output on target (secant search).
 
     Limiting compresses the gain -> loudness slope, so a plain step undershoots;
-    the secant uses the measured slope. Returns the closest simulation.
+    the secant uses the measured slope. Returns the closest simulation; its
+    rendered audio is kept under ``_audio`` (in-memory only, for the S-08 check).
     """
     lo_g, hi_g = GAIN_RANGE_DB
     if warm and warm.get("ceiling") == ceiling and math.isfinite(warm.get("lufs_i", math.nan)):
@@ -318,10 +362,14 @@ def _converge(pre: np.ndarray, sr: int, target: float, ceiling: float, pre_lufs:
     pts: list[tuple[float, float]] = []
     best = None
     for _ in range(max_iter):
-        res = _render(pre, sr, [gain_proc(gain, "R-18"), limiter_proc(ceiling, "R-14")])
+        res = _render(pre, sr, drive_tail(gain, ceiling, style))
         out_l = float(ld.integrated(res.audio, sr))
         sim = {"gain_db": round(gain, 3), "lufs_i": out_l, "true_peak": _limiter_out_tp(res, sr),
-               "limiter": limiter_stats(res), "target": target, "ceiling": ceiling, "reached": True}
+               "limiter": limiter_stats(res), "target": target, "ceiling": ceiling, "reached": True,
+               "style": dict(style or {}), "_audio": res.audio}
+        clip = _clipper_stats(res)
+        if clip is not None:
+            sim["clipper"] = clip
         if best is None or abs(target - out_l) < abs(target - best["lufs_i"]):
             best = sim
         err = target - out_l
@@ -450,6 +498,291 @@ def _target_and_window(profile, target_override):
     return (None if target is None else float(target)), window
 
 
+# --------------------------------------------------------------------------
+# S-08 noise-return guard at planning time
+
+
+_S08_DEFAULT_VARIANTS = [{"release_ms": 50.0}, {"release_ms": 30.0}, {"release_ms": 250.0},
+                         {"clipper_headroom_db": 1.0}, {"release_ms": 30.0, "clipper_headroom_db": 1.0}]
+
+_S08_LABEL = {"shimmer_index_db": "shimmer index", "side_shimmer_index_db": "side shimmer index",
+              "noise_floor_dbfs": "noise floor", "noise_floor_hf_dbfs": "HF noise floor",
+              "above_ceiling_level_db": "above-ceiling level"}
+
+
+def s08_planning_config(th: dict | None = None) -> dict:
+    th = th or thresholds()
+    return {"margin_db": float(tv(th, "s08_planning", "plan_margin_db", default=0.2)),
+            "hf_boost_min_hz": float(tv(th, "s08_planning", "hf_boost_min_hz", default=4000.0)),
+            "hf_boost_factors": [float(f) for f in tv(th, "s08_planning", "hf_boost_reduction_factors",
+                                                      default=[0.5, 0.0])],
+            "normalized_variants": list(tv(th, "s08_planning", "normalized_limiter_variants",
+                                           default=_S08_DEFAULT_VARIANTS))}
+
+
+def s08_evaluate(baseline_info: dict, reference: dict, audio: np.ndarray, sr: int, lufs: float | None,
+                 margin_db: float) -> dict:
+    """S-08 on a simulated master (same baseline, frames and gain compensation as verify).
+
+    The planner requires every delta to stay ``margin_db`` inside the tolerance (render-time
+    resampling / dither / S-02 ceiling changes move the result a little); the tolerance itself
+    is the verify one and is never relaxed. ``worst_excess_db`` = max(delta - (tol - margin))."""
+    from .cleanstage import s08_check
+    r = s08_check(baseline_info, audio, sr, lufs if (lufs is not None and math.isfinite(lufs)) else None,
+                  reference=reference)
+    return s08_reduce(r, margin_db)
+
+
+def s08_reduce(r: dict, margin_db: float) -> dict:
+    """Planner view of an S-08 check result (``s08_check`` or ``cleanup.noise_return_check``)."""
+    deltas, failing, excess = {}, [], None
+    for k, c in (r.get("deltas") or {}).items():
+        if c.get("pass") is None or c.get("delta_db") is None:
+            continue
+        d, t = float(c["delta_db"]), float(c["tolerance_db"])
+        deltas[k] = {"delta_db": round(d, 2), "tolerance_db": t}
+        e = d - (t - margin_db)
+        excess = e if excess is None else max(excess, e)
+        if e > 1e-9:
+            failing.append(k)
+    status = "not_run" if excess is None else ("pass" if excess <= 1e-9 else "fail")
+    vstat = r.get("status") or (None if "pass" not in r else ("pass" if r["pass"] else "fail"))
+    return {"status": status, "verify_tolerance_status": vstat, "margin_db": margin_db,
+            "worst_excess_db": None if excess is None else round(excess, 2), "deltas": deltas,
+            "failing": failing, "gain_db": r.get("gain_db"), "frame_selection": r.get("frame_selection"),
+            "suggestions": r.get("suggestions") or []}
+
+
+def _hf_boost_ids(chain: list[dict], hf_min_hz: float) -> list[str]:
+    """EQ steps that boost the high frequencies (any high-shelf boost, or a boost centred >= hf_min_hz)."""
+    out = []
+    for p in chain:
+        if p.get("type") != "eq":
+            continue
+        pr = p.get("params") or {}
+        if float(pr.get("gain_db") or 0.0) <= 0.0:
+            continue
+        if pr.get("shape") == "high_shelf" or float(pr.get("freq_hz") or 0.0) >= hf_min_hz:
+            out.append(p["id"])
+    return out
+
+
+def _deltas_text(ev: dict, lang: str) -> str:
+    parts = []
+    for k, d in (ev.get("deltas") or {}).items():
+        if ev.get("failing") and k not in ev["failing"]:
+            continue
+        name = _S08_LABEL.get(k, k)
+        tol = (f"（許容 {d['tolerance_db']:.1f} dB）" if lang == "ja" else f" (tolerance {d['tolerance_db']:.1f} dB)")
+        parts.append(f"{name} {d['delta_db']:+.1f} dB{tol}")
+    return ", ".join(parts) if parts else "-"
+
+
+def _s08_summary(ev: dict) -> dict:
+    return {k: ev.get(k) for k in ("status", "verify_tolerance_status", "worst_excess_db", "margin_db",
+                                   "deltas", "failing", "gain_db", "frame_selection")}
+
+
+def _state_result(st: dict, ev: dict) -> dict:
+    sim = st["sim"]
+    out = {"s08": _s08_summary(ev), "target_lufs_i": sim["target"], "lufs_i": round(sim["lufs_i"], 2),
+           "gain_db": sim["gain_db"], "limiter_gr_p95_db": round(sim["limiter"]["gr_p95_db"], 2)}
+    if sim.get("style"):
+        out["limiter_style"] = sim["style"]
+    return out
+
+
+def _style_text(style: dict) -> dict:
+    ja, en = [], []
+    if style.get("release_ms") is not None:
+        ja.append(f"リリース {style['release_ms']:.0f} ms")
+        en.append(f"release {style['release_ms']:.0f} ms")
+    if style.get("clipper_headroom_db") is not None:
+        ja.append(f"ソフトクリッパー（リミッター天井の {style['clipper_headroom_db']:.1f} dB 上）")
+        en.append(f"soft clipper {style['clipper_headroom_db']:.1f} dB above the limiter ceiling")
+    return {"ja": "、".join(ja), "en": ", ".join(en)}
+
+
+def _plan_noise_return(project, route: dict, x: np.ndarray, sr: int, th: dict, profile: dict,
+                       normalized: bool, candidates: list[float], rationale: list[dict], state0: dict) -> dict:
+    """S-08 at planning time (see module docstring). Returns {state, tried, rationale, expected, send_back}.
+
+    ``state`` = {sim, pre_chain, pre, pre_lufs}. The check runs on the simulated chain over the
+    full input (the same signal the R-14 loop simulates). Each corrective step is recorded as
+    measured -> rule -> action -> alternatives -> result.
+    """
+    from .cleanstage import route_baseline
+    from .cleanup import reference_selection
+    cfg = s08_planning_config(th)
+    margin = cfg["margin_db"]
+    base_info = route_baseline(project, route["route"], x, sr)
+    ref = reference_selection(x, sr)
+
+    def evaluate(st):
+        return s08_evaluate(base_info, ref, st["sim"]["_audio"], sr, st["sim"]["lufs_i"], margin)
+
+    def converge(st, target, ceiling, style, warm):
+        return _converge(st["pre"], sr, target, ceiling, st["pre_lufs"], warm=warm, style=style)
+
+    cur = dict(state0)
+    ev = evaluate(cur)
+    first = ev
+    evaluated = [(ev, cur)]
+    steps: list[dict] = []
+    tried: list[dict] = []
+
+    def record(action: dict, alternatives: list[dict], prev_ev: dict, st: dict, new_ev: dict, kind: str):
+        steps.append({"step": len(steps) + 1, "kind": kind, "measured": {"s08": _s08_summary(prev_ev)},
+                      "rule": "S-08", "action": action, "alternatives": alternatives,
+                      "result": _state_result(st, new_ev)})
+        sim_ = st["sim"]
+        tried.append({"target": sim_["target"], "lufs_i": round(sim_["lufs_i"], 2),
+                      "gr_p95_db": round(sim_["limiter"]["gr_p95_db"], 2), "s08": new_ev["status"],
+                      "s08_worst_excess_db": new_ev["worst_excess_db"], "by": kind,
+                      **({"limiter_style": sim_["style"]} if sim_.get("style") else {})})
+
+    # step 1: reduce any HF boost of the chain (SPEC 6.7 corrective action)
+    if ev["status"] == "fail":
+        hf_ids = _hf_boost_ids(cur["pre_chain"], cfg["hf_boost_min_hz"])
+        if not hf_ids:
+            steps.append({"step": len(steps) + 1, "kind": "hf_boost", "measured": {"s08": _s08_summary(ev)},
+                          "rule": "S-08",
+                          "action": {"ja": "チェーンに高域のブーストがないため、高域ブーストの低減は該当しない",
+                                     "en": "The chain has no HF boost, so reducing it does not apply"},
+                          "alternatives": [], "result": None})
+        orig = {p["id"]: float(p["params"]["gain_db"]) for p in cur["pre_chain"] if p["id"] in hf_ids}
+        for f in (cfg["hf_boost_factors"] if hf_ids else []):
+            chain2 = []
+            for p in cur["pre_chain"]:
+                if p["id"] in orig:
+                    g = round(orig[p["id"]] * f, 2)
+                    if abs(g) < 0.05:
+                        continue  # boost removed
+                    p = copy.deepcopy(p)
+                    p["params"]["gain_db"] = g
+                    p["reason"] = (p.get("reason") or "") + ",S-08"
+                chain2.append(p)
+            pre2 = _render(x, sr, chain2).audio if chain2 else x
+            st = {"pre_chain": chain2, "pre": pre2, "pre_lufs": float(ld.integrated(pre2, sr))}
+            st["sim"] = converge(st, cur["sim"]["target"], cur["sim"]["ceiling"], cur["sim"].get("style"), None)
+            ev2 = evaluate(st)
+            record({"ja": f"高域のブースト（{', '.join(sorted(orig))}）を {int(round(f * 100))}% に下げた",
+                    "en": f"HF boost ({', '.join(sorted(orig))}) reduced to {int(round(f * 100))}%"},
+                   [{"ja": "目標ラウドネスを下げる", "en": "lower the loudness target"},
+                    {"ja": "ミックス段で高域を整える", "en": "fix the top end at the mix stage"}], ev, st, ev2, "hf_boost")
+            evaluated.append((ev2, st))
+            if (ev2["worst_excess_db"] is not None and ev["worst_excess_db"] is not None
+                    and ev2["worst_excess_db"] <= ev["worst_excess_db"] + 1e-9):
+                cur, ev = st, ev2  # keep the reduction: it helped (or passed)
+            if ev["status"] != "fail":
+                break
+        if hf_ids:
+            eq_rat = next((r for r in rationale if r.get("stage") == "corrective_eq"), None)
+            kept = {p["id"]: float(p["params"]["gain_db"]) for p in cur["pre_chain"] if p.get("type") == "eq"}
+            for i, m in enumerate((eq_rat or {}).get("moves") or []):
+                pid = f"mst_eq{i + 1}"
+                if pid in orig and kept.get(pid, 0.0) != orig[pid]:
+                    m["s08_reduced_from_db"] = orig[pid]
+                    m["gain_db"] = kept.get(pid, 0.0)
+
+    # step 2: lower the target (non-normalized) or change the limiter drive (normalized)
+    if ev["status"] == "fail":
+        if not normalized:
+            for t in [c for c in candidates if c < cur["sim"]["target"] - 1e-9]:
+                st = {k: cur[k] for k in ("pre_chain", "pre", "pre_lufs")}
+                st["sim"] = converge(st, t, effective_ceiling(profile, t), cur["sim"].get("style"), cur["sim"])
+                ev2 = evaluate(st)
+                record({"ja": f"目標ラウドネスを {cur['sim']['target']:.1f} から {t:.1f} LUFS に下げた（リミッターの駆動を下げる。レンジ内）",
+                        "en": f"Loudness target lowered from {cur['sim']['target']:.1f} to {t:.1f} LUFS (less limiter drive, inside the window)"},
+                       [{"ja": "リリース時間やクリッパーの分担を変える（リミッター依存度を隠すため、正規化されない媒体では自動では選ばない。R-14）",
+                         "en": "change the release / clipper share (not chosen automatically for non-normalized media: it hides limiter dependency, R-14)"},
+                        {"ja": "ミックス段へ差し戻す", "en": "send back to the mix stage"}], ev, st, ev2, "target")
+                evaluated.append((ev2, st))
+                cur, ev = st, ev2
+                if ev["status"] != "fail":
+                    break
+        else:
+            base_style = dict(cur["sim"].get("style") or {})
+            for var in cfg["normalized_variants"]:
+                style = {**base_style, **{k: float(val) for k, val in var.items()}}
+                st = {k: cur[k] for k in ("pre_chain", "pre", "pre_lufs")}
+                st["sim"] = converge(st, cur["sim"]["target"], cur["sim"]["ceiling"], style, cur["sim"])
+                ev2 = evaluate(st)
+                record({"ja": f"正規化される媒体のため目標 {cur['sim']['target']:.1f} LUFS を保ち、リミッターの駆動のしかたを変えた（{_style_text(style)['ja']}）",
+                        "en": f"Normalized medium: kept the {cur['sim']['target']:.1f} LUFS target and changed how the limiter is driven ({_style_text(style)['en']})"},
+                       [{"ja": "目標を下げる（正規化される媒体では配送条件なので下げない）",
+                         "en": "lower the target (not for a normalized medium: the target is the delivery gate)"},
+                        {"ja": "ミックス段へ差し戻す", "en": "send back to the mix stage"}], ev, st, ev2, "limiter_style")
+                evaluated.append((ev2, st))
+                if ev2["status"] != "fail":
+                    cur, ev = st, ev2
+                    break
+
+    send_back = None
+    if ev["status"] == "fail":
+        # least-failing candidate (the earlier one on ties: less change)
+        best_i = min(range(len(evaluated)),
+                     key=lambda i: (evaluated[i][0]["worst_excess_db"] if evaluated[i][0]["worst_excess_db"] is not None
+                                    else math.inf, i))
+        ev, cur = evaluated[best_i]
+        sim_ = cur["sim"]
+        sugg = [{"action": "reduce_limiter_drive",
+                 "text": {"ja": "ミックス段でピーク（キックやスネアのトランジェント）とリミッターの負担を減らし、マスターを薄い駆動で仕上げられるようにする",
+                          "en": "reduce peaks (kick / snare transients) and limiter load at the mix stage so the master needs less drive"}},
+                {"action": "clean_first",
+                 "text": {"ja": "整音段（clean plan）でノイズとシマーを先に処理し、基準のノイズ床を下げる（R-20）",
+                          "en": "treat noise and shimmer in the cleanup stage first (clean plan) to lower the baseline noise (R-20)"}}]
+        if _hf_boost_ids(cur["pre_chain"], cfg["hf_boost_min_hz"]):
+            sugg.insert(0, {"action": "reduce_hf_boost",
+                            "text": {"ja": "マスター EQ の高域ブーストをさらに下げる", "en": "reduce the master EQ's HF boost further"}})
+        if not normalized:
+            sugg.append({"action": "limiter_style",
+                         "text": {"ja": "人の判断で、リリースを短くするかクリッパーに一部を受け持たせて再検証する（リミッター依存度が見えにくくなる点に注意。R-14）",
+                                  "en": "by human decision, try a faster release or a clipper share and verify again (it hides limiter dependency, R-14)"}})
+        st_txt = _style_text(sim_.get("style") or {}) if sim_.get("style") else None
+        where_en = f"{sim_['target']:.1f} LUFS" + (f", {st_txt['en']}" if st_txt else "")
+        where_ja = f"{sim_['target']:.1f} LUFS" + (f"、{st_txt['ja']}" if st_txt else "")
+        scope_ja = "プロファイルのレンジ内で目標を下げても" if not normalized else "目標を保ったままリミッターの駆動のしかたを変えても"
+        scope_en = ("even with the target lowered within the profile window" if not normalized
+                    else "even with the target kept and the limiter drive changed")
+        send_back = {"rule": "S-08",
+                     "reason": {"ja": f"ノイズ戻り監視（S-08）が{scope_ja}合格しない。最も悪化の小さい候補（{where_ja}）でも {_deltas_text(ev, 'ja')}。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+                                "en": f"The noise-return guard (S-08) does not pass {scope_en}. The least-failing candidate ({where_en}) still has {_deltas_text(ev, 'en')}. The tolerance is not relaxed; sent back to the mix (or cleanup) stage"},
+                     "measured": {"s08": _s08_summary(ev), "target_lufs_i": sim_["target"],
+                                  "lufs_i": round(sim_["lufs_i"], 2),
+                                  "limiter_gr": {k: round(val, 2) for k, val in sim_["limiter"].items()}},
+                     "suggestions": sugg}
+
+    if first["status"] == "pass":
+        action = {"ja": "シミュレーションしたマスターはノイズ戻り監視に合格（是正は不要）",
+                  "en": "The simulated master passes the noise-return guard (no correction needed)"}
+    elif first["status"] == "not_run":
+        action = {"ja": "P-16 を測定できず、ノイズ戻り監視は計画時に評価できなかった（検証で再評価する）",
+                  "en": "P-16 could not be measured; the guard was not evaluated at planning time (verify re-evaluates it)"}
+    elif ev["status"] == "pass":
+        action = {"ja": "ノイズ戻りの悪化を測定したため、是正（下の手順）を行い合格させた",
+                  "en": "Noise return was measured; corrected (steps below) until the guard passes"}
+    else:
+        action = {"ja": "是正しても合格しないため、最も悪化の小さい候補を残してミックス段へ差し戻す",
+                  "en": "Corrections did not pass; the least-failing candidate is kept and the master is sent back"}
+    rat = {"stage": "noise_return_guard",
+           "measured": {"s08": _s08_summary(first),
+                        "baseline": {k: base_info.get(k) for k in ("source", "cleaned", "path")
+                                     if base_info.get(k) is not None},
+                        "scope": "full input, simulated chain", "frame_selection": "baseline frames, time aligned"},
+           "rule": "S-08",
+           "action": action,
+           "alternatives": [{"ja": "許容幅を緩める（ハード制約なので行わない。SPEC 4.3）",
+                             "en": "relax the tolerance (never: hard constraint, SPEC 4.3)"},
+                            {"ja": "マルチバンド処理でノイズを抑える（R-30 により既定では使わない）",
+                             "en": "suppress the noise with multiband processing (not default, R-30)"}],
+           "expected": {"s08": _s08_summary(ev)},
+           "steps": steps}
+    return {"state": cur, "tried": tried, "rationale": rat, "send_back": send_back,
+            "expected": {**_s08_summary(ev), "baseline_source": base_info.get("source"),
+                         "corrective_steps": len([st for st in steps if st.get("result") is not None])}}
+
+
 def plan_master(project, *, variant_id: str | None = None, profile_id: str,
                 delivery_id: str | None = None, objective=None, target_lufs: float | None = None) -> dict:
     """Propose a master chain for one variant/profile (R-31 proposal form)."""
@@ -561,12 +894,22 @@ def plan_master(project, *, variant_id: str | None = None, profile_id: str,
         if p95 <= sb_p95:
             break
 
+    r14_target = sim["target"]
+
+    # (S-08) noise-return guard on the simulated master, against the baseline verify uses
+    s08 = _plan_noise_return(project, route, x, sr, th, profile, normalized, candidates, rationale,
+                             {"sim": sim, "pre_chain": pre_chain, "pre": pre, "pre_lufs": pre_lufs})
+    sim, pre_chain, pre_lufs = s08["state"]["sim"], s08["state"]["pre_chain"], s08["state"]["pre_lufs"]
+    tried += s08["tried"]
+    style = sim.get("style") or {}
+
     lim = sim["limiter"]
     final_target = sim["target"]
     ceiling = sim["ceiling"]
     chain = list(pre_chain)
-    chain.append(gain_proc(sim["gain_db"], "R-18"))
-    chain.append(limiter_proc(ceiling, "R-14,S-01"))
+    chain += drive_tail(sim["gain_db"], ceiling, style,
+                        reasons=("R-18" + (",S-08" if final_target < r14_target else ""),
+                                 "R-14,S-01" + (",S-08" if style else "")))
 
     loud_rat = {"stage": "loudness",
                 "measured": {"input_lufs_i": round(in_lufs, 2), "pre_limiter_lufs_i": round(pre_lufs, 2),
@@ -575,18 +918,27 @@ def plan_master(project, *, variant_id: str | None = None, profile_id: str,
                 "action": ({"ja": f"正規化される媒体のため目標 {final_target:.1f} LUFS に合わせる（配送条件として扱う）",
                             "en": f"Normalized medium: match {final_target:.1f} LUFS (a delivery gate, not a goal)"}
                            if normalized else
-                           {"ja": f"正規化されない媒体のため、レンジ内でリミッター依存度の制約下で到達できる {final_target:.1f} LUFS を取る",
-                            "en": f"Non-normalized medium: {final_target:.1f} LUFS, reachable within the window under the P-18 limit"}),
-                "alternatives": [{"ja": "より大きい目標（リミッター依存度が上がる）", "en": "a louder target (more limiter dependency)"}],
+                           {"ja": f"正規化されない媒体のため、レンジ内でリミッター依存度（P-18）とノイズ戻り（S-08）の制約下で到達できる {final_target:.1f} LUFS を取る",
+                            "en": f"Non-normalized medium: {final_target:.1f} LUFS, reachable within the window under the P-18 limit and the S-08 guard"}),
+                "alternatives": [{"ja": "より大きい目標（リミッター依存度とノイズ戻りが増える）",
+                                  "en": "a louder target (more limiter dependency and noise return)"}],
                 "expected": {"lufs_i": round(sim["lufs_i"], 2), "gain_db": sim["gain_db"]}}
     rationale.append(loud_rat)
+    release = float(style.get("release_ms") or DEFAULT_RELEASE_MS)
+    lim_action = {"ja": f"最終段に True Peak リミッター（天井 {ceiling:.1f} dBTP、リリース {release:.0f} ms）",
+                  "en": f"True-peak limiter last (ceiling {ceiling:.1f} dBTP, release {release:.0f} ms)"}
+    if style.get("clipper_headroom_db") is not None:
+        lim_action = {"ja": lim_action["ja"] + f"。その手前にソフトクリッパー（リミッター天井の {style['clipper_headroom_db']:.1f} dB 上）を置き、ピークの一部を受け持たせる（S-08）",
+                      "en": lim_action["en"] + f"; a soft clipper {style['clipper_headroom_db']:.1f} dB above the limiter ceiling takes part of the peaks (S-08)"}
     lim_rat = {"stage": "true_peak_limiter", "measured": {"limiter_gr": {k: round(v, 2) for k, v in lim.items()}},
-               "rule": "R-14",
-               "action": {"ja": f"最終段に True Peak リミッター（天井 {ceiling:.1f} dBTP）",
-                          "en": f"True-peak limiter last (ceiling {ceiling:.1f} dBTP)"},
-               "alternatives": [{"ja": "クリッパーの併用（既定では使わない）", "en": "add a clipper (not default)"}],
-               "expected": {"true_peak": round(sim["true_peak"], 2)}}
+               "rule": "R-14" + (",S-08" if style else ""),
+               "action": lim_action,
+               "alternatives": [{"ja": "クリッパーの併用（既定では使わない）", "en": "add a clipper (not default)"},
+                                {"ja": "リリース時間の変更（ポンピングとノイズの持ち上がりが変わる）",
+                                 "en": "a different release time (changes pumping and noise lift)"}],
+               "expected": {"true_peak": round(sim["true_peak"], 2), **({"clipper": sim["clipper"]} if sim.get("clipper") else {})}}
     rationale.append(lim_rat)
+    rationale.append(s08["rationale"])
 
     if lim["gr_p95_db"] > warn_p95:
         warnings.append({"code": "limiter_dependency", "rule": "P-18",
@@ -601,10 +953,27 @@ def plan_master(project, *, variant_id: str | None = None, profile_id: str,
         send_back = {"reason": {"ja": f"目標をレンジの下限近くまで下げても、リミッターのゲインリダクションが {lim['gr_p95_db']:.1f} dB（95 パーセンタイル）で、上限 {sb_p95:.1f} dB を超える。ミックス側の問題として差し戻す",
                                 "en": f"Even near the bottom of the window, limiter GR is {lim['gr_p95_db']:.1f} dB (p95), above the {sb_p95:.1f} dB limit. Sent back as a mix-side problem"},
                      "rule": "R-14", "measured": lim}
-    if target is not None and final_target < target:
+    if target is not None and r14_target < target:
         warnings.append({"code": "target_lowered", "rule": "R-14",
-                         "message": {"ja": f"リミッター依存度のため目標を {target:.1f} から {final_target:.1f} LUFS に下げた",
-                                     "en": f"Target lowered from {target:.1f} to {final_target:.1f} LUFS because of limiter dependency"}})
+                         "message": {"ja": f"リミッター依存度のため目標を {target:.1f} から {r14_target:.1f} LUFS に下げた",
+                                     "en": f"Target lowered from {target:.1f} to {r14_target:.1f} LUFS because of limiter dependency"}})
+    if final_target < r14_target:
+        warnings.append({"code": "target_lowered_s08", "rule": "S-08",
+                         "message": {"ja": f"ノイズ戻り監視（S-08）のため目標を {r14_target:.1f} から {final_target:.1f} LUFS に下げた",
+                                     "en": f"Target lowered from {r14_target:.1f} to {final_target:.1f} LUFS for the noise-return guard (S-08)"}})
+    if style:
+        warnings.append({"code": "limiter_style_s08", "rule": "S-08",
+                         "message": {"ja": "ノイズ戻り監視（S-08）のため、目標を保ったままリミッターの駆動のしかた（リリース時間／クリッパーの分担）を変えた。低域の歪みとアタックを耳で確認する",
+                                     "en": "For the noise-return guard (S-08) the target was kept and the way the limiter is driven (release / clipper share) was changed; check low-end distortion and attacks by ear"},
+                         "values": style})
+    if s08["send_back"] is not None:
+        if send_back is None:
+            send_back = s08["send_back"]
+        else:
+            send_back = dict(send_back)
+            send_back["also"] = list(send_back.get("also") or []) + [s08["send_back"]]
+    if send_back is not None:
+        send_back["rules"] = [send_back["rule"]] + [a.get("rule") for a in send_back.get("also") or []]
 
     obj_ids = objective_ids(obj)
     proposal = {
@@ -619,7 +988,8 @@ def plan_master(project, *, variant_id: str | None = None, profile_id: str,
         "expected": {"lufs_i": round(sim["lufs_i"], 2), "true_peak": round(sim["true_peak"], 2),
                      "target_lufs_i": final_target, "ceiling_dbtp": ceiling,
                      "codec_after_ceiling_dbtp": codec_after_ceiling(profile, th),
-                     "limiter_gr": {k: round(v, 2) for k, v in lim.items()}},
+                     "limiter_gr": {k: round(v, 2) for k, v in lim.items()},
+                     "s08": s08["expected"]},
         "input": {"lufs_i": round(in_lufs, 2), "true_peak": ma.finite_or_none(in_sum["true_peak_dbtp"]),
                   "frames": int(x.shape[0]), "sample_rate": int(sr)},
         "warnings": warnings,

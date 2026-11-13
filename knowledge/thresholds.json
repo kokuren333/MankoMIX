@@ -66,5 +66,11 @@
     "dc_offset_max": { "value": 0.00316, "confidence": "initial", "note": "Max absolute mean per channel (linear, -50 dBFS) not inherited from the input. Heavy limiting of asymmetric transients shifts the mean by about -60 to -55 dBFS, which is harmless; a DC fault is a larger offset. Calibratable." },
     "clip_sample_abs": { "value": 1.0, "confidence": "standard", "note": "Samples at or above full scale count as clipped for fixed-point outputs." },
     "length_tolerance_samples": { "value": 1, "confidence": "standard", "note": "Output length must equal input length scaled by the rate ratio within this many samples." }
+  },
+  "s08_planning": {
+    "plan_margin_db": { "value": 0.2, "confidence": "initial", "note": "The mastering planner requires every S-08 delta of the simulated master to stay this far inside the S-08 tolerance (knowledge/cleanup_policy.json s08), because render-time resampling, dither and the S-02 ceiling loop move the measured value slightly. This tightens planning only; the verify tolerance is never relaxed (SPEC 4.3)." },
+    "hf_boost_min_hz": { "value": 4000.0, "confidence": "initial", "note": "A master EQ boost centred at or above this frequency (or any high-shelf boost) counts as an HF boost; on an S-08 failure it is reduced first (SPEC 6.7)." },
+    "hf_boost_reduction_factors": { "value": [0.5, 0.0], "confidence": "initial", "note": "Steps applied to the HF boost gains on an S-08 failure (50 %, then removed)." },
+    "normalized_limiter_variants": { "value": [{"release_ms": 50.0}, {"release_ms": 30.0}, {"release_ms": 250.0}, {"clipper_headroom_db": 1.0}, {"release_ms": 30.0, "clipper_headroom_db": 1.0}], "confidence": "initial", "note": "Normalized media keep their loudness target (it is the delivery gate); on an S-08 failure these limiter drive variants are tried in order: release time (limiter gain recovery modulates the noise in quiet frames and the HF band) and a soft clipper placed clipper_headroom_db above the limiter ceiling (at most 0 dBFS) taking part of the peaks. Non-normalized media lower the target within the window instead (a clipper would hide limiter dependency, R-14)." }
   }
 }

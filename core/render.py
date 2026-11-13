@@ -7,7 +7,11 @@ For every output (profile x delivery) of a variant:
 3. measure the exported file: true peak (S-01) and the codec round-trip
    true peak for each codec of the profile that ffmpeg can encode (S-02),
 4. if a ceiling is exceeded, lower the limiter ceiling by the configured
-   step and re-render (bounded iterations).
+   step and re-render (bounded iterations). The limiter drive follows the
+   ceiling down by the same amount while the output stays inside the
+   profile's loudness window (floor + margin): a lower ceiling then does not
+   make the limiter work harder than planned (R-14, S-08). Below that the
+   drive is kept and the extra gain reduction is recorded.
 
 An ``archive_f32`` master of the planned chain is written once per variant.
 Every file gets a manifest (project hash, asset hashes, cleanup plan hashes,
@@ -29,7 +33,7 @@ from . import audio_io, config
 from .errors import InputError
 from .hashing import canonical_hash, sha256_file
 from .mastering import (codec_after_ceiling, definition_hashes, effective_ceiling, engine_chain, find_variant,
-                        limiter_ceiling, objective_ids, thresholds, tv, validate_master_chain,
+                        limiter_ceiling, loudness_window, objective_ids, thresholds, tv, validate_master_chain,
                         with_limiter_ceiling)
 from .measure import loudness as ld
 from .routes import fullmix_asset_id, load_master_input, select_route, stem_tracks
@@ -195,6 +199,24 @@ def _cleanup_record(project, route: str) -> dict:
     return route_cleanup_record(project, route)
 
 
+def _drive_db(chain: list[dict]) -> float | None:
+    """Limiter drive: the loudness_gain step of the master chain (slot 5)."""
+    for p in chain or []:
+        if p.get("type") == "loudness_gain" and p.get("enabled", True) is not False:
+            return float((p.get("params") or {}).get("gain_db", 0.0))
+    return None
+
+
+def _with_drive(chain: list[dict], ceiling: float, drive_db: float | None) -> list[dict]:
+    out = with_limiter_ceiling(chain, ceiling)
+    if drive_db is not None:
+        for p in out:
+            if p.get("type") == "loudness_gain":
+                p["params"]["gain_db"] = round(float(drive_db), 3)
+                break
+    return out
+
+
 def _render_master(x, sr, chain):
     from mankomix.dsp import engine
     return engine.render_chain(x, sr, engine_chain(chain), stage="master", seed=0)
@@ -238,6 +260,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
         raise InputError(f"variant '{variant_id}' has no outputs")
 
     th = thresholds()
+    floor_margin = float(tv(th, "loudness", "window_floor_margin_lu", default=0.3))
     step_db = float(tv(th, "s02_codec", "ceiling_step_db", default=0.2))
     max_iter = int(tv(th, "s02_codec", "max_iterations", default=6))
     route = variant_route(project, variant)
@@ -248,6 +271,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
     vdir.mkdir(parents=True, exist_ok=True)
     ff = ffmpeg_info()
     planned_ceiling = limiter_ceiling(chain)
+    planned_drive = _drive_db(chain)
 
     common = {
         "schema_version": 1,
@@ -299,13 +323,15 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
         codecs = list(profile.get("codec_checks") or [])
         codec_ceiling = codec_after_ceiling(profile, th)
         ceiling = planned_ceiling
+        drive = planned_drive
+        window = loudness_window(profile)
         res = base
         iterations = []
         ff_used = False
         status = "fail"
         for it in range(max_iter + 1):
             if it > 0:
-                res = _render_master(x, sr, with_limiter_ceiling(chain, ceiling))
+                res = _render_master(x, sr, _with_drive(chain, ceiling, drive))
             exp = _export(res.audio, res.sr, delivery, path, seed)
             y, ysr = audio_io.read(path)
             lufs = float(ld.integrated(y, ysr))
@@ -319,6 +345,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
             iterations.append({
                 "iteration": it,
                 "limiter_ceiling_dbtp": round(float(ceiling), 3),
+                "drive_db": None if drive is None else round(float(drive), 3),
                 "lufs_i": round(lufs, 3),
                 "true_peak_dbtp": round(tp, 3),
                 "s01_ceiling_dbtp": out_ceiling,
@@ -336,16 +363,27 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
                          max([r["true_peak_dbtp"] - codec_ceiling for r in codec_res.values()
                               if r["status"] == "fail"] or [0.0]))
             n_steps = max(1, math.ceil(excess / step_db - 1e-9))
-            ceiling = max(round(ceiling - n_steps * step_db, 3), -12.0)
+            new_ceiling = max(round(ceiling - n_steps * step_db, 3), -12.0)
+            if drive is not None:
+                # the drive follows the ceiling (same gain reduction), inside the loudness window
+                room = (math.inf if window is None or not math.isfinite(lufs)
+                        else max(0.0, lufs - (window[0] + floor_margin)))
+                drive = round(drive - min(ceiling - new_ceiling, room), 3)
+            ceiling = new_ceiling
 
         man = dict(common)
         man.update({
             "output": {"profile": profile["id"], "delivery": delivery["id"]},
             "file": project.rel(path),
             "file_sha256": sha256_file(path),
-            "chain": with_limiter_ceiling(chain, ceiling),
+            "chain": _with_drive(chain, ceiling, drive),
             "planned_limiter_ceiling_dbtp": planned_ceiling,
             "final_limiter_ceiling_dbtp": round(float(ceiling), 3),
+            "planned_drive_db": planned_drive,
+            "final_drive_db": None if drive is None else round(float(drive), 3),
+            # ceiling drop not followed by the drive = extra limiter gain reduction vs the plan (S-08 risk)
+            "extra_limiting_db": (round(max(0.0, (planned_ceiling - ceiling) - (planned_drive - drive)), 3)
+                                  if None not in (planned_ceiling, planned_drive, drive) else None),
             "steps": _json_safe(_step_backends(res.steps)),
             "render_warnings": _json_safe(list(res.warnings or [])),
             "backends": {"engine": "mankomix.dsp", "dsp": _json_safe(getattr(res, "backends", {}) or {}),
@@ -369,6 +407,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
                         "manifest": project.rel(mpath), "status": status, "iterations": len(iterations),
                         "lufs_i": round(lufs, 2), "true_peak_dbtp": round(tp, 2),
                         "limiter_ceiling_dbtp": round(float(ceiling), 3),
+                        "drive_db": None if drive is None else round(float(drive), 3),
                         "codecs": {c: r["status"] for c, r in codec_res.items()}})
 
     return {"variant": variant_id, "route": route, "archive": archive_rec, "outputs": results}

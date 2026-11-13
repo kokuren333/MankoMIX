@@ -847,25 +847,33 @@ def route_baseline(project, route: str, x: np.ndarray | None = None, sr: int | N
                       "checks that mastering does not raise the noise of the raw input"}
 
 
-def s08_check(baseline_info: dict, y: np.ndarray, sr: int, out_lufs: float | None) -> dict:
+def s08_check(baseline_info: dict, y: np.ndarray, sr: int, out_lufs: float | None,
+              reference: dict | None = None) -> dict:
     """S-08 for one rendered output. The gain change is the output's integrated loudness minus the
-    baseline's (level metrics are compensated by it; the shimmer index is gain-invariant)."""
+    baseline's (level metrics are compensated by it; the shimmer index is gain-invariant).
+
+    ``reference`` (``cleanup.reference_selection`` of the baseline signal, i.e. the route's master
+    input) measures the output on the baseline's frames, time aligned (see cleanup/guard.py)."""
     base = baseline_info["baseline"]
-    bl = base.get("integrated_lufs")
+    bl = (reference or {}).get("integrated_lufs", base.get("integrated_lufs"))
     if out_lufs is not None and bl is not None and math.isfinite(out_lufs):
         gain, gsrc = float(out_lufs) - float(bl), "output integrated loudness - baseline integrated loudness"
     else:
         gain, gsrc = None, None
-    r = noise_return_check(base, y, sr, gain_db=gain)
+    r = noise_return_check(base, y, sr, gain_db=gain, reference=reference)
     judged = [c for c in r["deltas"].values() if c.get("pass") is not None]
     info = {k: baseline_info.get(k) for k in ("source", "cleaned", "path", "plan_hash", "cleaned_assets")
             if baseline_info.get(k) is not None}
     if not judged:
         return {"status": "not_run", "rule": "S-08", "reason": "no P-16 metric measurable on this output",
                 "baseline": info, "deltas": r["deltas"]}
-    return {"status": "pass" if r["pass"] else "fail", "rule": "S-08", "baseline": info,
-            "gain_db": r["gain_db"], "gain_source": gsrc or r["gain_source"],
-            "deltas": r["deltas"], "suggestions": r["suggestions"], "note": r["note"]}
+    out = {"status": "pass" if r["pass"] else "fail", "rule": "S-08", "baseline": info,
+           "gain_db": r["gain_db"], "gain_source": gsrc or r["gain_source"],
+           "frame_selection": r.get("frame_selection"),
+           "deltas": r["deltas"], "suggestions": r["suggestions"], "note": r["note"]}
+    if r.get("conformed"):
+        out["conformed"] = r["conformed"]
+    return out
 
 
 def route_cleanup_record(project, route: str) -> dict:

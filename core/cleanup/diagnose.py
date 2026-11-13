@@ -39,7 +39,7 @@ SIDE_HF_BAND = (10000.0, 16000.0)
 class Analysis:
     """STFT power of mid (and side) of one signal, shared by the metrics."""
 
-    def __init__(self, x2d: np.ndarray, sr: float, policy: dict):
+    def __init__(self, x2d: np.ndarray, sr: float, policy: dict, gate: np.ndarray | None = None):
         self.sr = float(sr)
         self.n_fft, self.hop = stft_params(sr, policy)
         self.freqs = stft_freqs(sr, self.n_fft)
@@ -56,8 +56,14 @@ class Analysis:
         else:
             self.p_side = None
             self.p_all = self.p_mid
-        att = attack_frames(mid, sr, self.n_fft, self.hop, self.p_mid.shape[0], policy)
-        self.gate = onset_gate(self.p_mid, self.freqs, self.frame_rate, policy, attacks=att)
+        if gate is not None and np.asarray(gate).shape == (self.p_mid.shape[0],):
+            # frame selection imposed by a reference signal (S-08: time-aligned comparison)
+            self.gate = np.asarray(gate, dtype=np.float32)
+            self.gate_source = "reference"
+        else:
+            att = attack_frames(mid, sr, self.n_fft, self.hop, self.p_mid.shape[0], policy)
+            self.gate = onset_gate(self.p_mid, self.freqs, self.frame_rate, policy, attacks=att)
+            self.gate_source = "own"
 
     def band_sum(self, p: np.ndarray, lo: float, hi: float) -> np.ndarray:
         sl = bin_range(self.freqs, lo, hi)
@@ -113,7 +119,8 @@ def hf_ceiling(ltas_power: np.ndarray, freqs: np.ndarray, sr: float, policy: dic
     return result
 
 
-def _noise_floor(an: Analysis, policy: dict) -> dict:
+def _smoothed_levels(an: Analysis, policy: dict) -> tuple[np.ndarray, np.ndarray]:
+    """400 ms smoothed broadband and >= 5 kHz levels per STFT frame (padded edges dropped)."""
     dp = policy["diagnosis"]
     win = max(1, int(round(float(v(dp["noise_floor_window_s"])) * an.frame_rate)))
     tot = an.p_all.sum(axis=1).astype(np.float64) * an.norm
@@ -125,12 +132,36 @@ def _noise_floor(an: Analysis, policy: dict) -> dict:
     if tot_s.shape[0] > 2 * edge + 1:
         tot_s = tot_s[edge:-edge]
         hf_s = hf_s[edge:-edge]
+    return tot_s, hf_s
+
+
+def _quiet_mask(tot_s: np.ndarray, policy: dict) -> np.ndarray | None:
+    dp = policy["diagnosis"]
     silence = 10.0 ** (float(v(dp["silence_dbfs"])) / 10.0)
     live = tot_s > silence
     if not np.any(live):
-        return {"noise_floor_dbfs": None, "noise_floor_hf_dbfs": None, "quiet_fraction": 0.0}
+        return None
     thr = np.percentile(tot_s[live], float(v(dp["noise_floor_percentile"])))
-    q = live & (tot_s <= thr)
+    return live & (tot_s <= thr)
+
+
+def quiet_frames(an: Analysis, policy: dict) -> np.ndarray | None:
+    """Boolean mask of the quiet-passage frames used by the noise floor (None = all silent)."""
+    tot_s, _ = _smoothed_levels(an, policy)
+    return _quiet_mask(tot_s, policy)
+
+
+def _noise_floor(an: Analysis, policy: dict, quiet: np.ndarray | None = None) -> dict:
+    """Noise floor of the quiet passages. ``quiet`` imposes the frames (chosen on a
+    reference signal, same timeline); otherwise they are chosen on this signal."""
+    tot_s, hf_s = _smoothed_levels(an, policy)
+    q = None
+    if quiet is not None and np.asarray(quiet).shape == tot_s.shape and np.any(quiet):
+        q = np.asarray(quiet, dtype=bool)
+    if q is None:
+        q = _quiet_mask(tot_s, policy)
+    if q is None:
+        return {"noise_floor_dbfs": None, "noise_floor_hf_dbfs": None, "quiet_fraction": 0.0}
     return {
         "noise_floor_dbfs": rnd(db10(np.mean(tot_s[q]))),
         "noise_floor_hf_dbfs": rnd(db10(np.mean(hf_s[q]))),
@@ -198,19 +229,33 @@ def _above_ceiling(an: Analysis, policy: dict, ceiling_hz: float | None) -> dict
 
 def noise_shimmer_metrics(x, sr: float, *, policy: dict | None = None,
                           analysis: Analysis | None = None,
-                          with_clicks: bool = True) -> dict:
-    """P-16 metrics of a signal (see module docstring)."""
+                          with_clicks: bool = True,
+                          selection: dict | None = None) -> dict:
+    """P-16 metrics of a signal (see module docstring).
+
+    ``selection`` (from ``frame_selection`` on a reference signal with the same
+    timeline and sample rate) imposes the reference's frame choices: the onset
+    gate of the shimmer metrics, the quiet-passage frames of the noise floor and
+    the HF ceiling. The S-08 guard uses it so that the master is measured on the
+    baseline's frames: it then measures noise returning, not frames moving.
+    """
     policy = policy or load_policy()
     x2d, _ = as_2d(x)
-    an = analysis or Analysis(x2d, sr, policy)
+    sel = selection or {}
+    an = analysis or Analysis(x2d, sr, policy, gate=sel.get("gate"))
     ltas = an.p_all.mean(axis=0)
-    ceil = hf_ceiling(ltas, an.freqs, sr, policy)
+    if selection is not None and "hf_ceiling_hz" in sel:
+        ceil = {"hf_ceiling_hz": sel["hf_ceiling_hz"], "drop_db": None}
+    else:
+        ceil = hf_ceiling(ltas, an.freqs, sr, policy)
     fc = ceil["hf_ceiling_hz"]
     m: dict = {"sr": int(sr), "channels": int(x2d.shape[1]),
                "duration_s": rnd(x2d.shape[0] / sr, 4)}
-    m.update(_noise_floor(an, policy))
+    m.update(_noise_floor(an, policy, quiet=sel.get("quiet")))
     m["hf_ceiling_hz"] = fc
     m["hf_ceiling_drop_db"] = ceil["drop_db"]
+    if selection is not None:
+        m["frame_selection"] = "reference" if getattr(an, "gate_source", "own") == "reference" else "own"
     m.update(_shimmer(an, policy, fc))
     m.update(_above_ceiling(an, policy, fc))
     total = float(np.sum(ltas)) + EPS
@@ -226,6 +271,20 @@ def noise_shimmer_metrics(x, sr: float, *, policy: dict | None = None,
         m["click_count"] = len(cl)
         m["head_click"] = any(c["peak"] < head * sr for c in cl)
     return m
+
+
+def frame_selection(x, sr: float, *, policy: dict | None = None) -> tuple[dict, dict]:
+    """(P-16 metrics, frame selection) of a reference signal.
+
+    The selection holds the onset gate, the quiet-passage frames and the HF
+    ceiling chosen on this signal; pass it to ``noise_shimmer_metrics`` of a
+    signal on the same timeline (same length and sample rate)."""
+    policy = policy or load_policy()
+    x2d, _ = as_2d(x)
+    an = Analysis(x2d, sr, policy)
+    m = noise_shimmer_metrics(x2d, sr, policy=policy, analysis=an, with_clicks=False)
+    sel = {"gate": an.gate.copy(), "quiet": quiet_frames(an, policy), "hf_ceiling_hz": m.get("hf_ceiling_hz")}
+    return m, sel
 
 
 def decide(metrics: dict, policy: dict) -> tuple[dict, dict]:
