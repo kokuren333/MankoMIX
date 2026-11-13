@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Target ranges, penalty scales and intensity limits used by core/objectives.py to turn proxy metrics (docs/SPEC.md 4.2) into objective terms (4.1, 4.4, 4.7). Every value is an initial [model]/[practice] value subject to calibration (4.9). Penalty shape everywhere: 0 inside [lo, hi] (null = open bound), 1 - exp(-(d/scale)^2) outside (core/analysis/perceptual.py range_penalty). 'base' is the comfort-equivalent target (intensity 0); 'limit' is the target an objective reaches at intensity 1 (the objective's limit, 4.7). Terms of 'comfort' never move with intensity. Where references exist their measured distribution replaces 'base' (R-17, R-33). Safety invariants (S-nn) are NOT defined here and are never relaxed by anything in this file.",
+  "intensity": {
+    "exempt_objectives": ["comfort"],
+    "note": "target = base + intensity * (limit - base), bound by bound. Terms without a limit do not move."
+  },
+  "genre": {
+    "emphasis_factor": 1.5,
+    "evidence": "practice",
+    "note": "Terms named in a genre prior's 'emphasis' list get their initial weight multiplied by this factor; the objective's term weights are then renormalised to 1. Only initial weights and target ranges are affected (R-33); constraints never."
+  },
+  "reference": {
+    "single_reference_iqr_db_mid": 6.0,
+    "single_reference_iqr_db_edge": 10.0,
+    "min_iqr_db": 3.0,
+    "scalar_min_half_width": { "P-07:sub+bass": 1.5, "P-07:playable_band": 1.5, "P-03:plr": 1.5, "P-03:psr": 1.5, "P-03:lra": 1.5, "P-05:width_restraint": 0.05, "P-11": 1.0 },
+    "evidence": "practice",
+    "note": "P-01 reference distribution from user references (4.6): per ERB band median and IQR of the level-matched LTAS. With one reference the IQR is a default width (mid range / edges, same ERB interpolation as the generic prior); with more the measured IQR is floored at min_iqr_db. Scalar targets from references use median +/- max(IQR/2, scalar_min_half_width)."
+  },
+  "metrics": {
+    "P-01": { "default": { "mode": "module", "unit": "penalty", "evidence": "model" } },
+    "P-02": {
+      "overall": { "from": "masking_model:penalties.overall", "limit": [0.0, 1.5], "unit": "dB buried" },
+      "vs_lead": { "from": "masking_model:penalties.vs_lead", "limit": [0.0, 1.0], "unit": "dB buried" },
+      "low_to_mid": { "from": "masking_model:penalties.low_to_mid", "limit": [0.0, 1.0], "unit": "dB buried" },
+      "time_axis": { "from": "masking_model:penalties.time_axis", "limit": [0.0, 1.5], "unit": "dB buried" }
+    },
+    "P-03": {
+      "default": { "plr_db": [7.0, 18.0], "lra_lu": [2.0, 15.0], "scale": 3.0, "unit": "dB / LU", "evidence": "practice" },
+      "plr": { "base": [7.0, 18.0], "scale": 3.0, "unit": "dB", "evidence": "practice" },
+      "psr": { "base": [6.0, 14.0], "limit": [8.0, 14.0], "scale": 2.5, "unit": "dB", "evidence": "practice" },
+      "lra": { "base": [2.0, 15.0], "scale": 3.0, "unit": "LU", "evidence": "practice" },
+      "lra_density": { "base": [3.0, 12.0], "density_p95_p10_lu": [3.0, null], "scale": 3.0, "unit": "LU", "evidence": "practice" }
+    },
+    "P-04": {
+      "kick_band": { "bands": ["sub", "bass"], "loss_ok_db": 1.5, "scale": 4.5, "unit": "dB crest loss", "evidence": "model" },
+      "default": { "bands": ["sub", "bass", "lowmid", "mid", "highmid", "air"], "loss_ok_db": 1.5, "scale": 4.5, "unit": "dB crest loss", "evidence": "model" }
+    },
+    "P-05": {
+      "width_restraint": { "base": [0.0, 0.3], "limit": [0.0, 0.2], "scale": 0.1, "unit": "side ratio", "evidence": "practice" },
+      "default": { "base": [0.0, 0.4], "scale": 0.1, "unit": "side ratio", "evidence": "practice" }
+    },
+    "P-06": { "default": { "base": [null, 3.0], "scale": 3.0, "unit": "dB mono loss (worst band)", "evidence": "practice" } },
+    "P-07": {
+      "sub+bass": { "range_hz": [20.0, 250.0], "base": [-4.0, 6.0], "limit": [2.0, 9.0], "scale": 3.0, "unit": "dB low/rest", "evidence": "practice" },
+      "default": { "range_hz": [20.0, 250.0], "base": [-4.0, 6.0], "limit": [2.0, 9.0], "scale": 3.0, "unit": "dB low/rest", "evidence": "practice" },
+      "sub": { "range_hz": [20.0, 60.0], "base": [-14.0, 0.0], "limit": [-8.0, 2.0], "scale": 3.0, "unit": "dB band/rest", "evidence": "practice" },
+      "bass": { "range_hz": [60.0, 250.0], "base": [-6.0, 4.0], "limit": [-2.0, 6.0], "scale": 3.0, "unit": "dB band/rest", "evidence": "practice" },
+      "playable_band": { "range_hz": [40.0, 120.0], "base": [-8.0, 2.0], "limit": [-3.0, 4.0], "scale": 3.0, "unit": "dB band/rest", "evidence": "practice" }
+    },
+    "P-08": { "default": { "from": "masking_model:p08", "limit": [-8.0, null], "unit": "dB harmonic index" } },
+    "P-09": { "default": { "mode": "module", "unit": "penalty", "evidence": "model" } },
+    "P-10": { "default": { "from": "masking_model:p10", "limit_shift_db": 3.0, "unit": "dB lead - accompaniment" } },
+    "P-11": {
+      "default": { "from": "thresholds_m3:p11_harshness", "limit": [null, 1.0], "unit": "dB prominence" },
+      "two_sided": { "from": "thresholds_m3:p11_harshness.presence", "unit": "dB prominence" }
+    },
+    "P-12": { "default": { "mode": "module", "unit": "penalty", "evidence": "model" } },
+    "P-13": { "default": { "mode": "module", "unit": "penalty (beating risk)", "evidence": "standard/practice" } },
+    "P-14": { "default": { "scale": 1.0, "unit": "dBTP", "evidence": "standard" } },
+    "P-15": {
+      "default": { "from": "masking_model:p15", "unit": "dB D/R" },
+      "lead": { "from": "masking_model:p15", "limit": [6.0, null], "unit": "dB D/R" }
+    },
+    "P-16": { "default": { "mode": "external", "source": "cleanup", "unit": "penalty" } },
+    "P-17": { "default": { "from": "thresholds_m3:p17_sibilance", "limit": [null, 5.0], "unit": "dB p99 prominence" } },
+    "P-18": { "default": { "from": "thresholds:p18_limiter_dependency", "scale": 2.0, "unit": "dB GR p95" } },
+    "P-19": { "default": { "mode": "module", "unit": "penalty", "evidence": "model" } },
+    "P-20": { "default": { "mode": "module", "needs_before": true, "unit": "dB contrast shrink", "evidence": "model" } },
+    "P-21": { "default": { "mode": "external", "source": "cleanup", "unit": "penalty" } },
+    "P-22": { "default": { "mode": "module", "unit": "penalty", "evidence": "practice" } }
+  },
+  "variant_aliases": { "P-02": { "temporal": "time_axis", "default": "overall" }, "P-07": { "default": "sub+bass" } },
+  "gate": {
+    "small_speaker": { "highpass_hz": 150.0, "lowpass_hz": 8000.0, "order": 4, "lead_drop_tolerance_db": 3.0, "lead_retained_min_db": -9.0, "evidence": "practice" },
+    "mono_fold": { "any_band_max_db": 6.0, "strict_low_band_max_db": 0.5, "lead_stem_clarity_max_db": 1.0, "evidence": "practice" },
+    "low_level": { "phon_low": 60.0, "phon_reference": 80.0, "tolerance_db": 3.0, "evidence": "model" },
+    "pitch": { "mix_lowpass_hz": 400.0, "evidence": "model" },
+    "note": "OF-5 translation gate (4.5). Thresholds for mono fold reuse knowledge/thresholds.json S-04 values; these are the extra gate values. Small-speaker and fundamental-removed checks follow playback_assumptions.small_speaker_check; strict mono fold follows mono_fold_strict."
+  },
+  "planner": {
+    "eq_step_db": 0.5,
+    "max_candidates_per_iteration": 6,
+    "excerpt_s": 4.0,
+    "excerpt_fade_s": 0.05,
+    "full_length_below_s": 14.0,
+    "eq_bands": [
+      { "id": "sub", "shape": "low_shelf", "freq_hz": 60.0, "bw_oct": 1.9 },
+      { "id": "bass", "shape": "peak", "freq_hz": 120.0, "bw_oct": 1.5 },
+      { "id": "low_mid", "shape": "peak", "freq_hz": 350.0, "bw_oct": 1.5 },
+      { "id": "mid", "shape": "peak", "freq_hz": 1000.0, "bw_oct": 1.5 },
+      { "id": "high_mid", "shape": "peak", "freq_hz": 3500.0, "bw_oct": 1.5 },
+      { "id": "air", "shape": "high_shelf", "freq_hz": 8000.0, "bw_oct": 1.9 }
+    ],
+    "safety_valves": {
+      "low_end_min_db": -4.0,
+      "presence_min_db": -4.0,
+      "note": "R-29: a move that cuts low end may not push P-07 low/rest below low_end_min_db (unless it already was); a move that cuts presence may not push the P-11 presence value below presence_min_db."
+    },
+    "evidence": "practice",
+    "note": "Deterministic planner (SPEC 7.2). EQ moves are small (R-06) and the cumulative master EQ stays within knowledge/thresholds.json master_eq.max_abs_gain_db (R-15)."
+  }
+}
