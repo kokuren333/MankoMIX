@@ -74,11 +74,15 @@ def _label(ja: str, en: str) -> dict:
 
 
 def _display(p: Path) -> str:
-    """A path for messages: relative to the current folder when possible, else the bare name."""
+    """A path for messages: relative to the current folder when it lies inside it, else the bare name.
+
+    A relative path that climbs out of the current folder ("../../tmp/...") would still spell out
+    the absolute location, so it is never shown."""
     try:
-        return Path(os.path.relpath(p)).as_posix()
+        rel = Path(os.path.relpath(p)).as_posix()
     except ValueError:
         return p.name
+    return p.name if rel == ".." or rel.startswith("../") else rel
 
 
 # ---------------------------------------------------------------------------
