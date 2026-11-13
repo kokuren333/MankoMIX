@@ -1,9 +1,90 @@
 # mcp — MCP サーバー
 
-AI エージェント向けの MCP サーバーを置く。コア API を 1 対 1 で包み、CLI と同じ粒度のツールを公開する（`docs/SPEC.md` §10.3）。
+AI エージェント向けの MCP サーバー。コア API（`core/api.py`）を 1 対 1 で包み、CLI と同じ粒度のツールを公開する（`docs/SPEC.md` §10.3）。外部ライブラリ（MCP SDK）には依存しない。
 
-- 応答は測定値の要約を既定にする（エージェントは音を聴けない。トークンを節約する）
-- アクセス範囲は、起動時に指定した作業フォルダの中に限る
-- 外部サービスの MCP には依存しない
+- 通信: 標準入出力の JSON-RPC 2.0（1 行 1 メッセージ、UTF-8）。標準出力にはプロトコルのメッセージだけを書き、ログは標準エラーへ（`MANKOMIX_MCP_LOG=INFO` などで詳しくできる）
+- 対応メソッド: `initialize` / `notifications/initialized` / `ping` / `tools/list` / `tools/call`
+- 対応プロトコル版: `2025-11-25` / `2025-06-18` / `2025-03-26` / `2024-11-05`（クライアントの版が対応範囲ならそのまま返し、そうでなければ最新を返す）
+- 外部サービスの MCP（Suno など）には依存しない
 
-現在は骨格のみ。実装は次フェーズ。
+## 起動
+
+```
+mankomix mcp --root <作業フォルダ>
+python -m mankomix.mcp --root <作業フォルダ>
+```
+
+`--root` を省くとカレントフォルダが作業フォルダになる。
+
+## MCP クライアントへの登録
+
+多くのクライアント（Claude Desktop、Claude Code、Cursor など）は次の形の JSON 設定を受け付ける。`<作業フォルダ>` を楽曲プロジェクトを置くフォルダに置き換える。
+
+```json
+{
+  "mcpServers": {
+    "mankomix": {
+      "command": "mankomix",
+      "args": ["mcp", "--root", "<作業フォルダ>"]
+    }
+  }
+}
+```
+
+`mankomix` コマンドがインストールされていない（ソースのチェックアウトから使う）場合は、`"command": "python"`、`"args": ["-m", "mankomix.mcp", "--root", "<作業フォルダ>"]` とし、環境変数 `PYTHONPATH` にリポジトリのフォルダを渡す（`"env": {"PYTHONPATH": "<リポジトリ>"}`）。
+
+## 共通のふるまい
+
+| 項目 | 内容 |
+|---|---|
+| 作業フォルダの制限 | パス引数はすべて作業フォルダ基準で解決し、外に出るもの（`..`、外の絶対パス、ドライブ相対パス、外を指すシンボリックリンクやジャンクション）は `path_outside_workspace` で拒否する。結果に絶対パスは含めない |
+| `project` 引数 | 作業フォルダ内のプロジェクトフォルダ。省略時は `.`（作業フォルダ自体） |
+| 要約と詳細 | 応答は要約が既定（件数、主要な測定値、ID）。`detail: "full"` で API の結果をそのまま返す |
+| ジョブ | 時間のかかるツール（`analyze_run`、将来の `separate_run` `render_preview` `export_run` など）は `async: true` でジョブ ID を返す。`job_status` / `job_result` / `job_list` で問い合わせる。同じプロジェクトで同時に動くジョブは 1 つまで（`project_busy`） |
+| 操作者 | プロジェクトを変更するツールは、履歴に actor `agent` を記録する（引数では変えられない） |
+| エラー | ツールの失敗は `isError: true` の結果で返す（`{"error", "message", "details"}`。CLI と同じコード）。未知のメソッドや不正なパラメータは JSON-RPC のエラー |
+
+結果は `content[0].text`（JSON 文字列）と `structuredContent`（同じオブジェクト）の両方で返す。
+
+## ツール
+
+| ツール | API 関数 | CLI | 内容 |
+|---|---|---|---|
+| `doctor` | `doctor` | `doctor` | 依存、FFmpeg のビルド構成、符号化器、GPU、モデル |
+| `project_init` | `init_project` | `init` | プロジェクトの作成 |
+| `project_open` | `status` | `status` | プロジェクトの要約 |
+| `project_get` | （代替実装） | — | project.json 全体、または JSON pointer の位置の値 |
+| `project_set` | `set_value` | `set` | JSON pointer で 1 値を変更 |
+| `project_patch` | `patch` | `patch` | RFC 6902 パッチ |
+| `project_validate` | `validate_project` | `validate` | 正本の検証 |
+| `import_files` | `import_files` | `import` | ファイル入力アダプタでの取り込みと取り込み検査 |
+| `analyze_run` | `analyze` | `analyze` | 全素材とステム合算の測定（ジョブ可） |
+| `measure_audio` | `measure_audio` | `measure` | 任意の音声の測定 |
+| `compare_audio` | `compare_audio` | `compare` | レベルマッチ比較 |
+| `objective_list` / `objective_get` | `objective_list` / `objective_show` | `objective list` / `show` | 目的関数 |
+| `profile_list` / `profile_get` | `profile_list` / `profile_show` | `profile list` / `show` | 媒体プロファイルと納品形式 |
+| `history_list` / `history_undo` / `history_checkout` | `history` / `undo` / `checkout` | `history` / `undo` / `checkout` | 操作履歴 |
+| `knowledge_lookup` | （代替実装） | — | `knowledge/*.json` の検索（知覚語彙、帯域、ジャンル prior、閾値）。id、ラベル、注記の自由語検索 |
+| `job_status` / `job_result` / `job_list` | — | — | ジョブの問い合わせ（サーバー側の機能） |
+
+後続マイルストーンのツール（`plan_propose` / `plan_apply` / `plan_reject`、`clean_*` / `mix_*` / `master_*`、`render_preview`、`render_spectrogram`、`export_run`、`verify_run`、`report_get`、`separate_run`、`model_*`、`stems_*`、`objective_set`、`reference_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。
+
+「代替実装」の 2 つ（`project_get`、`knowledge_lookup`）は、コア API に対応する関数（`api.project_get`、`api.knowledge_lookup`）がまだないため MCP 側に置いている。API に関数が入れば、表の定義はそのままで API 側が優先される。判断規則の索引（R-01〜R-33）はまだデータになっていないため、`knowledge_lookup` の対象外。
+
+## ツールの追加
+
+`tools.py` の `SPECS` に 1 行足す。入力スキーマは API 関数のシグネチャから作られる（`project_path` → `project`、パス名の引数 → 作業フォルダ内で解決、`actor` → 常に `agent`、`detail` → 要約／詳細）。要約関数（`summary=`）を省くと、小さい結果はそのまま、大きい結果は浅く切り詰めて返す。
+
+```python
+ToolSpec("verify_run", ("verify_run", "verify"), "Run verification of the rendered outputs."),
+```
+
+## ファイル
+
+| ファイル | 内容 |
+|---|---|
+| `server.py` | JSON-RPC の受け渡しと標準入出力のループ |
+| `tools.py` | ツール表、API シグネチャからのスキーマ生成、要約 |
+| `jobs.py` | バックグラウンドジョブ（プロジェクトごとに 1 つ） |
+| `workspace.py` | 作業フォルダの制限と結果の絶対パス除去 |
+| `knowledge.py` | `knowledge_lookup` の代替実装 |

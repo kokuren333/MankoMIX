@@ -39,7 +39,6 @@ STUB_GROUPS = {
     "model": ("M6", "model registry"),
     "reference": ("M3", "reference tracks"),
     "serve": ("M8", "local GUI server"),
-    "mcp": ("M7", "MCP server (stdio)"),
 }
 OBJECTIVE_STUBS = {"set": "M3", "validate": "M3"}
 
@@ -169,6 +168,13 @@ def cmd_objective_show(a):
     return api.objective_show(a.id)
 
 
+def cmd_mcp(a):
+    # Serves JSON-RPC on stdin/stdout until stdin closes; nothing else may reach stdout,
+    # so leave through SystemExit instead of returning a result for _emit.
+    from mankomix.mcp.server import run_stdio
+    raise SystemExit(run_stdio(a.root or a.project or "."))
+
+
 # ---------------------------------------------------------------------------
 # parser
 # ---------------------------------------------------------------------------
@@ -264,6 +270,9 @@ def build_parser() -> argparse.ArgumentParser:
     for name, ms in OBJECTIVE_STUBS.items():
         add(name, _stub("objective", ms, name), f"(not implemented yet, {ms})", gsub) \
             .add_argument("args", nargs=argparse.REMAINDER)
+
+    sp = add("mcp", cmd_mcp, "MCP server over stdio (JSON-RPC 2.0) for AI agents")
+    sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")
 
     for name, (ms, desc) in STUB_GROUPS.items():
         add(name, _stub(name, ms), f"{desc} (not implemented yet, {ms})") \

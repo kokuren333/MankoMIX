@@ -183,7 +183,7 @@ def test_doctor_strict_from_env(monkeypatch):
 
 STUBS = {"stem": "M4", "separate": "M6", "clean": "M5", "mix": "M4", "master": "M2", "render": "M2",
          "export": "M2", "verify": "M2", "report": "M2", "run": "M4", "model": "M6", "reference": "M3",
-         "serve": "M8", "mcp": "M7"}
+         "serve": "M8"}
 
 
 @pytest.mark.parametrize("group", sorted(STUBS))
