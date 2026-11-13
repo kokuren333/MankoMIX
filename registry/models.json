@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Official catalog CANDIDATES only. No weights are stored in this repository. Every entry must be re-verified against primary sources (license text, author statement, model card) and pinned with a download URL and sha256 before its status can become verified. Entries without license metadata are invalid. See docs/SPEC.md section 12.",
+  "models": [
+    {
+      "id": "kim_melband_roformer_vocals",
+      "task": "separation",
+      "stems": ["vocals", "instrumental"],
+      "architecture": "mel_band_roformer",
+      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://huggingface.co/KimberleyJSN/melbandroformer", "checked_on": "2026-11-13", "note": "model card metadata (from survey; to be re-verified)" },
+          { "url": "https://github.com/kimberleyjensen/mel-band-roformer-vocal-model/issues/18", "checked_on": "2026-11-13", "note": "author statement on relicensing (from survey; to be re-verified)" }
+        ],
+        "caveats": ["Training data terms may apply to trained weights; legally unsettled."]
+      },
+      "attribution": "to be written from the primary source",
+      "tier": "official",
+      "status": "candidate"
+    },
+    {
+      "id": "scnet_4stem",
+      "task": "separation",
+      "stems": ["vocals", "drums", "bass", "other"],
+      "architecture": "scnet",
+      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://github.com/starrytong/SCNet", "checked_on": "2026-11-13", "note": "author confirmation reported by a third-party audit (from survey; primary source to be verified)" }
+        ],
+        "caveats": ["Training data terms may apply to trained weights; legally unsettled."]
+      },
+      "attribution": "to be written from the primary source",
+      "tier": "official",
+      "status": "candidate"
+    },
+    {
+      "id": "open_unmix_umxhq",
+      "task": "separation",
+      "stems": ["vocals", "drums", "bass", "other"],
+      "architecture": "open_unmix",
+      "weights": { "source_url": null, "sha256": null, "size_bytes": null },
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "usage_restrictions": "none",
+        "evidence": [
+          { "url": "https://github.com/sigsep/open-unmix-pytorch", "checked_on": "2026-11-13", "note": "umxhq weights stated as MIT (from survey; to be re-verified). The umxl variant is non-commercial and must not be used." }
+        ],
+        "caveats": ["Lower separation quality; kept as a fallback."]
+      },
+      "attribution": "to be written from the primary source",
+      "tier": "official",
+      "status": "candidate"
+    }
+  ],
+  "excluded_from_standard_route": [
+    { "name": "Demucs official weights", "reason": "author states the weights are for scientific purposes only", "allowed_via": "byow" },
+    { "name": "Open-Unmix umxl", "reason": "CC BY-NC-SA", "allowed_via": "byow" },
+    { "name": "community checkpoints without a declared license", "reason": "no license declared", "allowed_via": "byow" }
+  ]
+}

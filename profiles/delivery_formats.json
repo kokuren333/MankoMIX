@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Delivery formats are file conditions, kept separate from media profiles (playback conditions). Dither is applied once, only when word length is reduced, at the final export. See docs/SPEC.md section 5.3.",
+  "formats": [
+    { "id": "archive_f32", "container": "wav", "sample_rate": "native", "bit_depth": "32f", "dither": "none", "use": "archive master" },
+    { "id": "hires_native", "container": ["wav", "flac"], "sample_rate": "native", "bit_depth": 24, "dither": "none", "wav_format_tag": "WAVE_FORMAT_PCM", "use": "high-resolution delivery" },
+    { "id": "distributor_44k16", "container": "wav", "sample_rate": 44100, "bit_depth": 16, "channels": 2, "dither": "tpdf", "wav_format_tag": "WAVE_FORMAT_PCM", "use": "distributor baseline" },
+    { "id": "cd_redbook", "container": "wav", "sample_rate": 44100, "bit_depth": 16, "channels": 2, "dither": "tpdf", "wav_format_tag": "WAVE_FORMAT_PCM", "use": "CD master" },
+    { "id": "dj_wav", "container": ["wav", "aiff"], "sample_rate": [44100, 48000], "bit_depth": 24, "dither": "none", "wav_format_tag": "WAVE_FORMAT_PCM", "use": "DJ playback" }
+  ]
+}

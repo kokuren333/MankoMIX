@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Initial weights are starting points subject to calibration against reference measurements and level-matched listening tests. Safety invariants (S-nn) are never relaxed by blending or intensity. Metric IDs (P-nn) are defined in docs/SPEC.md section 4.2.",
+  "default": "comfort",
+  "objectives": [
+    {
+      "id": "comfort", "spec_id": "OF-0", "kind": "score",
+      "label": { "ja": "聞き心地", "en": "Listening comfort" },
+      "summary": { "ja": "偏りがなく、疲れにくく、要素が聞き分けられる" },
+      "terms": [
+        { "metric": "P-01", "weight": 0.25, "sense": "keep_in_range" },
+        { "metric": "P-02", "weight": 0.20, "sense": "minimize" },
+        { "metric": "P-11", "weight": 0.15, "sense": "minimize_excess" },
+        { "metric": "P-03", "weight": 0.15, "sense": "keep_in_range" },
+        { "metric": "P-09", "weight": 0.10, "sense": "keep_order" },
+        { "metric": "P-12", "weight": 0.10, "sense": "preserve" },
+        { "metric": "P-19", "weight": 0.05, "sense": "minimize" }
+      ],
+      "constraints_emphasis": ["S-01", "S-02", "S-03", "S-04"]
+    },
+    {
+      "id": "bass_heavy", "spec_id": "OF-1", "kind": "score",
+      "label": { "ja": "重低音強化", "en": "Bass heavy" },
+      "summary": { "ja": "低域の量と質を最大化しつつ濁らせない" },
+      "terms": [
+        { "metric": "P-07", "variant": "sub+bass", "weight": 0.35, "sense": "raise_to_target" },
+        { "metric": "P-13", "weight": 0.20, "sense": "minimize" },
+        { "metric": "P-02", "variant": "low_to_mid", "weight": 0.20, "sense": "minimize" },
+        { "metric": "P-08", "weight": 0.15, "sense": "raise_to_target" },
+        { "metric": "P-03", "variant": "plr", "weight": 0.10, "sense": "keep_in_range" }
+      ],
+      "constraints_emphasis": ["S-03", "S-04"],
+      "report_notes": ["normalization_tradeoff"]
+    },
+    {
+      "id": "vocal_forward", "spec_id": "OF-2", "kind": "score",
+      "label": { "ja": "ボーカル前面", "en": "Vocal forward" },
+      "summary": { "ja": "声を最も近く、埋もれさせない" },
+      "terms": [
+        { "metric": "P-10", "weight": 0.30, "sense": "raise_to_target" },
+        { "metric": "P-02", "variant": "vs_lead", "weight": 0.30, "sense": "minimize" },
+        { "metric": "P-09", "weight": 0.15, "sense": "keep_order" },
+        { "metric": "P-15", "variant": "lead", "weight": 0.15, "sense": "keep_in_range" },
+        { "metric": "P-17", "weight": 0.10, "sense": "minimize_excess" }
+      ],
+      "constraints_emphasis": ["S-04"]
+    },
+    {
+      "id": "clarity", "spec_id": "OF-3", "kind": "score",
+      "label": { "ja": "明瞭さ", "en": "Clarity" },
+      "summary": { "ja": "主役の輪郭と、歌詞・音価の聞き取りやすさ" },
+      "terms": [
+        { "metric": "P-02", "weight": 0.30, "sense": "minimize" },
+        { "metric": "P-11", "variant": "two_sided", "weight": 0.20, "sense": "keep_in_range" },
+        { "metric": "P-12", "weight": 0.20, "sense": "preserve" },
+        { "metric": "P-15", "weight": 0.15, "sense": "keep_in_range" },
+        { "metric": "P-05", "variant": "width_restraint", "weight": 0.15, "sense": "keep_in_range" }
+      ],
+      "constraints_emphasis": ["S-04"]
+    },
+    {
+      "id": "club_impact", "spec_id": "OF-4", "kind": "score",
+      "label": { "ja": "クラブ・インパクト", "en": "Club impact" },
+      "summary": { "ja": "大音量・モノ PA・サブウーファー前提での衝撃とグルーヴ" },
+      "terms": [
+        { "metric": "P-07", "variant": "playable_band", "weight": 0.25, "sense": "raise_to_target" },
+        { "metric": "P-03", "variant": "psr", "weight": 0.20, "sense": "keep_in_range" },
+        { "metric": "P-02", "variant": "temporal", "weight": 0.20, "sense": "minimize" },
+        { "metric": "P-04", "variant": "kick_band", "weight": 0.20, "sense": "preserve" },
+        { "metric": "P-13", "weight": 0.15, "sense": "minimize" }
+      ],
+      "constraints_emphasis": ["S-03", "S-04"]
+    },
+    {
+      "id": "translation", "spec_id": "OF-5", "kind": "gate",
+      "label": { "ja": "トランスレーション堅牢性", "en": "Translation robustness" },
+      "summary": { "ja": "どの再生環境でも意図が保存される" },
+      "checks": ["band_limited_lead_preserved", "mono_fold_loss_within_limit", "low_level_balance_preserved", "pitch_preserved_without_fundamental"],
+      "always_applied": true
+    },
+    {
+      "id": "low_fatigue", "spec_id": "OF-6", "kind": "score", "provisional": true,
+      "label": { "ja": "疲れにくさ", "en": "Low fatigue" },
+      "summary": { "ja": "ループ再生や長時間再生で疲れにくい（根拠となる研究が弱いため暫定）" },
+      "terms": [
+        { "metric": "P-11", "weight": 0.30, "sense": "minimize_excess" },
+        { "metric": "P-03", "variant": "lra_density", "weight": 0.25, "sense": "keep_in_range" },
+        { "metric": "P-17", "weight": 0.15, "sense": "minimize_excess" },
+        { "metric": "P-16", "weight": 0.15, "sense": "minimize" },
+        { "metric": "P-19", "weight": 0.15, "sense": "minimize" }
+      ],
+      "constraints_emphasis": ["S-01", "S-02", "S-03", "S-04"]
+    }
+  ]
+}

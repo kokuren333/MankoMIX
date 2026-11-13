@@ -1,0 +1,70 @@
+# --- 絶対にコミットしないもの（衛生ルール / docs/SPEC.md §16） ---
+/_handoff/
+/_private/
+# ローカル起動用スクリプト（環境依存の内容を含みうる）
+/run_*.bat
+/run_*.sh
+*.local.*
+.env
+.env.*
+
+# --- 音声・モデル等の大容量バイナリ（リポジトリには置かない。docs/SPEC.md §15） ---
+*.wav
+*.aiff
+*.aif
+*.flac
+*.mp3
+*.m4a
+*.aac
+*.ogg
+*.opus
+*.ckpt
+*.pth
+*.pt
+*.onnx
+*.safetensors
+# 公開用に監査済みの抜粋サンプルだけを例外として許可する
+!/samples/public/**
+
+# --- プロジェクト作業生成物 ---
+*.mmx/cache/
+*.mmx/renders/
+/out/
+/tmp/
+/models/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# --- Node / GUI ---
+node_modules/
+/gui/dist/
+.vite/
+
+# --- ネイティブビルド ---
+/dsp/build/
+CMakeCache.txt
+CMakeFiles/
+*.obj
+*.o
+*.dll
+*.so
+*.dylib
+*.exe
+
+# --- OS / エディタ ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
