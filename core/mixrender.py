@@ -377,6 +377,27 @@ def apply_track_overrides(data: dict, overrides: dict | None) -> dict:
     return out
 
 
+def apply_bus_overrides(data: dict, overrides: dict | None) -> dict:
+    """Return a copy of ``data`` with per-bus parameter diffs applied (``variants[].bus_overrides``,
+    SPEC 9.4): ``{bus_id: {key: value}}``; every key replaces the bus's value, ``id`` cannot change."""
+    out = copy.deepcopy(data)
+    if not overrides:
+        return out
+    if not isinstance(overrides, dict):
+        raise InputError("bus overrides must be an object {bus_id: {param: value}}")
+    buses = {b.get("id"): b for b in out.get("buses") or [] if isinstance(b, dict)}
+    for bid, diff in overrides.items():
+        if bid not in buses:
+            raise InputError(f"bus overrides refer to unknown bus '{bid}'", details={"valid": sorted(buses)})
+        if not isinstance(diff, dict):
+            raise InputError(f"overrides for bus '{bid}' must be an object")
+        for k, v in diff.items():
+            if k == "id":
+                raise InputError("bus overrides cannot change the bus id")
+            buses[bid][k] = copy.deepcopy(v)
+    return out
+
+
 def _variant(data: dict, variant_id: str) -> dict:
     for v in data.get("variants") or []:
         if v.get("id") == variant_id:
@@ -386,14 +407,20 @@ def _variant(data: dict, variant_id: str) -> dict:
 
 
 def effective_data(project, *, variant_id: str | None = None, overrides: dict | None = None) -> tuple[dict, dict]:
-    """Project data with the variant's ``track_overrides`` and then ``overrides`` applied."""
+    """Project data with the variant's ``track_overrides`` / ``bus_overrides`` and then ``overrides`` applied."""
     data = project.data
     applied: dict[str, list[str]] = {}
     if variant_id is not None:
-        vo = _variant(data, variant_id).get("track_overrides") or {}
+        v = _variant(data, variant_id)
+        vo = v.get("track_overrides") or {}
         data = apply_track_overrides(data, vo)
         for tid, d in vo.items():
             applied.setdefault(tid, []).extend(sorted(d))
+        bo = v.get("bus_overrides") or {}
+        if bo:
+            data = apply_bus_overrides(data, bo)
+            for bid, d in bo.items():
+                applied.setdefault(bid, []).extend(sorted(d))
     if overrides:
         data = apply_track_overrides(data, overrides)
         for tid, d in overrides.items():
@@ -1042,6 +1069,6 @@ __all__ = [
     "PAN_PRESETS", "PAN_LAWS_DB", "DEFAULT_PAN_LAW_DB", "FADE_CURVES",
     "render_track", "render_mix", "static_sum", "pan_stereo", "pan_gains", "pan_coefficients",
     "pan_position", "track_pan", "bus_order", "engine_chain", "chain_is_stateful", "apply_track_overrides",
-    "effective_data", "stem_tracks", "is_stem_track", "find_track", "clip_length", "timeline_length",
+    "effective_data", "apply_bus_overrides", "stem_tracks", "is_stem_track", "find_track", "clip_length", "timeline_length",
     "project_rate", "asset_length_at", "separated_notes", "resample", "clear_track_cache", "track_cache_info",
 ]

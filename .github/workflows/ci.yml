@@ -1,0 +1,164 @@
+# MankoMIX CI (docs/SPEC.md 13.3, 13.4, 16.3, 16.4; D-042, D-043, D-052).
+#
+# - python: core, CLI and MCP tests on Windows, Linux and macOS (D-042: this is
+#   the project's Linux/macOS check before publication). Each job also runs the
+#   hygiene check (file contents and noreply commit identities) and the license
+#   audit in --check mode, which fails on a license outside the allowlist and
+#   on drift between the committed licenses/ files and the installed packages.
+# - gui: GUI unit tests and both builds (local and Pages demo).
+#
+# No secrets are used. Nothing here prints absolute paths of the runner beyond
+# what the tools themselves print (they only print repository-relative paths).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  python:
+    name: python ${{ matrix.python }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.11", ffmpeg: btbn-lgpl, ffmpeg_asset: linux64 }
+          - { os: ubuntu-latest, python: "3.12", ffmpeg: btbn-lgpl, ffmpeg_asset: linux64 }
+          - { os: windows-latest, python: "3.12", ffmpeg: btbn-lgpl, ffmpeg_asset: win64 }
+          # No LGPL macOS build is published in a form CI can fetch reliably;
+          # tests marked `ffmpeg` are skipped there (tests/conftest.py).
+          - { os: macos-latest, python: "3.12", ffmpeg: none, ffmpeg_asset: "" }
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: Check out (full history for the commit-identity check)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # On pull requests, test the PR head itself rather than GitHub's
+          # synthetic merge commit, whose committer is not a users.noreply
+          # address and would fail tools/check_hygiene.py.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the core with test extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test,test-crosscheck]"
+          python -m pip list
+
+      - name: Install FFmpeg (LGPL build, external process only)
+        id: ffmpeg
+        if: matrix.ffmpeg == 'btbn-lgpl'
+        continue-on-error: true
+        # SPEC 13.3 / D-043: CI uses an LGPL build. BtbN's FFmpeg-Builds publish
+        # LGPL variants (no --enable-gpl) for Linux and Windows; the archive is
+        # checked against the release's checksum list. Never committed or bundled.
+        run: |
+          base="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+          name="ffmpeg-master-latest-${{ matrix.ffmpeg_asset }}-lgpl"
+          case "${{ matrix.ffmpeg_asset }}" in
+            win64) archive="$name.zip" ;;
+            *) archive="$name.tar.xz" ;;
+          esac
+          dest="$RUNNER_TEMP/ffmpeg"
+          mkdir -p "$dest"
+          cd "$dest"
+          curl -fsSL --retry 3 -o "$archive" "$base/$archive"
+          curl -fsSL --retry 3 -o checksums.sha256 "$base/checksums.sha256"
+          grep " $archive\$" checksums.sha256 | sha256sum -c -
+          case "$archive" in
+            *.zip) unzip -q "$archive" ;;
+            *) tar -xf "$archive" ;;
+          esac
+          bin="$dest/$name/bin"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -w "$bin")"; fi
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: Report FFmpeg build
+        run: |
+          if command -v ffmpeg >/dev/null 2>&1; then
+            if ffmpeg -hide_banner -version | grep -q -- "--enable-gpl"; then build=gpl; else build=lgpl; fi
+            echo "FFmpeg: $(ffmpeg -hide_banner -version | head -n 1 | cut -d' ' -f1-3) ($build build)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FFmpeg: not available; tests marked 'ffmpeg' are skipped" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ "${{ matrix.ffmpeg }}" != "none" ]; then echo "::warning::FFmpeg download failed; ffmpeg tests are skipped on this runner"; fi
+          fi
+
+      - name: Build the native DSP core
+        id: native
+        continue-on-error: true
+        # Needs CMake and a C++17 compiler (preinstalled on all GitHub runners:
+        # MSVC on Windows, GCC on Linux, Apple Clang on macOS).
+        run: python -I tools/build_native.py
+
+      - name: Report native build
+        run: |
+          if [ "${{ steps.native.outcome }}" = "success" ] && python -c "import sys; from mankomix.dsp import native_backend as nb; sys.exit(0 if nb.available() else 1)"; then
+            python -c "from mankomix.dsp import native_backend as nb; v = nb.version_info(); b = v.get('build') or {}; print('Native core:', v.get('version'), b.get('compiler') if isinstance(b, dict) else '')" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Native core: build or load FAILED; native tests are skipped (reference backend only)" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::warning::native DSP core did not build or load on ${{ matrix.os }}; native tests are skipped"
+          fi
+
+      - name: Hygiene check (SPEC 16.4)
+        run: python -I tools/check_hygiene.py
+
+      - name: License audit (SPEC 13.4)
+        run: python -I tools/license_audit.py --check
+
+      - name: Tests
+        run: python -m pytest -q -m "not sample and not slow"
+
+  gui:
+    name: gui / node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install (lockfile only)
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build (local server backend)
+        run: npm run build
+
+      - name: Build (Pages demo, mock backend)
+        run: npm run build:demo

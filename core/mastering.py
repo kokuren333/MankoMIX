@@ -794,7 +794,7 @@ def plan_master(project, *, variant_id: str | None = None, profile_id: str,
     vid = variant_id or f"var_{pid}"
 
     route = select_route(project)
-    x, sr = load_master_input(project, route["route"])
+    x, sr = load_master_input(project, route["route"], variant_id=vid)
     stems_exist = bool(stem_tracks(project.data))
     warnings = list(route_warnings(route["route"]))
     rationale = []

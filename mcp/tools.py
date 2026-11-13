@@ -565,8 +565,10 @@ SPECS: list[ToolSpec] = [
              rename={"proposal_or_id": "proposal"},
              schema={"proposal": {"description": "proposal_id from clean_plan (or the proposal object)"}}),
     ToolSpec("clean_delta", ("clean_delta",), "Write the removed component of an applied cleanup (input minus "
-             "output) for listening; returns its project-relative path.", long=True,
-             schema={"asset_id": {"description": "asset id, track id or 'fullmix'"}}),
+             "output) for listening; returns its project-relative path. asset='stems' gives one delta for the "
+             "whole stem set (unprocessed stem sum minus cleaned stem sum).", long=True,
+             rename={"asset_id": "asset"},
+             schema={"asset": {"description": "asset id, track id, 'fullmix' or 'stems'"}}),
     ToolSpec("mix_plan", ("mix_plan",), "Propose the mix stage in the fixed order (static balance, arrangement "
              "suggestions, subtractive EQ, dynamics, additive EQ, space, mix bus), measured after every step on "
              "level-matched previews. variant= plans a variant's mix (its track overrides). apply=true also "
@@ -586,7 +588,10 @@ SPECS: list[ToolSpec] = [
              long=True),
     ToolSpec("render_spectrogram", ("render_spectrogram",), "Render a spectrogram image."),
     ToolSpec("export_run", ("export_run", "export"), "Render the final export for each output.", long=True),
-    ToolSpec("verify_run", ("verify_run", "verify"), "Run verification of the rendered outputs."),
+    ToolSpec("verify_run", ("verify_run", "verify"), "Run verification of the rendered outputs. profiles=[...] "
+             "judges the existing rendered master against other profiles' P-03 / S-01 / S-02 instead "
+             "(verification-only profiles, SPEC 15.2; no re-render, project unchanged).",
+             schema={"profiles": {"description": "verification-only profile ids, e.g. [\"spotify\", \"youtube\"]"}}),
     ToolSpec("report_get", ("report_get", "report"), "Get the Mix Report."),
     ToolSpec("pipeline_run", ("run_pipeline", "run"), "One-shot pipeline with the planner only: import as-is, "
              "analyze, clean, mix (stems) or full-mix route (2-mix), master per variant, render, verify, Mix Report; "

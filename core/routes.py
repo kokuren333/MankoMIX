@@ -6,9 +6,14 @@ Routes:
   was applied to it (SPEC 6.6.1: "the 2mix with cleanup only"; see
   core/cleanstage.py). Default when a full mix exists and no mix-stage result
   exists, and the default when the only stems are separated ones.
-- ``stem_mix``: the mix-stage output is the master input (M4). Until the
-  mix renderer exists the input is the same static sum as ``stem_sum``; a
-  warning says so.
+- ``stem_mix``: the mix-stage output is the master input: the stem mix
+  rendered by ``core.mixrender.render_mix`` (clips, cleaned stems, track
+  chains, faders and gain automation, pan, sends, buses and the mix-bus
+  chain, seed 0). With a variant, its ``track_overrides`` / ``bus_overrides``
+  apply (SPEC 9.4), so variants with different mixes get different master
+  inputs. The S-08 noise baseline of this route (``cleanstage.route_baseline``)
+  is measured on this same signal: the guard checks that mastering does not
+  raise the noise of the mix it is given.
 - ``stem_sum``: only stems exist and no mix stage has run. The master input
   is a static, unprocessed, head-aligned sum of the track clips (clip gain,
   track gain and mutes respected; no track chains, no pan). This is a
@@ -179,8 +184,12 @@ def _db_to_lin(db: float) -> float:
     return float(10.0 ** (float(db) / 20.0))
 
 
-def load_master_input(project, route: str | dict | None = None) -> tuple[np.ndarray, int]:
-    """Return (x[frames, 2] float64, project sample rate) for the given route."""
+def load_master_input(project, route: str | dict | None = None, *,
+                      variant_id: str | None = None) -> tuple[np.ndarray, int]:
+    """Return (x[frames, 2] float64, project sample rate) for the given route.
+
+    ``variant_id``: the variant whose mix overrides apply on the ``stem_mix`` route (ignored when the
+    variant does not exist yet, e.g. while its first master plan is being made)."""
     if isinstance(route, dict):
         route = route.get("route")
     if route is None:
@@ -199,6 +208,13 @@ def load_master_input(project, route: str | dict | None = None) -> tuple[np.ndar
 
     if route not in ("stem_sum", "stem_mix"):
         raise InputError(f"unknown mastering route: {route}")
+
+    if route == "stem_mix":
+        from .mixrender import render_mix
+        known = {v.get("id") for v in data.get("variants") or [] if isinstance(v, dict)}
+        vid = variant_id if variant_id in known else None
+        x, rsr, _ = render_mix(project, variant_id=vid, seed=0, measure=False)
+        return x, int(rsr)
 
     tracks = stem_tracks(data)
     solo = any(t.get("solo") for t in tracks)
@@ -249,8 +265,4 @@ def route_warnings(route: str) -> list[dict]:
         return [{"code": "stem_sum_stand_in", "rule": "R-21",
                  "message": {"ja": "マスター入力はステムの無加工合算（ゲイン 0）。ミックス段（M4）が実装されるまでの代替",
                              "en": "Master input is the unprocessed unity-gain stem sum, a stand-in until the M4 mix stage"}}]
-    if route == "stem_mix":
-        return [{"code": "stem_mix_static_sum", "rule": "R-21",
-                 "message": {"ja": "ミックス段のレンダリングは M4 で実装予定。現在はトラックの処理チェーンを適用しない静的な合算を入力にしている",
-                             "en": "Mix-stage rendering lands in M4; the input is currently a static sum without track chains"}}]
     return []

@@ -597,7 +597,11 @@ def import_files(project_path: str | Path, sources: list[str], *, mode: str = "c
     adapter = _mod("adapters.file").FileAdapter()
     records = []
     checks = None
-    for s in sources:
+    # Several loose files are one set (e.g. a Suno export given file by file: numbered stems and
+    # "0 <title>" as the full mix); a single file is a 2-mix; folders are read one by one.
+    groups: list[Any] = ([[str(x) for x in sources]] if len(sources) > 1 and all(Path(x).is_file() for x in sources)
+                         else list(sources))
+    for s in groups:
         rec = adapter.fetch(s, proj, mode=mode, provenance=provenance, actor=actor)
         if isinstance(rec, dict) and isinstance(rec.get("checks"), list):
             # The adapter checks the whole project after each fetch; the last result is current.
@@ -1151,13 +1155,96 @@ def export(project_path: str | Path, variant: str | None = None) -> dict:
     return _mod("render").render_variant(proj, vid, outputs=None)
 
 
+AGAINST_CHECKS = ("P-03", "S-01", "S-02")
+
+
+def _verify_against(proj, vid: str, profiles: list[str]) -> dict:
+    """SPEC 15.2 verification-only profiles: the variant's existing rendered outputs judged against
+    other profiles' hard delivery checks (P-03 loudness window, S-01 effective ceiling incl. the
+    conditional one, S-02 codec round trip). Nothing is rendered and project.json is not changed;
+    the result is written to reports/verify_<variant>__against.json."""
+    cfg, mastering, render_mod = _mod("config"), _mod("mastering"), _mod("render")
+    ld, audio_io = _mod("measure.loudness"), _mod("audio_io")
+    v = mastering.find_variant(proj.data, vid) or {}
+    th = mastering.thresholds()
+    files = []
+    for o in v.get("outputs") or []:
+        prof, dl = cfg.get_profile(o["profile"]), cfg.get_delivery(o["delivery"])
+        path = render_mod.variant_dir(proj, vid) / render_mod.output_name(prof["id"], dl)
+        if path.is_file():
+            files.append((o, path))
+    if not files:
+        raise InputError(f"variant '{vid}' has no rendered output; run render first")
+    measured = []
+    for o, path in files:
+        y, sr = audio_io.read(path)
+        measured.append((o, path, y, sr, float(ld.integrated(y, sr)), float(ld.true_peak_dbtp(y, sr))))
+    rank = {"fail": 3, "not_run": 2, "pass": 0, "not_applicable": 0}
+    out: dict[str, Any] = {}
+    for pid in profiles:
+        prof = cfg.get_profile(pid)
+        per = []
+        for o, path, y, sr, lufs, tp in measured:
+            checks: dict = {}
+            window = mastering.loudness_window(prof)
+            if window is None:
+                checks["P-03"] = {"status": "not_applicable", "measured": {"lufs_i": round(lufs, 2)},
+                                  "reason": "profile has no loudness window"}
+            else:
+                ok = window[0] - 1e-6 <= lufs <= window[1] + 1e-6
+                checks["P-03"] = {"status": "pass" if ok else "fail", "measured": {"lufs_i": round(lufs, 2)},
+                                  "window_lufs_i": window}
+            ceiling = mastering.effective_ceiling(prof, lufs, None)
+            checks["S-01"] = {"status": "pass" if tp <= ceiling + 1e-9 else "fail",
+                              "measured": {"true_peak_dbtp": round(tp, 3)}, "ceiling_dbtp": ceiling,
+                              "conditional_applied": ceiling < float((prof.get("true_peak") or {})
+                                                                     .get("ceiling_dbtp", -1.0))}
+            codecs = list(prof.get("codec_checks") or [])
+            if not codecs:
+                checks["S-02"] = {"status": "not_applicable", "reason": "profile declares no codec checks"}
+            else:
+                cc = mastering.codec_after_ceiling(prof, th)
+                res = render_mod.codec_true_peaks(y, sr, codecs, cc, th)
+                sts = [r["status"] for r in res.values()]
+                checks["S-02"] = {"status": "fail" if "fail" in sts else "not_run" if "not_run" in sts else "pass",
+                                  "codec_after_ceiling_dbtp": cc, "codecs": res}
+            worst = max((c["status"] for c in checks.values()), key=lambda st: rank.get(st, 0))
+            overall = "fail" if worst == "fail" else "incomplete" if worst == "not_run" else "pass"
+            per.append({"file": proj.rel(path), "rendered_for": {"profile": o["profile"], "delivery": o["delivery"]},
+                        "overall": overall, "failed": sorted(k for k, c in checks.items() if c["status"] == "fail"),
+                        "checks": checks})
+        overall = ("fail" if any(x["overall"] == "fail" for x in per)
+                   else "incomplete" if any(x["overall"] == "incomplete" for x in per) else "pass")
+        out[prof["id"]] = {"overall": overall, "failed": sorted({k for x in per for k in x["failed"]}),
+                           "outputs": per}
+    rep_ = {"schema_version": 1, "kind": "verify_against_report", "variant": vid,
+            "project_hash": proj.content_hash(), "checks": list(AGAINST_CHECKS),
+            "definition": "rendered outputs of the variant judged against other profiles (SPEC 15.2); "
+                          "no re-render, project unchanged",
+            "profiles": out, "passed": all(p["overall"] == "pass" for p in out.values())}
+    path = Path(proj.root) / "reports" / f"verify_{vid}__against.json"
+    _write_json(path, _jsonable(rep_))
+    rep_["path"] = proj.rel(path)
+    rep_["exit_code"] = 0 if rep_["passed"] else 1
+    return rep_
+
+
 @_face_safe
 def verify(project_path: str | Path, variant: str | None = None, recheck_codecs: bool = False,
-           *, strict: bool = False) -> dict:
+           *, profiles: list[str] | str | None = None, strict: bool = False) -> dict:
     """Verify a rendered variant. The result carries ``passed`` and ``exit_code``
-    (0 pass, 1 fail/incomplete); with ``strict=True`` a non-pass raises VerifyFailed."""
+    (0 pass, 1 fail/incomplete); with ``strict=True`` a non-pass raises VerifyFailed.
+    ``profiles``: verification-only profiles (SPEC 15.2) instead: the existing rendered master is
+    judged against those profiles' P-03 / S-01 / S-02 without re-rendering or changing the project."""
     proj = _open(project_path)
     vid = _variant_or_default(proj, variant)
+    if profiles:
+        res = _verify_against(proj, vid, _list_arg(profiles, "profiles"))
+        if strict and not res["passed"]:
+            from .errors import VerifyFailed
+            raise VerifyFailed(f"verification against profiles failed for variant '{vid}'",
+                               details={"path": res.get("path")})
+        return res
     res = _mod("verify").verify_variant(proj, vid, recheck_codecs=recheck_codecs)
     res["exit_code"] = 0 if res.get("passed") else 1
     if strict and not res.get("passed"):
@@ -1830,11 +1917,64 @@ def _cleanup_target(proj, target: str) -> str:
                      details={"assets": sorted(assets)})
 
 
+STEM_SUM_DELTA = "renders/delta/stem_sum_delta.wav"
+
+
+def _stem_sum_delta(proj, *, required: bool = True) -> dict | None:
+    """The removed component of the whole stem set (SPEC 15.2: one delta for the main sample):
+    the unprocessed stem sum (the D-036 "Before": every stem asset at 0 dB, head-aligned, project
+    rate) minus the same sum of the cleaned stems, i.e. the unity-gain sum of every stem's cleanup
+    delta. The reference full mix is not part of it. Rewritten only when the cleanup changes."""
+    mr, cs, hashing = _mod("mixrender"), _mod("cleanstage"), _mod("hashing")
+    data = proj.data
+    fid = mr.fullmix_asset_id(data)
+    stems = [aid for aid in _stem_ids(data) if aid != fid]
+    applied = {aid: cs.applied_entry(data, aid) for aid in stems}
+    cleaned = {aid: e for aid, e in applied.items() if e is not None}
+    if not cleaned:
+        if required:
+            raise InputError("no cleanup changed any stem; run clean plan / apply first (or nothing was detected)")
+        return None
+    key = hashing.canonical_hash({"stems": [(aid, (_asset_by_id(data, aid) or {}).get("sha256")) for aid in stems],
+                                  "cleaned": {aid: e.get("plan_hash") for aid, e in sorted(cleaned.items())}})
+    path = Path(proj.root).joinpath(*STEM_SUM_DELTA.split("/"))
+    side = path.with_name(path.stem + ".json")
+    try:
+        stored = json.loads(side.read_text(encoding="utf-8")) if side.is_file() else {}
+    except (OSError, ValueError):
+        stored = {}
+    if not path.is_file() or stored.get("key") != key or stored.get("file_sha256") != _sha256_file(path):
+        raw, sr, _ = mr.static_sum(proj)
+        cl, sr2, _ = mr.static_sum(proj, cleaned=True)
+        n = max(raw.shape[0], cl.shape[0])
+        d = _pad_frames(raw, n) - _pad_frames(cl, n)
+        cs.write_f32_wav(path, d, int(sr))
+        _write_json(side, {"kind": "stem_sum_delta", "key": key, "sample_rate": int(sr),
+                           "definition": "unprocessed stem sum minus the cleaned stem sum (D-036 alignment)",
+                           "stems": stems, "cleaned": sorted(cleaned), "file_sha256": _sha256_file(path)})
+    return {"asset": "stems", "delta": STEM_SUM_DELTA, "stems": stems, "cleaned": sorted(cleaned),
+            "plan_hashes": {aid: e.get("plan_hash") for aid, e in sorted(cleaned.items())}}
+
+
+def _pad_frames(x, n: int):
+    import numpy as np
+    if x.shape[0] >= n:
+        return x[:n]
+    return np.concatenate([x, np.zeros((n - x.shape[0], x.shape[1]), dtype=x.dtype)], axis=0)
+
+
+def _asset_by_id(data: dict, aid: str) -> dict | None:
+    return next((a for a in _asset_list(data) if a.get("id") == aid), None)
+
+
 @_face_safe
 def clean_delta(project_path: str | Path, asset_id: str) -> dict:
     """Write (if missing) and return the removed component of an asset's applied cleanup
-    (input minus output, SPEC 6.4.3) for listening. ``asset_id``: asset id, track id or "fullmix"."""
+    (input minus output, SPEC 6.4.3) for listening. ``asset_id``: asset id, track id or "fullmix";
+    "stems" gives the delta of the whole stem set (unprocessed stem sum minus cleaned stem sum)."""
     proj = _open(project_path)
+    if asset_id == "stems":
+        return _stem_sum_delta(proj)
     aid = _cleanup_target(proj, asset_id)
     cs = _mod("cleanstage")
     rel = cs.delta(proj, aid)
@@ -2099,7 +2239,7 @@ def gate_check(project_path: str | Path, variant: str | None = None) -> dict:
         source, file_rel = "render", proj.rel(archive)
     else:
         route = render_mod.variant_route(proj, v) if v is not None else routes.select_route(proj)["route"]
-        x, sr = routes.load_master_input(proj, route)
+        x, sr = routes.load_master_input(proj, route, variant_id=vid)
         chain = ((v or {}).get("master") or {}).get("chain")
         if chain:
             x = mastering._render(x, sr, chain).audio
@@ -2644,7 +2784,12 @@ def audio_set(project_path: str | Path, variant: str | None = None) -> dict:
     if kind == "fullmix" and fm:
         delta = deltas.get(fm)
     else:
-        delta = next(iter(deltas.values())) if len(deltas) == 1 else None
+        sd = _stem_sum_delta(proj, required=False)       # one delta for the whole stem set (SPEC 15.2)
+        if sd is not None:
+            delta = sd["delta"]
+            deltas[Path(STEM_SUM_DELTA).stem] = sd["delta"]
+        else:
+            delta = next(iter(deltas.values())) if len(deltas) == 1 else None
     out: dict[str, Any] = {
         "variant": vid, "before_kind": kind,
         "files": {"before": proj.rel(before) if before else None, "after": proj.rel(after) if after else None,

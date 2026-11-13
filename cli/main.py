@@ -256,7 +256,7 @@ def cmd_export(a):
 def cmd_verify(a):
     if a.last:
         return api.verification_get(_project(a), a.variant)
-    return api.verify(_project(a), a.variant, recheck_codecs=a.recheck_codecs)
+    return api.verify(_project(a), a.variant, recheck_codecs=a.recheck_codecs, profiles=a.against_profile)
 
 
 def cmd_variant_list(a):
@@ -627,6 +627,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--recheck-codecs", dest="recheck_codecs", action="store_true",
                     help="re-run codec round trips even if the render-time results are still valid")
     sp.add_argument("--last", action="store_true", help="show the last verification without running it again")
+    sp.add_argument("--against-profile", dest="against_profile", action="append",
+                    help="verification-only profile (repeatable): judge the existing rendered master against "
+                         "its P-03 / S-01 / S-02 without re-rendering (SPEC 15.2)")
 
     grp = add("variant", None, "variants (objective x media profile)")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")

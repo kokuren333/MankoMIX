@@ -264,7 +264,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
     step_db = float(tv(th, "s02_codec", "ceiling_step_db", default=0.2))
     max_iter = int(tv(th, "s02_codec", "max_iterations", default=6))
     route = variant_route(project, variant)
-    x, sr = load_master_input(project, route)
+    x, sr = load_master_input(project, route, variant_id=variant_id)
     project_hash = project.content_hash()
     obj_ids = objective_ids(_objective_for(project, variant))
     vdir = variant_dir(project, variant_id)

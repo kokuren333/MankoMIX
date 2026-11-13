@@ -34,7 +34,7 @@
 | `plan reject ID --reason R` | `plan_reject` | 提案を却下して別案を求める。履歴（op `plan_reject`）と提案ファイルに記録し、却下した提案は適用できない |
 | `plan run [--profile P] [--objective O] [--max-iter N] [--apply]` | `planner_run` | プランナーのループ（§7.2）。反復の記録、収束の理由、未解決事項を返す。操作者は既定で `planner` |
 | `render [VARIANT] [--output P:D]` / `export [VARIANT]` | `render` / `export` | 出口ごとのレンダリングとマニフェスト |
-| `verify [VARIANT]` | `verify` | 検証（不合格・未完了は終了コード 1） |
+| `verify [VARIANT] [--against-profile P ...]` | `verify` | 検証（不合格・未完了は終了コード 1）。`--against-profile` は検証専用プロファイル（§15.2）: 既にレンダリングしたマスターを、そのプロファイルの P-03 / S-01（条件付き天井を含む）/ S-02 で判定する。再レンダリングせず正本も変えない。結果は `reports/verify_<variant>__against.json` |
 | `gate [VARIANT]` | `gate_check` | トランスレーション・ゲート（OF-5）。`incomplete`（ステムがないと評価できない検査など）は合格扱いにせず終了コード 1 |
 | `report [VARIANT] [--lang ja\|en\|both] [--no-write]` | `report` | Mix Report（JSON と Markdown）。5 章に指標別の内訳、6 章に制約とゲート |
 | `get [POINTER]` | `project_get` | project.json 全体、または JSON pointer の位置の値 |
@@ -63,7 +63,7 @@
 |---|---|---|
 | `clean plan [--target T ...] [--overrides JSON] [--apply]` | `clean_plan` | 整音の計画。ステムごと（フルミックス経路では 2mix）に診断し、何も検出しなかった素材は理由つきで `skipped`。`--overrides '{"spectral_reduction": "light"}'`（全対象、または素材・トラック id ごと）。`cache/proposals/cln_*.json` に保存 |
 | `clean apply PROPOSAL` | `clean_apply` | 整音の提案を承認して適用（整音済み音声、除去分、記録、ノイズ基準。トラックごとの計画を正本へ） |
-| `clean delta ASSET` | `clean_delta` | 除去分の音声（入力 − 出力）を `renders/delta/<asset>.wav` に書き出す。素材 id、トラック id、`fullmix` |
+| `clean delta ASSET` | `clean_delta` | 除去分の音声（入力 − 出力）を `renders/delta/<asset>.wav` に書き出す。素材 id、トラック id、`fullmix`。`stems` はステム全体の除去分（無加工のステム合算 − 整音後のステム合算）を `renders/delta/stem_sum_delta.wav` に書き、`listen` のステム経路の delta になる |
 | `mix plan [--variant V] [--objective O] [--max-iter N] [--full-length] [--apply]` | `mix_plan` | ミックス段の計画（固定順: 静的バランス、編曲の提案、減算 EQ、ダイナミクス、加算 EQ、空間、ミックスバス。各段の後で測定）。`--variant` はバリアントの `track_overrides` として保存 |
 | `mix apply PROPOSAL [--edits JSON]` | `mix_apply` | ミックスの提案を承認して適用（`mix.applied` / `decisions` / `evaluation`） |
 | `plan propose --stage clean\|mix\|master` / `plan apply` / `plan reject` | `plan_propose` / `plan_apply` / `plan_reject` | 全段で共通の提案・承認・却下（clean は `--target` / `--overrides`） |

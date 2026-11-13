@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "_comment": "Reviewed exceptions for tools/license_audit.py (docs/SPEC.md 13.4). Each entry needs license (SPDX as reviewed), reason and evidence (https URLs). Sections: python (by distribution name), npm (by package name), native (by component name as listed in NATIVE_COMPONENTS). An exception can never accept GPL / AGPL / LGPL for a package; for native components it records a deliberate, visible decision. Keep this file small.",
+  "python": [],
+  "npm": [],
+  "native": [
+    {
+      "component": "libsndfile",
+      "license": "LGPL-2.1-or-later",
+      "decision": "provisional, pending owner decision",
+      "reason": "python-soundfile (BSD-3-Clause, core dependency) loads libsndfile as a separate, unmodified, user-replaceable shared library through cffi; MankoMIX does not bundle or redistribute it. This is weaker than SPEC 13.1 ('LGPL only as an external process'), which D-057 applied strictly to soxr. Options: accept dynamic loading of unmodified LGPL libraries for audio I/O, or move decoding/encoding to the external FFmpeg process.",
+      "evidence": [
+        "https://github.com/libsndfile/libsndfile/blob/master/COPYING",
+        "https://github.com/bastibe/python-soundfile/blob/master/LICENSE"
+      ]
+    },
+    {
+      "component": "libmp3lame, libmpg123 (inside libsndfile)",
+      "license": "LGPL-2.0-or-later AND LGPL-2.1-only",
+      "decision": "provisional, pending owner decision",
+      "reason": "MP3 codecs compiled into the libsndfile that soundfile wheels bundle; same situation and decision as libsndfile.",
+      "evidence": [
+        "https://github.com/bastibe/python-soundfile/blob/master/licensing/license_notes.md"
+      ]
+    }
+  ]
+}

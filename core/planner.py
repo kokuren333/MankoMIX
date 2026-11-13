@@ -597,7 +597,7 @@ def run_loop(project, *, variant_id: str | None = None, profile_id: str | None =
     base = base_proposal or mastering.plan_master(project, variant_id=variant_id, profile_id=profile_id,
                                                   delivery_id=delivery_id, objective=objective)
     route = (base.get("route") or {}).get("route")
-    x, sr = routes.load_master_input(project, route)
+    x, sr = routes.load_master_input(project, route, variant_id=base.get("variant"))
     ceiling = float((base.get("expected") or {}).get("ceiling_dbtp", -1.0))
     pa = profile.get("playback_assumptions") or {}
     boundary = float(pa.get("mono_low_band_hz") or 120.0)

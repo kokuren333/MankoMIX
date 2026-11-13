@@ -96,7 +96,7 @@ python -m mankomix.mcp --root <作業フォルダ>
 | `stems_export` | `stem_export` | `stem export` | ステムの書き出し（`out_dir` はプロジェクト相対。ジョブ可） |
 | `pipeline_run` | `run` | `run` | 一括実行（取り込みから検証と Mix Report まで、プランナーだけ）。段ごとの状態とゲート、検証結果、納品物を返す。`exit_code` 1 は段ゲートか検証の不合格。`project` を省くと `out` の隣の `<名前>.mmx`（作業フォルダ内）。ジョブ可 |
 
-`render_spectrogram` は表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。`render_preview` / `export_run` / `verify_run` / `report_get` / `master_plan` / `master_apply` は `render` / `export` / `verify` / `report` / `master_plan` / `master_apply` を包む。
+`render_spectrogram` は表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。`render_preview` / `export_run` / `verify_run` / `report_get` / `master_plan` / `master_apply` は `render` / `export` / `verify` / `report` / `master_plan` / `master_apply` を包む。`verify_run` の `profiles` は検証専用プロファイル（§15.2、再レンダリングなし）、`clean_delta` の `asset: "stems"` はステム全体の除去分。
 
 `project_get` と `knowledge_lookup` もコア API（`api.project_get`、`api.knowledge_lookup`、実体は `core/knowledge.py`）を包む。判断規則の索引（R-01〜R-33）は `knowledge/rules.json` のデータで、`knowledge_lookup` の `kind: "rule"` として引ける。
 

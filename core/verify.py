@@ -288,7 +288,7 @@ def verify_variant(project, variant_id: str, *, recheck_codecs: bool = False) ->
 
     a_man = load_manifest(project, variant_id, None, ARCHIVE_DELIVERY)
     route = variant_route(project, variant)
-    x, in_sr = load_master_input(project, route)
+    x, in_sr = load_master_input(project, route, variant_id=variant_id)
     in_frames = int(x.shape[0])
     inp = {"frames": in_frames, "sr": int(in_sr), "lufs": float(ld.integrated(x, in_sr)),
            "dc": [float(abs(v)) for v in np.mean(x, axis=0)],

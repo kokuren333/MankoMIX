@@ -732,7 +732,7 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
     obj = variant.get("objective") or data.get("objective") or {}
     verify = _load_verify(project, variant_id)
     route = variant_route(project, variant)
-    x, sr = load_master_input(project, route)
+    x, sr = load_master_input(project, route, variant_id=variant_id)
     ad = config.get_delivery(ARCHIVE_DELIVERY)
     apath = variant_dir(project, variant_id) / f"master__{ARCHIVE_DELIVERY}.{output_ext(ad)}"
     outputs = variant.get("outputs") or []
