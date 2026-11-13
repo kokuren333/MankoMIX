@@ -44,6 +44,7 @@ __all__ = [
     "doctor", "init_project", "import_files", "status", "validate_project", "analyze",
     "measure_audio", "compare_audio", "history", "undo", "checkout", "set_value", "patch",
     "profile_list", "profile_show", "objective_list", "objective_show",
+    "route", "master_plan", "master_apply", "render", "export", "verify", "report",
 ]
 
 
@@ -966,3 +967,151 @@ def objective_list() -> dict:
 def objective_show(id: str) -> dict:
     cfg = _mod("config")
     return {"objective": _lookup(cfg.get_objective, id, "objective")}
+
+
+# ---------------------------------------------------------------------------
+# Mastering path (M2): route, master plan/apply, render/export, verify, report
+# ---------------------------------------------------------------------------
+
+PROPOSAL_DIR = "cache/proposals"
+
+
+def _variant_or_default(proj, variant: str | None) -> str:
+    variants = [v.get("id") for v in proj.data.get("variants", []) or [] if isinstance(v, dict)]
+    if variant:
+        if variant not in variants:
+            raise InputError(f"unknown variant '{variant}'", details={"valid": variants})
+        return variant
+    if len(variants) == 1:
+        return variants[0]
+    raise InputError("specify a variant", details={"valid": variants})
+
+
+def _parse_outputs(outputs: Any) -> list[dict] | None:
+    """None, ["profile:delivery", ...] or [{"profile", "delivery"}, ...]."""
+    if outputs is None:
+        return None
+    if isinstance(outputs, (str, dict)):
+        outputs = [outputs]
+    out = []
+    for o in outputs:
+        if isinstance(o, dict):
+            if not o.get("profile") or not o.get("delivery"):
+                raise InputError("an output needs 'profile' and 'delivery'")
+            out.append({"profile": o["profile"], "delivery": o["delivery"]})
+        elif isinstance(o, str) and ":" in o:
+            prof, dl = o.split(":", 1)
+            out.append({"profile": prof.strip(), "delivery": dl.strip()})
+        else:
+            raise InputError(f"output '{o}' must look like 'profile:delivery'")
+    return out
+
+
+@_face_safe
+def route(project_path: str | Path) -> dict:
+    """Mastering route selection (R-21)."""
+    proj = _open(project_path)
+    return _mod("routes").select_route(proj)
+
+
+@_face_safe
+def master_plan(project_path: str | Path, *, profile: str, delivery: str | None = None,
+                objective: Any = None, variant: str | None = None, target_lufs: float | None = None,
+                apply: bool = False, actor: str = "human") -> dict:
+    """Propose a master chain (R-31). The proposal is saved under cache/proposals/;
+    with ``apply=True`` it is also written into the variant."""
+    proj = _open(project_path)
+    mastering = _mod("mastering")
+    obj = _parse_json_value(objective, "objective") if isinstance(objective, str) and objective.strip()[:1] in "{[" else objective
+    proposal = mastering.plan_master(proj, variant_id=variant, profile_id=profile, delivery_id=delivery,
+                                     objective=obj, target_lufs=target_lufs)
+    path = Path(proj.root) / PROPOSAL_DIR / f"{proposal['proposal_id']}.json"
+    _write_json(path, proposal)
+    result = {"proposal": proposal, "proposal_path": proj.rel(path), "applied": False}
+    if apply:
+        mastering.apply_master_plan(proj, proposal, actor=actor)
+        result["applied"] = True
+        result["project"] = _project_summary(proj)
+    return result
+
+
+def _load_proposal(proj, proposal_or_path: Any) -> dict:
+    if isinstance(proposal_or_path, dict):
+        return proposal_or_path
+    if not isinstance(proposal_or_path, (str, Path)) or not str(proposal_or_path).strip():
+        raise InputError("proposal must be a dict, a JSON text, a proposal id or a file path")
+    text = str(proposal_or_path).strip()
+    if text.startswith("{"):
+        return _parse_json_value(text, "proposal")
+    candidates = [Path(text), Path(proj.root) / text, Path(proj.root) / PROPOSAL_DIR / f"{text}.json"]
+    for c in candidates:
+        if c.is_file():
+            try:
+                with open(c, encoding="utf-8") as fh:
+                    return json.load(fh)
+            except (OSError, ValueError) as e:
+                raise InputError(f"cannot read proposal {c.name}: {e}") from None
+    raise InputError(f"proposal not found: {Path(text).name}",
+                     details={"hint": f"pass a proposal id, a JSON file, or {PROPOSAL_DIR}/<id>.json"})
+
+
+@_face_safe
+def master_apply(project_path: str | Path, proposal_or_path: Any, actor: str = "human") -> dict:
+    """Apply a master proposal (dict, JSON text, proposal id or file) to its variant."""
+    proj = _open(project_path)
+    proposal = _load_proposal(proj, proposal_or_path)
+    _mod("mastering").apply_master_plan(proj, proposal, actor=actor)
+    return {"applied": True, "variant": proposal.get("variant"), "proposal_id": proposal.get("proposal_id"),
+            "send_back": proposal.get("send_back"), "project": _project_summary(proj)}
+
+
+@_face_safe
+def render(project_path: str | Path, variant: str | None = None, outputs: Any = None) -> dict:
+    """Render a variant's outputs (all, or the given 'profile:delivery' subset) with manifests."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    return _mod("render").render_variant(proj, vid, outputs=_parse_outputs(outputs))
+
+
+@_face_safe
+def export(project_path: str | Path, variant: str | None = None) -> dict:
+    """Final export: every output of the variant plus the archive master."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    return _mod("render").render_variant(proj, vid, outputs=None)
+
+
+@_face_safe
+def verify(project_path: str | Path, variant: str | None = None, recheck_codecs: bool = False,
+           *, strict: bool = False) -> dict:
+    """Verify a rendered variant. The result carries ``passed`` and ``exit_code``
+    (0 pass, 1 fail/incomplete); with ``strict=True`` a non-pass raises VerifyFailed."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    res = _mod("verify").verify_variant(proj, vid, recheck_codecs=recheck_codecs)
+    res["exit_code"] = 0 if res.get("passed") else 1
+    if strict and not res.get("passed"):
+        from .errors import VerifyFailed
+        raise VerifyFailed(f"verification {res.get('overall')} for variant '{vid}'",
+                           details={"overall": res.get("overall"), "path": res.get("path")})
+    return res
+
+
+@_face_safe
+def report(project_path: str | Path, variant: str | None = None, lang: str = "both", write: bool = True) -> dict:
+    """Mix Report. ``write`` saves reports/report_<variant>.json (+ .ja.md / .en.md)."""
+    proj = _open(project_path)
+    vid = _variant_or_default(proj, variant)
+    rep_mod = _mod("report")
+    result: dict = {"variant": vid}
+    if lang not in ("ja", "en", "both"):
+        raise InputError(f"unsupported report language '{lang}'", details={"valid": ["ja", "en", "both"]})
+    if write:
+        result["paths"] = rep_mod.write_report(proj, vid)
+        with open(Path(proj.root) / result["paths"]["json"], encoding="utf-8") as fh:
+            result["report"] = rep_mod.resolve_language(json.load(fh), lang)
+    else:
+        result["report"] = rep_mod.build_report(proj, vid, lang=lang)
+    if lang in ("ja", "en"):
+        result["markdown"] = rep_mod.render_markdown(result["report"], lang)
+    return result

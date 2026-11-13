@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "note": "Initial thresholds for the mastering planner, the verifier and the Mix Report. Every value here is an initial / practice-level value ([慣行]) subject to calibration (docs/SPEC.md 4.3, 4.9). Safety invariants themselves (S-nn) are never relaxed; only their numeric limits marked 'initial' are calibratable. Profile-specific values in profiles/media_profiles.json take precedence over the generic defaults here.",
+  "p18_limiter_dependency": {
+    "gr_p95_warn_db": { "value": 4.0, "confidence": "practice", "note": "Limiter GR 95th percentile above this is a warning sign of a mix-side problem (SPEC 6.6.3: 'constantly above 4-5 dB')." },
+    "gr_p95_send_back_db": { "value": 5.0, "confidence": "practice", "note": "Above this the planner lowers the loudness target within the profile window; if still above, it sends back to the mix stage (R-14)." },
+    "sustained_fraction_gt_1db": { "value": 0.5, "confidence": "practice", "note": "Fraction of time with GR > 1 dB above which limiting is considered sustained rather than occasional." },
+    "gr_max_note_db": { "value": 8.0, "confidence": "practice", "note": "Max GR above this is reported as a listening point (transient damage risk), not a failure by itself." }
+  },
+  "master_eq": {
+    "max_abs_gain_db": { "value": 2.0, "confidence": "practice", "note": "Master EQ moves stay within about +/-2 dB (R-06, R-15). Larger needs are a mix problem." },
+    "linear_phase_max_cut_db": { "value": 1.0, "confidence": "practice", "note": "Linear-phase EQ at the master stage is limited to small cuts (SPEC 6.6.3)." },
+    "min_deviation_to_act_db": { "value": 3.0, "confidence": "practice", "note": "Deviation of a broad band from the generic prior needed before a corrective move is proposed. The generic prior is wide on purpose (SPEC 4.6 item 3)." },
+    "correction_fraction": { "value": 0.5, "confidence": "practice", "note": "Only part of a measured deviation is corrected at the master stage (small moves, R-06)." }
+  },
+  "generic_tonal_prior": {
+    "note": "Broad generic prior for full-mix band energy ratios (P-07) used only when no reference set exists. Wide on purpose; not genre-specific (SPEC 4.6 item 3). Values are fractions of total energy (K-weighting not applied).",
+    "confidence": "practice",
+    "bands": [
+      { "id": "sub", "range_hz": [20, 60], "ratio_range": [0.01, 0.6] },
+      { "id": "bass", "range_hz": [60, 250], "ratio_range": [0.05, 0.7] },
+      { "id": "low_mid", "range_hz": [250, 500], "ratio_range": [0.03, 0.30] },
+      { "id": "mid", "range_hz": [500, 2000], "ratio_range": [0.04, 0.40] },
+      { "id": "high_mid", "range_hz": [2000, 6000], "ratio_range": [0.01, 0.25] },
+      { "id": "air", "range_hz": [6000, 20000], "ratio_range": [0.0005, 0.12] }
+    ]
+  },
+  "s03_low_band_phase": {
+    "boundary_hz": { "value": 120.0, "confidence": "practice", "note": "Low-band boundary (R-09). Profile playback_assumptions.mono_low_band_hz overrides." },
+    "negative_corr_threshold": { "value": 0.0, "confidence": "practice", "note": "Correlation below this in a window counts as negative." },
+    "window_s": { "value": 0.4, "confidence": "practice", "note": "Analysis window for the persistence check." },
+    "max_persistence_s": { "value": 1.0, "confidence": "initial", "note": "Longest allowed run of consecutive negative-correlation windows below the boundary." },
+    "max_negative_fraction": { "value": 0.1, "confidence": "initial", "note": "Largest allowed fraction of windows with negative low-band correlation." }
+  },
+  "s04_mono_loss": {
+    "low_band_max_db": { "value": 1.5, "confidence": "initial", "note": "Max level loss on mono fold below the low-band boundary." },
+    "lead_clarity_band_hz": { "value": [300, 5000], "confidence": "practice", "note": "Lead clarity band (P-10 definition)." },
+    "lead_clarity_max_db": { "value": 3.0, "confidence": "initial", "note": "Max level loss on mono fold in the lead clarity band (full-mix proxy for the lead element)." },
+    "planner_mono_bass_trigger_db": { "value": 1.0, "confidence": "initial", "note": "Mono loss below the boundary above which the planner proposes mono below the boundary." }
+  },
+  "s02_codec": {
+    "codec_after_ceiling_dbtp": { "value": -0.1, "confidence": "practice", "note": "Default codec-after true-peak ceiling (D-046). Profiles may override with true_peak.codec_after_ceiling_dbtp." },
+    "bitrates": {
+      "value": { "aac": "256k", "opus": "160k", "mp3": "320k", "ogg_vorbis": "320k" },
+      "confidence": "practice",
+      "note": "Round-trip bitrates per codec, close to what platforms deliver. A higher bitrate usually gives a smaller overshoot; values are calibratable."
+    },
+    "ceiling_step_db": { "value": 0.2, "confidence": "practice", "note": "Limiter ceiling is lowered by this step per S-02 re-render iteration." },
+    "max_iterations": { "value": 6, "confidence": "practice", "note": "Max S-02 re-render iterations per output; on exhaustion the output fails S-02 and is reported." }
+  },
+  "loudness": {
+    "tolerance_lu": { "value": 0.5, "confidence": "practice", "note": "Planner aims at the target; verification uses the profile window. The tolerance is used by the gain stage when deciding whether a re-trim is needed." },
+    "nonnormalized_step_lu": { "value": 1.0, "confidence": "practice", "note": "Step by which the planner lowers the target within the window when P-18 is exceeded."  },
+    "window_floor_margin_lu": { "value": 0.3, "confidence": "practice", "note": "The lowest target the planner tries stays this far above the window floor, leaving room for the S-02 ceiling reduction at render time." }
+  },
+  "contrast": {
+    "p20_shrink_warn_lu": { "value": 2.0, "confidence": "initial", "note": "Warn when the short-term loudness contrast between quiet and loud sections shrinks by more than this (P-20, R-26). Fully evaluated from M3." }
+  },
+  "compressor_gr_yardsticks": {
+    "light_db": { "value": [1.0, 2.0], "confidence": "practice", "note": "Light gain reduction." },
+    "moderate_db": { "value": [3.0, 6.0], "confidence": "practice", "note": "Moderate gain reduction." },
+    "excessive_above_db": { "value": 10.0, "confidence": "practice", "note": "Above this, compression is excessive (vocabulary: flat / squashed)." }
+  },
+  "s09_health": {
+    "dc_offset_max": { "value": 0.00316, "confidence": "initial", "note": "Max absolute mean per channel (linear, -50 dBFS) not inherited from the input. Heavy limiting of asymmetric transients shifts the mean by about -60 to -55 dBFS, which is harmless; a DC fault is a larger offset. Calibratable." },
+    "clip_sample_abs": { "value": 1.0, "confidence": "standard", "note": "Samples at or above full scale count as clipped for fixed-point outputs." },
+    "length_tolerance_samples": { "value": 1, "confidence": "standard", "note": "Output length must equal input length scaled by the rate ratio within this many samples." }
+  }
+}

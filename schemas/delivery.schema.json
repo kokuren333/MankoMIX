@@ -48,7 +48,7 @@
           "then": { "properties": { "dither": { "const": "none" } } }
         },
         {
-          "if": { "properties": { "bit_depth": { "const": 16 } } },
+          "if": { "properties": { "bit_depth": { "enum": [16, 24] } } },
           "then": { "properties": { "dither": { "const": "tpdf" } } }
         }
       ]

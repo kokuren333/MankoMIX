@@ -1,0 +1,39 @@
+"""Reference backend: numpy/scipy implementations, float64 internally, deterministic.
+
+Every implementation has the signature ``fn(x, sr, params, *, seed=0) -> (y, sr_out, stats)``
+with ``x`` shaped (frames, channels) float64 and ``params`` already validated
+by ``mankomix.dsp.processors.validate_params``.
+"""
+
+from __future__ import annotations
+
+from . import basic, dynamics, export, filters, nonlinear, stereo
+from .truepeak import peak_per_sample, sample_peak_dbfs, true_peak_dbtp, true_peak_linear
+
+BACKEND = "reference"
+
+IMPLEMENTATIONS = {
+    "gain": basic.gain,
+    "pan": basic.pan,
+    "loudness_gain": basic.loudness_gain,
+    "filter": filters.filt,
+    "eq": filters.eq,
+    "compressor": dynamics.compressor,
+    "limiter": dynamics.limiter,
+    "saturator": nonlinear.saturator,
+    "clipper": nonlinear.clipper,
+    "stereo": stereo.stereo,
+    "resample": export.resample,
+    "dither": export.dither,
+}
+
+
+def version() -> dict:
+    import numpy
+    import scipy
+
+    return {"backend": BACKEND, "numpy": numpy.__version__, "scipy": scipy.__version__}
+
+
+__all__ = ["IMPLEMENTATIONS", "BACKEND", "version", "peak_per_sample", "true_peak_dbtp",
+           "true_peak_linear", "sample_peak_dbfs"]

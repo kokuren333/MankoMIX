@@ -30,11 +30,6 @@ STUB_GROUPS = {
     "separate": ("M6", "stem separation"),
     "clean": ("M5", "cleanup plan/apply/delta"),
     "mix": ("M4", "mix plan/apply"),
-    "master": ("M2", "mastering plan/apply"),
-    "render": ("M2", "preview rendering"),
-    "export": ("M2", "final export per output"),
-    "verify": ("M2", "verification"),
-    "report": ("M2", "Mix Report"),
     "run": ("M4", "one-shot pipeline with the planner"),
     "model": ("M6", "model registry"),
     "reference": ("M3", "reference tracks"),
@@ -168,6 +163,39 @@ def cmd_objective_show(a):
     return api.objective_show(a.id)
 
 
+def cmd_route(a):
+    return api.route(_project(a))
+
+
+def cmd_master_plan(a):
+    return api.master_plan(_project(a), profile=a.profile, delivery=a.delivery, objective=a.objective,
+                           variant=a.variant, target_lufs=a.target_lufs, apply=a.apply, actor=a.actor)
+
+
+def cmd_master_apply(a):
+    return api.master_apply(_project(a), _read_arg_or_file(a.proposal), actor=a.actor)
+
+
+def _outputs(values):
+    return list(values) if values else None
+
+
+def cmd_render(a):
+    return api.render(_project(a), a.variant, outputs=_outputs(a.output))
+
+
+def cmd_export(a):
+    return api.export(_project(a), a.variant)
+
+
+def cmd_verify(a):
+    return api.verify(_project(a), a.variant, recheck_codecs=a.recheck_codecs)
+
+
+def cmd_report(a):
+    return api.report(_project(a), a.variant, lang=a.lang, write=not a.no_write)
+
+
 def cmd_mcp(a):
     # Serves JSON-RPC on stdin/stdout until stdin closes; nothing else may reach stdout,
     # so leave through SystemExit instead of returning a result for _emit.
@@ -271,6 +299,38 @@ def build_parser() -> argparse.ArgumentParser:
         add(name, _stub("objective", ms, name), f"(not implemented yet, {ms})", gsub) \
             .add_argument("args", nargs=argparse.REMAINDER)
 
+    add("route", cmd_route, "mastering route selection (R-21)")
+
+    grp = add("master", None, "mastering stage (full-mix route in M2)")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    sp = add("plan", cmd_master_plan, "propose a mastering chain for a profile (R-31 proposal)", gsub)
+    sp.add_argument("--profile", required=True, help="media profile id, e.g. spotify, club")
+    sp.add_argument("--delivery", help="delivery format id (default: the profile's default)")
+    sp.add_argument("--objective", help="objective id or id:intensity, e.g. bass_heavy:0.7")
+    sp.add_argument("--variant", help="variant id (default: var_<profile>)")
+    sp.add_argument("--target-lufs", dest="target_lufs", type=float, help="loudness target within the profile window")
+    sp.add_argument("--apply", action="store_true", help="apply the proposal right away")
+    sp = add("apply", cmd_master_apply, "apply a mastering proposal", gsub)
+    sp.add_argument("proposal", help="proposal id, JSON inline, '@file' or '-'")
+
+    sp = add("render", cmd_render, "render a variant's outputs (masters + manifests)")
+    sp.add_argument("variant", nargs="?", help="variant id (optional if the project has one variant)")
+    sp.add_argument("--output", action="append", help="profile:delivery to render (repeatable)")
+
+    sp = add("export", cmd_export, "final export of every output of a variant")
+    sp.add_argument("variant", nargs="?")
+
+    sp = add("verify", cmd_verify, "verify rendered outputs (S-01, S-02, S-05, S-06, S-09, ...)")
+    sp.add_argument("variant", nargs="?")
+    sp.add_argument("--recheck-codecs", dest="recheck_codecs", action="store_true",
+                    help="re-run codec round trips even if the render-time results are still valid")
+
+    sp = add("report", cmd_report, "build the Mix Report (JSON + Markdown, ja/en)")
+    sp.add_argument("variant", nargs="?")
+    sp.add_argument("--lang", choices=("ja", "en", "both"), default="both")
+    sp.add_argument("--no-write", dest="no_write", action="store_true", help="do not write files under reports/")
+
     sp = add("mcp", cmd_mcp, "MCP server over stdio (JSON-RPC 2.0) for AI agents")
     sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")
 
@@ -330,6 +390,8 @@ def main(argv: list[str] | None = None) -> int:
         _emit(result, fmt, command)
         if command == "doctor" and result.get("status") == "error":
             return EXIT_ENV_ERROR
+        if command == "verify" and isinstance(result, dict) and result.get("exit_code"):
+            return int(result["exit_code"])
         return EXIT_OK
     except MankoError as e:
         _emit(e.to_dict(), fmt, "error")

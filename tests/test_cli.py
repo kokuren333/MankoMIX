@@ -181,9 +181,8 @@ def test_doctor_strict_from_env(monkeypatch):
 # stubs, global behaviour, bad input
 # ---------------------------------------------------------------------------
 
-STUBS = {"stem": "M4", "separate": "M6", "clean": "M5", "mix": "M4", "master": "M2", "render": "M2",
-         "export": "M2", "verify": "M2", "report": "M2", "run": "M4", "model": "M6", "reference": "M3",
-         "serve": "M8"}
+STUBS = {"stem": "M4", "separate": "M6", "clean": "M5", "mix": "M4", "run": "M4", "model": "M6",
+         "reference": "M3", "serve": "M8"}
 
 
 @pytest.mark.parametrize("group", sorted(STUBS))
@@ -195,11 +194,11 @@ def test_stub_groups(cli, group):
 
 def test_subprocess_module_entry_and_stub(tmp_path):
     env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONIOENCODING": "cp1252"}
-    p = subprocess.run([sys.executable, "-m", "mankomix.cli", "master", "apply"], cwd=REPO, env=env,
+    p = subprocess.run([sys.executable, "-m", "mankomix.cli", "mix", "apply"], cwd=REPO, env=env,
                        capture_output=True, timeout=120)
     assert p.returncode == EXIT_INPUT_ERROR
     out = p.stdout.decode("utf-8")
-    assert json.loads(out)["message"] == "not implemented yet (milestone M2)"
+    assert json.loads(out)["message"] == "not implemented yet (milestone M4)"
 
     p = subprocess.run([sys.executable, "-m", "mankomix.cli", "doctor", "--format", "text"], cwd=REPO, env=env,
                        capture_output=True, timeout=120)
