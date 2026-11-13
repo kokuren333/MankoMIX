@@ -406,14 +406,24 @@ class _Ctx:
         self.warnings: list[str] = []
         self.backends: dict[str, Any] = {}
         self.used_assets: list[str] = []
+        self.cleaned: dict[str, set[str]] = {}  # asset id -> plan hashes of the cleaned audio used
 
-    def asset_audio(self, aid: str) -> np.ndarray:
-        if aid in self.audio:
-            return self.audio[aid]
+    def asset_audio(self, aid: str, cleanup: dict | None = None) -> np.ndarray:
+        """Audio of an asset at the project rate; ``cleanup`` (an applied cleanup entry)
+        selects the cleaned cache instead of the raw asset (regenerated if missing)."""
+        key = aid if cleanup is None else f"{aid}#clean:{cleanup.get('plan_hash')}"
+        if key in self.audio:
+            return self.audio[key]
         asset = self.assets.get(aid)
         if asset is None:
             raise InputError(f"unknown asset '{aid}'")
-        x, sr = audio_io.read(self.project.asset_path(aid))
+        if cleanup is not None:
+            from .cleanstage import asset_audio_path
+            path = asset_audio_path(self.project, aid, cleanup)
+            self.cleaned.setdefault(aid, set()).add(str(cleanup.get("plan_hash")))
+        else:
+            path = self.project.asset_path(aid)
+        x, sr = audio_io.read(path)
         if x.shape[1] > 2:
             raise InputError(f"asset '{aid}' has {x.shape[1]} channels; v1 renders mono or stereo stems only")
         if sr != self.pr:
@@ -425,14 +435,21 @@ class _Ctx:
             self.backends.setdefault("resample", _resampler_version())
         x = np.ascontiguousarray(x, dtype=np.float64)
         x.setflags(write=False)
-        self.audio[aid] = x
-        self.used_assets.append(aid)
+        self.audio[key] = x
+        if aid not in self.used_assets:
+            self.used_assets.append(aid)
         if x.shape[0] < self.total and aid not in self.pads:
             self.pads.add(aid)
             self.applied.append({"asset": aid, "from_rate": int(sr), "to_rate": self.pr,
                                  "action": "pad_silence_at_render", "asset_length": int(x.shape[0]),
                                  "project_length": int(self.total)})
         return x
+
+    def cleanup_record(self) -> dict:
+        """Which assets entered the render cleaned (SPEC 6.4, 9.6)."""
+        return {"applied": bool(self.cleaned),
+                "assets": [{"asset": aid, "sha256": (self.assets.get(aid) or {}).get("sha256"),
+                            "plan_hash": h} for aid in sorted(self.cleaned) for h in sorted(self.cleaned[aid])]}
 
     def conform_record(self) -> dict:
         policy = (self.data.get("timebase") or {}).get("conform_policy") or {}
@@ -531,7 +548,8 @@ def _track_source(ctx: _Ctx, track: dict, w0: int, w1: int) -> tuple[np.ndarray,
         if a >= b:
             channels.add(ch)
             continue
-        src = ctx.asset_audio(aid)
+        from .cleanstage import track_cleanup_entry
+        src = ctx.asset_audio(aid, track_cleanup_entry(track, aid))
         channels.add(src.shape[1])
         used.append(clip.get("id"))
         i0, i1 = ss + (a - ts), ss + (b - ts)
@@ -649,7 +667,7 @@ def render_track(project, track_id: str, *, sr: int | None = None, seed: int = 0
         "range": _range_record(ctx, s0, n, w0, w1, stateful),
         "apply_chain": bool(apply_chain), "apply_fader": bool(apply_fader), "clips": clips, "chain": steps,
         "peak_dbfs": _peak_db(x), "conform": ctx.conform_record(), "assets": _asset_hashes(ctx),
-        "backends": ctx.backends, "warnings": ctx.warnings,
+        "cleanup": ctx.cleanup_record(), "backends": ctx.backends, "warnings": ctx.warnings,
         "notes": separated_notes(data, [track_id]),
     })
     return x, out_sr, rec
@@ -818,7 +836,7 @@ def render_mix(project, *, variant_id: str | None = None, sr: int | None = None,
         "sample_rate": out_sr, "project_rate": ctx.pr, "frames": int(out.shape[0]), "channels": 2,
         "range": _range_record(ctx, s0, n, w0, w1, stateful),
         "pan_law_center_db": center_db, "bus_order": order,
-        "conform": ctx.conform_record(), "assets": _asset_hashes(ctx),
+        "conform": ctx.conform_record(), "assets": _asset_hashes(ctx), "cleanup": ctx.cleanup_record(),
         "tracks": track_recs, "buses": bus_recs,
         "peak_dbfs": _peak_db(out), "backends": ctx.backends, "warnings": ctx.warnings,
         "notes": separated_notes(data, [t["id"] for t in active]),
@@ -826,14 +844,17 @@ def render_mix(project, *, variant_id: str | None = None, sr: int | None = None,
     return out, out_sr, rec
 
 
-def static_sum(project, sr: int | None = None, *, assets: list[str] | None = None) -> tuple[np.ndarray, int, dict]:
+def static_sum(project, sr: int | None = None, *, assets: list[str] | None = None,
+               cleaned: bool = False) -> tuple[np.ndarray, int, dict]:
     """The "Before" reference (D-036): plain sum of the stem assets, gain 0 dB, no processing.
 
     Every stem asset (each once, in track order; the full mix and unused assets
     excluded) is head-aligned at timeline sample 0, resampled to the project
     rate when needed and summed stereo as is (mono to both channels). Clip
     edits, gains, fades, mutes, pan law and chains are all ignored.
-    ``assets`` selects the asset ids explicitly.
+    ``assets`` selects the asset ids explicitly. ``cleaned=True`` sums the
+    cleaned audio of every asset whose cleanup was applied (the cleaned
+    reference of the S-08 baseline); the default is the raw "Before".
     """
     data = project.data
     ctx = _Ctx(project, data, 0)
@@ -853,8 +874,12 @@ def static_sum(project, sr: int | None = None, *, assets: list[str] | None = Non
                 + [asset_length_at(ctx.assets[a], ctx.pr) if a in ctx.assets else 0 for a in ids])
     ctx.total = total
     out = np.zeros((total, 2), dtype=np.float64)
+    entries: dict = {}
+    if cleaned:
+        from .cleanstage import applied_entry
+        entries = {aid: applied_entry(data, aid) for aid in ids}
     for aid in ids:
-        x = ctx.asset_audio(aid)
+        x = ctx.asset_audio(aid, entries.get(aid))
         if x.shape[1] == 1:
             out[:x.shape[0]] += x  # broadcast to both channels
         else:
@@ -864,6 +889,7 @@ def static_sum(project, sr: int | None = None, *, assets: list[str] | None = Non
     rec.update({"definition": "D-036: stem assets at gain 0 dB, stereo as is, head-aligned, unprocessed sum",
                 "sample_rate": out_sr, "project_rate": ctx.pr, "frames": int(out.shape[0]), "channels": 2,
                 "summed_assets": ids, "conform": ctx.conform_record(), "assets": _asset_hashes(ctx),
+                "cleanup": {**ctx.cleanup_record(), "requested": bool(cleaned)},
                 "backends": ctx.backends, "peak_dbfs": _peak_db(out)})
     return out, out_sr, rec
 

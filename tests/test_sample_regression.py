@@ -55,3 +55,55 @@ def test_sample_export_set_is_present():
     # TODO(M1 intake): detect the Suno export pattern, assign roles from part
     #   names, register the number-0 file as fullmix, and report the stem-sum vs
     #   full-mix residual (SPEC 6.1.3, 6.1.4) without converting anything.
+
+
+# The conform set's file names (D-037: "other" / "no_vocals" are derived sums and are not
+# inputs; "0_fullmix" is the unaligned download, the conformed full mix is used instead).
+CONFORM_STEMS = ("backing_vocals", "bass", "brass", "drums", "fx", "guitar", "keyboard", "percussion",
+                 "strings", "synth", "vocals", "woodwinds")
+CONFORM_FULLMIX = "fullmix_conformed.wav"
+
+
+def test_sample_cleanup_fullmix_s07(tmp_path, monkeypatch):
+    """M5: import the conform set (link mode), clean the full mix, S-07 passes (SPEC 4.3, 6.4)."""
+    import json
+    import time
+
+    from mankomix.core import cleanstage
+    from mankomix.core.adapters.file import FileAdapter
+    from mankomix.core.project import Project
+
+    folder = _folder_from_env("MANKOMIX_SAMPLE_DIR")
+    monkeypatch.setenv("MANKOMIX_HOME", str(tmp_path / "home"))  # linked locations stay out of the user config
+    files = [folder / f"{n}.wav" for n in CONFORM_STEMS] + [folder / CONFORM_FULLMIX]
+    files = [f for f in files if f.is_file()]
+    if not (folder / CONFORM_FULLMIX).is_file():
+        pytest.skip(f"{CONFORM_FULLMIX} not in MANKOMIX_SAMPLE_DIR")
+    proj = Project.create(tmp_path / "sample.mmx", title="official sample")
+    FileAdapter().fetch(files, proj, mode="link", actor="human")
+    fid = proj.data.get("fullmix_asset")
+    assert fid and proj.asset(fid)["original_name"] == CONFORM_FULLMIX
+    assert all(a.get("linked") for a in proj.data["assets"])
+
+    t0 = time.perf_counter()
+    prop = cleanstage.plan_clean(proj, targets=[fid])
+    t_plan = time.perf_counter() - t0
+    entries = prop["items"] + prop["skipped"]
+    assert [e["asset"] for e in entries] == [fid]
+    t1 = time.perf_counter()
+    res = cleanstage.apply_clean(proj, prop, actor="human")
+    t_apply = time.perf_counter() - t1
+    a = res["assets"][0]
+    rec = cleanstage.cleanup_record(proj, fid)
+    assert rec["s07"]["pass"] is True, rec["s07"]
+    assert cleanstage.s07_check(proj, "full_mix")["status"] in ("pass", "not_applicable")
+    base = cleanstage.route_baseline(proj, "full_mix")
+    assert base["baseline"]["kind"] == "cleanup_noise_baseline"
+    if not a["skipped"]:
+        assert (proj.root / cleanstage.delta(proj, fid)).is_file()
+    summary = {"diagnosis": entries[0]["diagnosis"], "steps": a["steps"], "skipped": a["skipped"],
+               "s07": a["s07"], "p21_pass": a["p21_pass"], "oversuppression_rerun": a["oversuppression_rerun"],
+               "removed_energy": {k: v.get("removed_rel_db") for k, v in
+                                  ((rec.get("report") or {}).get("removed_energy") or {}).items()},
+               "seconds": {"plan": round(t_plan, 1), "apply": round(t_apply, 1)}}
+    print("\nSAMPLE_CLEANUP " + json.dumps(summary, ensure_ascii=False))

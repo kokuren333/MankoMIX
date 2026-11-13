@@ -10,8 +10,8 @@ For every output (profile x delivery) of a variant:
    step and re-render (bounded iterations).
 
 An ``archive_f32`` master of the planned chain is written once per variant.
-Every file gets a manifest (project hash, asset hashes, engine and backend
-versions, definition hashes, dither seed, iterations). Manifests contain
+Every file gets a manifest (project hash, asset hashes, cleanup plan hashes,
+engine and backend versions, definition hashes, dither seed, iterations). Manifests contain
 project-relative paths only.
 """
 
@@ -190,6 +190,11 @@ def _asset_records(project, route: str) -> list[dict]:
     return recs
 
 
+def _cleanup_record(project, route: str) -> dict:
+    from .cleanstage import route_cleanup_record
+    return route_cleanup_record(project, route)
+
+
 def _render_master(x, sr, chain):
     from mankomix.dsp import engine
     return engine.render_chain(x, sr, engine_chain(chain), stage="master", seed=0)
@@ -252,6 +257,8 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
         "project_id": data.get("id"),
         "route": route,
         "assets": _asset_records(project, route),
+        # cleanup plan hashes of the assets that enter the master input cleaned (SPEC 6.4, 9.6)
+        "cleanup": _cleanup_record(project, route),
         "engine_version": mankomix.__version__,
         "models": [],
         "input": {"frames": int(x.shape[0]), "sample_rate": int(sr), "channels": int(x.shape[1])},

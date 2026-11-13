@@ -29,8 +29,9 @@ from .hashing import sha256_file
 from .render import (ARCHIVE_DELIVERY, variant_route, codec_true_peaks, load_manifest, manifest_path_for,
                      output_ext, output_name, variant_dir)
 from .routes import load_master_input
+from .cleanstage import route_baseline, s07_check, s08_check
 
-HARD_CHECKS = ("P-03", "S-01", "S-02", "S-03", "S-04", "S-05", "S-06", "S-09")
+HARD_CHECKS = ("P-03", "S-01", "S-02", "S-03", "S-04", "S-05", "S-06", "S-07", "S-08", "S-09")
 
 
 def _st(status: str, **kw) -> dict:
@@ -218,8 +219,10 @@ def _verify_output(project, variant_id, out, chain_res, th, inp: dict, recheck_c
     checks["S-04"] = _check_s04(y, sr, th, boundary)
     checks["OF-5"] = _st("not_evaluated", milestone="M3", rule="OF-5",
                          reason="translation gate is implemented in M3")
-    checks["S-08"] = _st("not_evaluated", milestone="M5", rule="S-08",
-                         reason="noise-return monitoring needs the cleanup stage (M5)")
+    # S-07 (cleanup leaves the low band untouched): from the cleanup records of the input
+    checks["S-07"] = dict(inp["s07"])
+    # S-08 (noise-return guard): P-16 of this output vs the cleaned baseline, gain compensated
+    checks["S-08"] = s08_check(inp["noise_baseline"], y, sr, lufs if np.isfinite(lufs) else None)
     rec["measured"] = {"lufs_i": round(lufs, 3), "true_peak_dbtp": round(tp, 3), "sample_rate": sr,
                        "frames": int(y.shape[0]), "subtype": info.subtype}
     rec["checks"] = checks
@@ -243,10 +246,13 @@ def verify_variant(project, variant_id: str, *, recheck_codecs: bool = False) ->
     outs = variant.get("outputs") or []
 
     a_man = load_manifest(project, variant_id, None, ARCHIVE_DELIVERY)
-    x, in_sr = load_master_input(project, variant_route(project, variant))
+    route = variant_route(project, variant)
+    x, in_sr = load_master_input(project, route)
     in_frames = int(x.shape[0])
     inp = {"frames": in_frames, "sr": int(in_sr), "lufs": float(ld.integrated(x, in_sr)),
-           "dc": [float(abs(v)) for v in np.mean(x, axis=0)]}
+           "dc": [float(abs(v)) for v in np.mean(x, axis=0)],
+           "s07": s07_check(project, route),
+           "noise_baseline": route_baseline(project, route, x, int(in_sr))}
 
     outputs = [_verify_output(project, variant_id, o, chain_res, th, inp, recheck_codecs) for o in outs]
 

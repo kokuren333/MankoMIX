@@ -153,10 +153,18 @@ def test_loudness_and_true_peak(mastered, prof):
     assert checks["S-03"]["status"] == "pass"
     assert checks["S-04"]["status"] == "pass"
     assert checks["OF-5"]["status"] == "not_evaluated"
-    assert checks["S-08"]["status"] == "not_evaluated"
+    # M5: S-08 is evaluated even without cleanup (baseline = the raw master input, said so).
+    # Heavily driven masters (club / cd on this fixture: 14-18 dB into the limiter) may fail it;
+    # a failure carries the corrective suggestions and fails the output (hard check).
+    s08 = checks["S-08"]
+    assert s08["status"] in ("pass", "fail"), s08
+    assert s08["baseline"]["cleaned"] is False and "no cleanup" in s08["baseline"]["source"]
+    if s08["status"] == "fail":
+        assert {"reduce_limiter_drive"} <= {x["action"] for x in s08["suggestions"]}
+    assert checks["S-07"]["status"] == "not_applicable"
     if not profile["codec_checks"]:
         assert checks["S-02"]["status"] == "not_applicable"
-    assert rec["overall"] in ("pass", "incomplete")
+    assert rec["overall"] in (("fail",) if s08["status"] == "fail" else ("pass", "incomplete"))
 
 
 def test_spotify_conditional_ceiling_respected(mastered):

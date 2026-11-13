@@ -2,8 +2,9 @@
 
 Routes:
 
-- ``full_mix``: the 2-mix asset (cleanup only; cleanup lands in M5) is the
-  master input. Default when a full mix exists and no mix-stage result
+- ``full_mix``: the 2-mix asset is the master input, cleaned when a cleanup
+  was applied to it (SPEC 6.6.1: "the 2mix with cleanup only"; see
+  core/cleanstage.py). Default when a full mix exists and no mix-stage result
   exists, and the default when the only stems are separated ones.
 - ``stem_mix``: the mix-stage output is the master input (M4). Until the
   mix renderer exists the input is the same static sum as ``stem_sum``; a
@@ -12,6 +13,9 @@ Routes:
   is a static, unprocessed, head-aligned sum of the track clips (clip gain,
   track gain and mutes respected; no track chains, no pan). This is a
   documented stand-in until the M4 mix stage.
+
+Stem routes read the cleaned audio of every stem whose track has an applied
+cleanup (the same rule as core/mixrender.py).
 
 The project file stores ``master.route`` with the schema vocabulary
 ("fullmix" / "stem_mix"); the finer route name is kept in
@@ -163,8 +167,10 @@ def resample(x: np.ndarray, sr_in: int, sr_out: int) -> np.ndarray:
     return resample_poly(x, up, down, axis=0)
 
 
-def _read_asset(project, asset_id: str, sr: int) -> np.ndarray:
-    path = project.asset_path(asset_id)
+def _read_asset(project, asset_id: str, sr: int, cleanup: dict | None = None) -> np.ndarray:
+    """Asset audio at ``sr`` (stereo); ``cleanup`` (applied cleanup entry) reads the cleaned cache."""
+    from .cleanstage import asset_audio_path
+    path = asset_audio_path(project, asset_id, cleanup)
     x, sr_in = audio_io.read(path)
     return _to_stereo(resample(x, sr_in, sr))
 
@@ -188,7 +194,8 @@ def load_master_input(project, route: str | dict | None = None) -> tuple[np.ndar
         fid = fullmix_asset_id(data)
         if fid is None:
             raise InputError("route full_mix needs a full-mix asset")
-        return _read_asset(project, fid, sr), sr
+        from .cleanstage import fullmix_cleanup_entry
+        return _read_asset(project, fid, sr, fullmix_cleanup_entry(data)), sr
 
     if route not in ("stem_sum", "stem_mix"):
         raise InputError(f"unknown mastering route: {route}")
@@ -205,9 +212,12 @@ def load_master_input(project, route: str | dict | None = None) -> tuple[np.ndar
             if c.get("muted"):
                 continue
             aid = c.get("asset")
-            if aid not in cache:
-                cache[aid] = _read_asset(project, aid, sr)
-            src = cache[aid]
+            from .cleanstage import track_cleanup_entry
+            ce = track_cleanup_entry(t, aid)
+            key = aid if ce is None else f"{aid}#clean:{ce.get('plan_hash')}"
+            if key not in cache:
+                cache[key] = _read_asset(project, aid, sr, ce)
+            src = cache[key]
             s0 = int(c.get("source_start", 0) or 0)
             n = c.get("length")
             seg = src[s0:] if n is None else src[s0:s0 + int(n)]
