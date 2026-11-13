@@ -1,0 +1,267 @@
+{
+ "schema_version": 1,
+ "language": "en",
+ "synthetic": true,
+ "summary": {
+  "project": "Synthetic placeholder project",
+  "objective": {
+   "blend": [
+    {
+     "id": "club_impact",
+     "weight": 1
+    }
+   ],
+   "intensity": 0.5
+  },
+  "profiles": [
+   "club"
+  ],
+  "outputs": [
+   {
+    "profile": "club",
+    "delivery": "dj_wav"
+   }
+  ],
+  "result": "warning",
+  "note": "Synthetic placeholder report."
+ },
+ "inputs": {
+  "assets": [
+   {
+    "id": "ast_vocals",
+    "role": "vocals",
+    "sha256": "00000001"
+   },
+   {
+    "id": "ast_backing",
+    "role": "backing_vocals",
+    "sha256": "00000002"
+   },
+   {
+    "id": "ast_drums",
+    "role": "drums",
+    "sha256": "00000003"
+   },
+   {
+    "id": "ast_bass",
+    "role": "bass",
+    "sha256": "00000004"
+   },
+   {
+    "id": "ast_synth",
+    "role": "synth",
+    "sha256": "00000005"
+   },
+   {
+    "id": "ast_fx",
+    "role": "fx",
+    "sha256": "00000006"
+   }
+  ],
+  "provenance": {
+   "source": "ai_generated",
+   "service": "suno",
+   "input_kind": "suno_studio_multitrack_export",
+   "detected_by": "filename_pattern",
+   "declared_by_user": false,
+   "notes": "synthetic placeholder; not the real sample"
+  },
+  "ingest_checks": [
+   {
+    "check": "input_kind",
+    "level": "info",
+    "message": "Suno Studio multitrack export detected (synthetic)"
+   },
+   {
+    "check": "sample_rate",
+    "level": "info",
+    "message": "All assets at 48000 Hz (synthetic)"
+   },
+   {
+    "check": "hf_cutoff",
+    "level": "warning",
+    "message": "High-frequency cutoff near 16 kHz (synthetic)"
+   },
+   {
+    "check": "stem_sum",
+    "level": "info",
+    "message": "Stem sum consistent with the reference mix (synthetic)"
+   }
+  ],
+  "stem_sum_consistency": {
+   "status": "pass",
+   "residual_db": -48.2
+  }
+ },
+ "measurements": {
+  "level_matched": true,
+  "before": {
+   "lufs_i": -11.5,
+   "true_peak_dbtp": 0.8,
+   "P-01_db": 2.8,
+   "P-02_db": 3.4
+  },
+  "after": {
+   "lufs_i": -7,
+   "true_peak_dbtp": -0.7,
+   "P-01_db": 1.4,
+   "P-02_db": 1.9
+  }
+ },
+ "decisions": {
+  "balance": [
+   {
+    "measured": "Vocal 1.2 dB above accompaniment in 300 Hz-5 kHz",
+    "rule": "R-03",
+    "action": "Synth -1.5 dB at 2.2 kHz",
+    "alternatives": [
+     "Raise vocal 1 dB"
+    ],
+    "result": "2.6 dB (about 1.2x perceived)"
+   }
+  ],
+  "panning": [
+   {
+    "measured": "Backing vocals and synth overlap at center-left",
+    "rule": "R-09",
+    "action": "No change (assumed speakers at 60 degrees)",
+    "result": "kept"
+   }
+  ],
+  "frequency": [
+   {
+    "measured": "Low-mid occupancy 31%",
+    "rule": "R-07",
+    "action": "Bass -2 dB at 300 Hz",
+    "result": "26%"
+   }
+  ],
+  "depth": [
+   {
+    "measured": "Depth order matches the declaration",
+    "rule": "R-12",
+    "action": "No change",
+    "result": "kept"
+   }
+  ],
+  "dynamics": [
+   {
+    "measured": "Vocal crest 14 dB",
+    "rule": "R-11",
+    "action": "Compressor 2.5:1, -18 dB",
+    "result": "crest 11 dB"
+   }
+  ],
+  "interest": []
+ },
+ "objective_breakdown": [
+  {
+   "metric": "P-01",
+   "weight": 0.25,
+   "before": 2.8,
+   "after": 1.4
+  },
+  {
+   "metric": "P-02",
+   "weight": 0.2,
+   "before": 3.4,
+   "after": 1.9
+  },
+  {
+   "metric": "P-11",
+   "weight": 0.15,
+   "before": 2.1,
+   "after": 1
+  }
+ ],
+ "constraints": [
+  {
+   "id": "S-01",
+   "status": "pass"
+  },
+  {
+   "id": "S-02",
+   "status": "not_run"
+  },
+  {
+   "id": "S-03",
+   "status": "pass"
+  },
+  {
+   "id": "S-04",
+   "status": "pass"
+  },
+  {
+   "id": "S-05",
+   "status": "pass"
+  },
+  {
+   "id": "S-06",
+   "status": "pass"
+  },
+  {
+   "id": "S-07",
+   "status": "pass"
+  },
+  {
+   "id": "S-08",
+   "status": "pass"
+  },
+  {
+   "id": "S-09",
+   "status": "pass"
+  },
+  {
+   "id": "S-10",
+   "status": "pass"
+  },
+  {
+   "id": "S-11",
+   "status": "pass"
+  }
+ ],
+ "cleanup": [
+  {
+   "step": "hf_denoise",
+   "target": "trk_vocals",
+   "action": "executed",
+   "removed_db": 3,
+   "side_effect": "none measured"
+  }
+ ],
+ "tradeoffs": [
+  "Codec round-trip for Opus not run: encoder unavailable (synthetic)."
+ ],
+ "listening_checks": [
+  {
+   "time_s": 42,
+   "point": "Chorus entry: is the vocal sibilance too strong?",
+   "conditions": "Fixed volume, level-matched A/B"
+  },
+  {
+   "time_s": 12,
+   "point": "Does the bass thin out in mono?",
+   "conditions": "Mono toggle, headphones and phone speaker"
+  },
+  {
+   "time_s": null,
+   "point": "Does the removed part (delta) contain breath or consonants?",
+   "conditions": "Delta playback, rested ears"
+  }
+ ],
+ "reproducibility": {
+  "project_hash": "0000000000000000000000000000000000000000000000000000000000000064",
+  "engine_version": "0.0.0-placeholder",
+  "backends": [
+   {
+    "name": "placeholder",
+    "version": "0"
+   }
+  ],
+  "definitions": {
+   "objectives": "catalog.json",
+   "profiles": "media_profiles.json"
+  },
+  "models": []
+ }
+}

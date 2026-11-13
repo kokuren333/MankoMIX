@@ -1,0 +1,71 @@
+{
+ "synthetic": true,
+ "entries": [
+  {
+   "seq": 1,
+   "ts": "2026-11-13T09:00:00Z",
+   "actor": "human",
+   "op": "init",
+   "reason": "create project",
+   "summary": {
+    "en": "Project created",
+    "ja": "プロジェクトを作成"
+   }
+  },
+  {
+   "seq": 2,
+   "ts": "2026-11-13T09:01:00Z",
+   "actor": "human",
+   "op": "import",
+   "reason": "import stems",
+   "summary": {
+    "en": "Imported 6 stems (synthetic)",
+    "ja": "ステム 6 本を取り込み（合成）"
+   }
+  },
+  {
+   "seq": 3,
+   "ts": "2026-11-13T09:02:00Z",
+   "actor": "planner",
+   "op": "plan_apply",
+   "reason": "cleanup plan",
+   "summary": {
+    "en": "Cleanup plan applied",
+    "ja": "整音の計画を適用"
+   }
+  },
+  {
+   "seq": 4,
+   "ts": "2026-11-13T09:03:00Z",
+   "actor": "planner",
+   "op": "plan_apply",
+   "reason": "mix plan",
+   "summary": {
+    "en": "Mix plan applied",
+    "ja": "ミックスの計画を適用"
+   }
+  },
+  {
+   "seq": 5,
+   "ts": "2026-11-13T09:05:00Z",
+   "actor": "agent",
+   "op": "patch",
+   "reason": "lower synth 1 dB to unmask the vocal",
+   "summary": {
+    "en": "Synth level -1 dB",
+    "ja": "シンセのレベル -1 dB"
+   }
+  },
+  {
+   "seq": 6,
+   "ts": "2026-11-13T09:06:00Z",
+   "actor": "human",
+   "op": "set",
+   "reason": "lead stem confirmed",
+   "summary": {
+    "en": "Lead stem = Vocals",
+    "ja": "主役 = ボーカル"
+   }
+  }
+ ]
+}

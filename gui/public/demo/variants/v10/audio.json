@@ -1,0 +1,27 @@
+{
+ "variant": "v10",
+ "synthetic": true,
+ "files": {
+  "before": null,
+  "after": null,
+  "delta": null,
+  "before_level_matched": null,
+  "fullmix_reference": null
+ },
+ "match_gain_db": -4.5,
+ "match_target": "after",
+ "measurements": {
+  "before": {
+   "lufs_i": -11.5,
+   "true_peak_dbtp": 0.8
+  },
+  "after": {
+   "lufs_i": -7,
+   "true_peak_dbtp": -0.7
+  }
+ },
+ "note": {
+  "en": "Placeholder dataset: no audio files.",
+  "ja": "プレースホルダーのため音声はありません。"
+ }
+}

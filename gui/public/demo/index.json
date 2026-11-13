@@ -1,0 +1,179 @@
+{
+ "schema_version": 1,
+ "synthetic": true,
+ "generator": {
+  "name": "gui/scripts/make-placeholder-demo.mjs",
+  "version": "0",
+  "note": "Synthetic placeholder. Replace with the dataset built from the core."
+ },
+ "title": {
+  "en": "Synthetic placeholder dataset",
+  "ja": "合成のプレースホルダーデータ"
+ },
+ "notice": {
+  "en": "All values are invented for GUI development. No audio is included.",
+  "ja": "全ての値は GUI 開発用に作った架空の値です。音声は含みません。"
+ },
+ "project": "project.json",
+ "history": "history.json",
+ "definitions": {
+  "objectives": "definitions/objectives.json",
+  "profiles": "definitions/media_profiles.json",
+  "deliveries": "definitions/delivery_formats.json",
+  "models": "definitions/models.json"
+ },
+ "intensity": 0.5,
+ "variants": [
+  {
+   "id": "v01",
+   "n": 1,
+   "objective": "comfort",
+   "profile": "streaming_universal",
+   "role": "main",
+   "deliveries": [
+    "hires_native",
+    "distributor_44k16"
+   ],
+   "intensity": 0.5,
+   "available": true,
+   "dir": "variants/v01/"
+  },
+  {
+   "id": "v02",
+   "n": 2,
+   "objective": "bass_heavy",
+   "profile": "streaming_universal",
+   "role": "objective_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": true,
+   "dir": "variants/v02/"
+  },
+  {
+   "id": "v03",
+   "n": 3,
+   "objective": "vocal_forward",
+   "profile": "streaming_universal",
+   "role": "objective_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v03/"
+  },
+  {
+   "id": "v04",
+   "n": 4,
+   "objective": "clarity",
+   "profile": "streaming_universal",
+   "role": "objective_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v04/"
+  },
+  {
+   "id": "v05",
+   "n": 5,
+   "objective": "low_fatigue",
+   "profile": "streaming_universal",
+   "role": "objective_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v05/"
+  },
+  {
+   "id": "v06",
+   "n": 6,
+   "objective": "comfort",
+   "profile": "apple_music",
+   "role": "media_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v06/"
+  },
+  {
+   "id": "v07",
+   "n": 7,
+   "objective": "comfort",
+   "profile": "sns_hot",
+   "role": "media_axis",
+   "deliveries": [
+    "hires_native"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v07/"
+  },
+  {
+   "id": "v08",
+   "n": 8,
+   "objective": "comfort",
+   "profile": "cd",
+   "role": "media_axis",
+   "deliveries": [
+    "cd_redbook"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v08/"
+  },
+  {
+   "id": "v09",
+   "n": 9,
+   "objective": "comfort",
+   "profile": "club",
+   "role": "media_axis",
+   "deliveries": [
+    "dj_wav"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v09/"
+  },
+  {
+   "id": "v10",
+   "n": 10,
+   "objective": "club_impact",
+   "profile": "club",
+   "role": "composite",
+   "deliveries": [
+    "dj_wav"
+   ],
+   "intensity": 0.5,
+   "available": true,
+   "dir": "variants/v10/"
+  },
+  {
+   "id": "v11",
+   "n": 11,
+   "objective": "bass_heavy",
+   "profile": "club",
+   "role": "composite",
+   "deliveries": [
+    "dj_wav"
+   ],
+   "intensity": 0.5,
+   "available": false,
+   "dir": "variants/v11/"
+  }
+ ],
+ "verification_only_profiles": [
+  "spotify",
+  "youtube",
+  "amazon_music",
+  "tidal",
+  "sns_safe"
+ ]
+}

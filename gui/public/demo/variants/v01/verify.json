@@ -1,0 +1,190 @@
+{
+ "schema_version": 1,
+ "synthetic": true,
+ "variant": "v01",
+ "overall": "warning",
+ "constraints": [
+  {
+   "id": "S-01",
+   "status": "pass",
+   "value": -1.2,
+   "limit": -1
+  },
+  {
+   "id": "S-02",
+   "status": "not_run",
+   "value": null,
+   "limit": -0.1,
+   "note": {
+    "en": "Opus encoder not available (synthetic)",
+    "ja": "Opus 符号化器が使えない（合成）"
+   }
+  },
+  {
+   "id": "S-03",
+   "status": "pass",
+   "value": 0.62,
+   "limit": 0
+  },
+  {
+   "id": "S-04",
+   "status": "pass",
+   "value": 0.8,
+   "limit": 1.5
+  },
+  {
+   "id": "S-05",
+   "status": "pass",
+   "value": "f32",
+   "limit": "f32"
+  },
+  {
+   "id": "S-06",
+   "status": "pass",
+   "value": "fixed",
+   "limit": "fixed"
+  },
+  {
+   "id": "S-07",
+   "status": "pass",
+   "value": -86,
+   "limit": -80
+  },
+  {
+   "id": "S-08",
+   "status": "pass",
+   "value": 0.4,
+   "limit": 1
+  },
+  {
+   "id": "S-09",
+   "status": "pass",
+   "value": "ok",
+   "limit": "ok"
+  },
+  {
+   "id": "S-10",
+   "status": "pass",
+   "value": "ok",
+   "limit": "ok"
+  },
+  {
+   "id": "S-11",
+   "status": "pass",
+   "value": "ok",
+   "limit": "ok"
+  }
+ ],
+ "gate": {
+  "status": "pass",
+  "checks": [
+   {
+    "id": "band_limited_lead_preserved",
+    "label": {
+     "en": "Lead preserved in band-limited preview",
+     "ja": "帯域制限で主役が保存"
+    },
+    "status": "pass"
+   },
+   {
+    "id": "mono_fold_loss_within_limit",
+    "label": {
+     "en": "Mono fold loss within limit",
+     "ja": "モノ合算の損失が閾値内"
+    },
+    "status": "pass"
+   },
+   {
+    "id": "low_level_balance_preserved",
+    "label": {
+     "en": "Balance preserved at low level",
+     "ja": "小音量で関係が保存"
+    },
+    "status": "pass"
+   },
+   {
+    "id": "pitch_preserved_without_fundamental",
+    "label": {
+     "en": "Bass pitch preserved without fundamental",
+     "ja": "基音なしで低音の音高が保存"
+    },
+    "status": "pass"
+   }
+  ]
+ },
+ "profiles": [
+  {
+   "profile": "streaming_universal",
+   "delivery": "hires_native",
+   "status": "pass",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  },
+  {
+   "profile": "spotify",
+   "delivery": null,
+   "status": "pass",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  },
+  {
+   "profile": "youtube",
+   "delivery": null,
+   "status": "pass",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  },
+  {
+   "profile": "amazon_music",
+   "delivery": null,
+   "status": "fail",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  },
+  {
+   "profile": "tidal",
+   "delivery": null,
+   "status": "pass",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  },
+  {
+   "profile": "sns_safe",
+   "delivery": null,
+   "status": "pass",
+   "lufs_i": -14,
+   "true_peak_dbtp": -1.2
+  }
+ ],
+ "noise_return": {
+  "status": "pass",
+  "delta_db": 0.4,
+  "tolerance_db": 1,
+  "note": {
+   "en": "(synthetic placeholder)",
+   "ja": "（合成のプレースホルダー）"
+  }
+ },
+ "codec": [
+  {
+   "codec": "aac",
+   "status": "pass",
+   "true_peak_dbtp": -0.4,
+   "ceiling_dbtp": -0.1
+  },
+  {
+   "codec": "opus",
+   "status": "not_run",
+   "note": {
+    "en": "encoder not available (synthetic)",
+    "ja": "符号化器なし（合成）"
+   }
+  },
+  {
+   "codec": "mp3",
+   "status": "pass",
+   "true_peak_dbtp": -0.4,
+   "ceiling_dbtp": -0.1
+  }
+ ]
+}

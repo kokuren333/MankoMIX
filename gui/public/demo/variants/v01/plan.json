@@ -1,0 +1,163 @@
+{
+ "synthetic": true,
+ "proposals": [
+  {
+   "id": "prop_v01_cleanup",
+   "stage": "cleanup",
+   "variant": "v01",
+   "author": "planner",
+   "status": "applied",
+   "created_at": "2026-11-13T09:02:00Z",
+   "summary": {
+    "en": "Gentle high-band cleanup on vocals (synthetic)",
+    "ja": "ボーカルの高域を軽く整音（合成）"
+   },
+   "steps": [
+    {
+     "target": "trk_vocals",
+     "processor": {
+      "id": "prc_cl_1",
+      "type": "cleanup.hf_denoise",
+      "params": {
+       "band_hz": [
+        10000,
+        14000
+       ],
+       "amount_db": 3
+      },
+      "reason": "R-20"
+     }
+    }
+   ]
+  },
+  {
+   "id": "prop_v01_mix",
+   "stage": "mix",
+   "variant": "v01",
+   "author": "planner",
+   "status": "applied",
+   "created_at": "2026-11-13T09:03:00Z",
+   "summary": {
+    "en": "Unmask the vocal and tidy the low end (synthetic)",
+    "ja": "ボーカルのマスキングを解き、低域を整理（合成）"
+   },
+   "steps": [
+    {
+     "target": "trk_synth",
+     "processor": {
+      "id": "prc_mx_1",
+      "type": "eq.bell",
+      "params": {
+       "freq_hz": 2200,
+       "gain_db": -1.5,
+       "q": 1.2
+      },
+      "reason": "R-03"
+     },
+     "alternatives": [
+      {
+       "en": "Lower the synth fader 1 dB",
+       "ja": "シンセのフェーダーを 1 dB 下げる"
+      }
+     ]
+    },
+    {
+     "target": "trk_bass",
+     "processor": {
+      "id": "prc_mx_2",
+      "type": "eq.bell",
+      "params": {
+       "freq_hz": 300,
+       "gain_db": -2,
+       "q": 1
+      },
+      "reason": "R-07 R-28"
+     }
+    },
+    {
+     "target": "trk_vocals",
+     "processor": {
+      "id": "prc_mx_3",
+      "type": "dynamics.compressor",
+      "params": {
+       "threshold_db": -18,
+       "ratio": 2.5,
+       "attack_ms": 10,
+       "release_ms": 120
+      },
+      "reason": "R-11"
+     }
+    }
+   ]
+  },
+  {
+   "id": "prop_v01_master",
+   "stage": "master",
+   "variant": "v01",
+   "author": "planner",
+   "status": "pending",
+   "created_at": "2026-11-13T09:04:00Z",
+   "summary": {
+    "en": "Master to -14 LUFS, ceiling -1 dBTP (synthetic)",
+    "ja": "-14 LUFS、天井 -1 dBTP へマスタリング（合成）"
+   },
+   "steps": [
+    {
+     "target": "master",
+     "processor": {
+      "id": "prc_ms_1",
+      "type": "eq.tilt",
+      "params": {
+       "pivot_hz": 1000,
+       "tilt_db": 0.3
+      },
+      "reason": "R-17"
+     }
+    },
+    {
+     "target": "master",
+     "processor": {
+      "id": "prc_ms_2",
+      "type": "limiter.true_peak",
+      "params": {
+       "ceiling_dbtp": -1,
+       "target_lufs_i": -14,
+       "oversampling": 4
+      },
+      "reason": "S-01 S-06"
+     }
+    }
+   ]
+  },
+  {
+   "id": "prop_v01_agent",
+   "stage": "mix",
+   "variant": "v01",
+   "author": "agent",
+   "status": "pending",
+   "created_at": "2026-11-13T09:07:00Z",
+   "summary": {
+    "en": "Agent suggestion: de-ess the vocal (synthetic)",
+    "ja": "エージェントの提案: ボーカルにディエッサー（合成）"
+   },
+   "steps": [
+    {
+     "target": "trk_vocals",
+     "processor": {
+      "id": "prc_ag_1",
+      "type": "dynamics.deesser",
+      "params": {
+       "freq_hz": 6500,
+       "range_db": 3
+      },
+      "reason": "R-14"
+     },
+     "note": {
+      "en": "Proposed through MCP (synthetic)",
+      "ja": "MCP 経由の提案（合成）"
+     }
+    }
+   ]
+  }
+ ]
+}

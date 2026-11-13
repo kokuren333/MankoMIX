@@ -1,0 +1,563 @@
+{
+ "schema_version": 1,
+ "id": "prj_demo_placeholder",
+ "title": "Synthetic placeholder project",
+ "genre": "hiphop",
+ "timebase": {
+  "sample_rate": 48000,
+  "bpm": 92,
+  "key": null,
+  "length_samples": 4752000,
+  "conform_policy": {
+   "sample_rate": "majority",
+   "alignment": "head",
+   "short_assets": "pad_silence_at_render"
+  }
+ },
+ "provenance": {
+  "source": "ai_generated",
+  "service": "suno",
+  "input_kind": "suno_studio_multitrack_export",
+  "detected_by": "filename_pattern",
+  "declared_by_user": false,
+  "notes": "synthetic placeholder; not the real sample"
+ },
+ "assets": [
+  {
+   "id": "ast_vocals",
+   "path": "assets/01 Vocals.wav",
+   "original_name": "01 Vocals.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "vocals",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  },
+  {
+   "id": "ast_backing",
+   "path": "assets/02 Backing vocals.wav",
+   "original_name": "02 Backing vocals.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "backing_vocals",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  },
+  {
+   "id": "ast_drums",
+   "path": "assets/03 Drums.wav",
+   "original_name": "03 Drums.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "drums",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  },
+  {
+   "id": "ast_bass",
+   "path": "assets/04 Bass.wav",
+   "original_name": "04 Bass.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000004",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "bass",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  },
+  {
+   "id": "ast_synth",
+   "path": "assets/05 Synth.wav",
+   "original_name": "05 Synth.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000005",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "synth",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  },
+  {
+   "id": "ast_fx",
+   "path": "assets/06 FX.wav",
+   "original_name": "06 FX.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000006",
+   "format": "wav_f32",
+   "channels": 2,
+   "sample_rate": 48000,
+   "length_samples": 4752000,
+   "duration_s": 99,
+   "role": "fx",
+   "role_source": "filename_pattern",
+   "origin": "native_stem"
+  }
+ ],
+ "fullmix_asset": null,
+ "ingest": {
+  "adapter": "files",
+  "input_kind": "suno_studio_multitrack_export",
+  "detected_by": "filename_pattern",
+  "checks": [
+   {
+    "check": "input_kind",
+    "level": "info",
+    "asset": null,
+    "message": "Suno Studio multitrack export detected (synthetic)"
+   },
+   {
+    "check": "sample_rate",
+    "level": "info",
+    "asset": null,
+    "message": "All assets at 48000 Hz (synthetic)"
+   },
+   {
+    "check": "hf_cutoff",
+    "level": "warning",
+    "asset": "ast_fx",
+    "message": "High-frequency cutoff near 16 kHz (synthetic)",
+    "values": {
+     "cutoff_hz": 16000
+    }
+   },
+   {
+    "check": "stem_sum",
+    "level": "info",
+    "asset": null,
+    "message": "Stem sum consistent with the reference mix (synthetic)"
+   }
+  ]
+ },
+ "tracks": [
+  {
+   "id": "trk_vocals",
+   "kind": "audio",
+   "name": "Vocals",
+   "role": "vocals",
+   "is_lead": true,
+   "importance": {
+    "value": 1,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_vocals",
+     "asset": "ast_vocals",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_vocals_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 90,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -1.5,
+   "pan": {
+    "position": 0,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  },
+  {
+   "id": "trk_backing",
+   "kind": "audio",
+   "name": "Backing vocals",
+   "role": "backing_vocals",
+   "is_lead": false,
+   "importance": {
+    "value": 0.6,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_backing",
+     "asset": "ast_backing",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_backing_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 90,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -6,
+   "pan": {
+    "position": -0.35,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  },
+  {
+   "id": "trk_drums",
+   "kind": "audio",
+   "name": "Drums",
+   "role": "drums",
+   "is_lead": false,
+   "importance": {
+    "value": 0.9,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_drums",
+     "asset": "ast_drums",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_drums_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 90,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -3,
+   "pan": {
+    "position": 0,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  },
+  {
+   "id": "trk_bass",
+   "kind": "audio",
+   "name": "Bass",
+   "role": "bass",
+   "is_lead": false,
+   "importance": {
+    "value": 0.85,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_bass",
+     "asset": "ast_bass",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_bass_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 30,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -4,
+   "pan": {
+    "position": 0,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  },
+  {
+   "id": "trk_synth",
+   "kind": "audio",
+   "name": "Synth",
+   "role": "synth",
+   "is_lead": false,
+   "importance": {
+    "value": 0.5,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_synth",
+     "asset": "ast_synth",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_synth_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 90,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -7,
+   "pan": {
+    "position": 0.3,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  },
+  {
+   "id": "trk_fx",
+   "kind": "audio",
+   "name": "FX",
+   "role": "fx",
+   "is_lead": false,
+   "importance": {
+    "value": 0.2,
+    "source": "genre_prior",
+    "by_section": {}
+   },
+   "clips": [
+    {
+     "id": "clp_fx",
+     "asset": "ast_fx",
+     "source_start": 0,
+     "length": 4752000,
+     "timeline_start": 0,
+     "gain_db": 0,
+     "fade_in": 0,
+     "fade_out": 0,
+     "muted": false
+    }
+   ],
+   "cleanup": {
+    "enabled": true,
+    "plan": "auto",
+    "overrides": {}
+   },
+   "chain": [
+    {
+     "id": "prc_fx_hpf",
+     "type": "filter",
+     "params": {
+      "mode": "hpf",
+      "cutoff_hz": 90,
+      "slope_db_oct": 12
+     },
+     "reason": "R-07"
+    }
+   ],
+   "gain_db": -12,
+   "pan": {
+    "position": 0.6,
+    "width": 1
+   },
+   "muted": false,
+   "solo": false,
+   "sends": [],
+   "output": "bus_mix"
+  }
+ ],
+ "buses": [
+  {
+   "id": "bus_mix",
+   "kind": "mix",
+   "chain": []
+  }
+ ],
+ "mix": {
+  "pan_law_center_db": -3,
+  "declared_depth_order": [
+   "trk_vocals",
+   "trk_drums",
+   "trk_bass"
+  ]
+ },
+ "objective": {
+  "blend": [
+   {
+    "id": "comfort",
+    "weight": 1
+   }
+  ],
+  "intensity": 0.5,
+  "lead_stem": "trk_vocals"
+ },
+ "references": [],
+ "listening_assumption": {
+  "system": "speakers_60deg",
+  "level": "moderate"
+ },
+ "variants": [
+  {
+   "id": "v01",
+   "label": "comfort x streaming_universal",
+   "objective": {
+    "blend": [
+     {
+      "id": "comfort",
+      "weight": 1
+     }
+    ],
+    "intensity": 0.5
+   },
+   "master": {
+    "route": "stem_mix",
+    "chain": []
+   },
+   "outputs": [
+    {
+     "profile": "streaming_universal",
+     "delivery": "hires_native"
+    },
+    {
+     "profile": "streaming_universal",
+     "delivery": "distributor_44k16"
+    }
+   ]
+  },
+  {
+   "id": "v02",
+   "label": "bass_heavy x streaming_universal",
+   "objective": {
+    "blend": [
+     {
+      "id": "bass_heavy",
+      "weight": 1
+     }
+    ],
+    "intensity": 0.5
+   },
+   "master": {
+    "route": "stem_mix",
+    "chain": []
+   },
+   "outputs": [
+    {
+     "profile": "streaming_universal",
+     "delivery": "hires_native"
+    }
+   ]
+  },
+  {
+   "id": "v10",
+   "label": "club_impact x club",
+   "objective": {
+    "blend": [
+     {
+      "id": "club_impact",
+      "weight": 1
+     }
+    ],
+    "intensity": 0.5
+   },
+   "master": {
+    "route": "stem_mix",
+    "chain": []
+   },
+   "outputs": [
+    {
+     "profile": "club",
+     "delivery": "dj_wav"
+    }
+   ]
+  }
+ ],
+ "engine": {
+  "min_version": "0.1.0"
+ },
+ "notes": "SYNTHETIC PLACEHOLDER generated by gui/scripts/make-placeholder-demo.mjs"
+}
