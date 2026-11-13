@@ -497,6 +497,7 @@ def test_round_stage_plans_clean_mix_master(rounds):
         assert (stored["status"], stored["author"], stored["requested_by"]) == ("applied", "agent", "agent")
 
 
+@pytest.mark.ffmpeg  # verify measures the codec round trips (S-02); incomplete without ffmpeg
 def test_round_render_export_verify(rounds):
     run = rounds["a"]
     R = run.R
@@ -594,6 +595,7 @@ def test_round_final_project_validates_and_files_exist(rounds):
     assert not (rounds["base"] / "outside" / "project.json").exists()
 
 
+@pytest.mark.ffmpeg  # verify measures the codec round trips (S-02); incomplete without ffmpeg
 def test_round_one_shot_pipeline(rounds):
     run = rounds["a"]
     r = run.R["pipeline"]
