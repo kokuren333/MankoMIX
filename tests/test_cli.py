@@ -185,23 +185,26 @@ def test_doctor_strict_from_env(monkeypatch):
 # stubs, global behaviour, bad input
 # ---------------------------------------------------------------------------
 
-STUBS = {"stem": "M4", "clean": "M5", "mix": "M4", "run": "M4"}
-
-
-@pytest.mark.parametrize("group", sorted(STUBS))
-def test_stub_groups(cli, group):
-    code, r = cli(group, "list", "--whatever")
+def test_stub_mechanism(cli, monkeypatch):
+    """Every group of SPEC 10.2 is implemented; the stub mechanism stays for future groups."""
+    assert cli_main.STUB_GROUPS == {}
+    for group in ("stem", "clean", "mix", "run"):
+        code, r = cli(group, "--help", text=True)
+        assert code == EXIT_OK and "not implemented" not in r
+    monkeypatch.setattr(cli_main, "STUB_GROUPS", {"future": ("M99", "a later group")})
+    code, r = cli("future", "list", "--whatever")
     assert code == EXIT_INPUT_ERROR
-    assert r["message"] == f"not implemented yet (milestone {STUBS[group]})"
+    assert r["error"] == "not_implemented" and r["message"] == "not implemented yet (milestone M99)"
 
 
-def test_subprocess_module_entry_and_stub(tmp_path):
+def test_subprocess_module_entry_and_input_error(tmp_path):
     env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONIOENCODING": "cp1252"}
-    p = subprocess.run([sys.executable, "-m", "mankomix.cli", "mix", "apply"], cwd=REPO, env=env,
-                       capture_output=True, timeout=120)
+    p = subprocess.run([sys.executable, "-m", "mankomix.cli", "mix", "apply", "mxp_missing", "--project",
+                        str(tmp_path)], cwd=REPO, env=env, capture_output=True, timeout=120)
     assert p.returncode == EXIT_INPUT_ERROR
     out = p.stdout.decode("utf-8")
-    assert json.loads(out)["message"] == "not implemented yet (milestone M4)"
+    assert json.loads(out)["error"] == "input_error"
+    assert_no_abs(out, tmp_path)
 
     p = subprocess.run([sys.executable, "-m", "mankomix.cli", "doctor", "--format", "text"], cwd=REPO, env=env,
                        capture_output=True, timeout=120)

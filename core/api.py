@@ -47,7 +47,9 @@ __all__ = [
     "route", "master_plan", "master_apply", "render", "export", "verify", "report",
     "objective_set", "objective_validate", "reference_add", "reference_list", "reference_remove",
     "plan_propose", "plan_apply", "plan_reject", "planner_run", "gate_check", "project_get",
-    "knowledge_lookup",
+    "knowledge_lookup", "clean_plan", "clean_apply", "clean_delta", "mix_plan", "mix_apply",
+    "stem_list", "stem_add", "stem_replace", "stem_remove", "stem_move", "stem_split", "stem_mute",
+    "stem_range_replace", "stem_role", "stem_edit", "stem_export", "run",
 ]
 
 
@@ -1413,10 +1415,16 @@ def _proposal_author(actor: str) -> str:
 @_face_safe
 def plan_propose(project_path: str | Path, stage: str = "master", *, variant: str | None = None,
                  profile: str | None = None, delivery: str | None = None, objective: Any = None,
-                 max_iter: int | None = None, actor: str = "human") -> dict:
-    """Propose a stage plan (R-31): the deterministic planner refines the stage plan against the
-    objective (level-matched previews, small moves) and returns parameters, rationale with rule ids,
-    alternatives and the per-metric evaluation. Saved under cache/proposals/<id>.json; nothing is applied.
+                 max_iter: int | None = None, targets: list[str] | str | None = None, overrides: Any = None,
+                 actor: str = "human") -> dict:
+    """Propose a stage plan (R-31) for ``stage`` "clean", "mix" or "master" (default).
+
+    master: the deterministic planner refines the master chain against the objective (level-matched
+    previews, small moves). mix: the mix-stage planner (SPEC 6.5.1 fixed order; with ``variant`` the
+    plan is stored as the variant's track overrides; ``max_iter`` default 4). clean: one cleanup plan
+    per stem (or the 2-mix on the full-mix route); ``targets`` / ``overrides`` select assets and
+    lighten steps. Every proposal carries parameters, rationale with rule ids, alternatives and (mix,
+    master) the per-metric evaluation. Saved under cache/proposals/<id>.json; nothing is applied.
     ``actor`` records who asked for it (an agent's proposal awaits approval in the GUI, D-035).
     """
     proj = _open(project_path)
@@ -1424,16 +1432,38 @@ def plan_propose(project_path: str | Path, stage: str = "master", *, variant: st
     if max_iter is not None and (isinstance(max_iter, bool) or int(max_iter) < 0):
         raise InputError("max_iter must be >= 0")
     stage = _STAGE_ALIASES.get(stage, stage) if isinstance(stage, str) else stage
-    prop = _mod("planner").propose(proj, stage, variant_id=variant, profile_id=profile, delivery_id=delivery,
-                                   max_iter=None if max_iter is None else int(max_iter),
-                                   objective=_objective_arg(objective))
-    prop["status"] = "proposed"
-    prop["proposed_at"] = _now_iso()
-    prop["author"] = _proposal_author(actor)
-    prop["requested_by"] = actor
-    rel = _save_proposal(proj, prop)
+    if stage == "clean":
+        if any(v is not None for v in (variant, profile, delivery, objective)):
+            raise InputError("the cleanup stage takes targets / overrides, not variant, profile, delivery or objective")
+        prop, rel = _clean_propose(proj, targets=targets, overrides=overrides, actor=actor)
+    elif stage == "mix":
+        if targets is not None or overrides is not None:
+            raise InputError("targets / overrides belong to the cleanup stage")
+        prop, rel = _mix_propose(proj, variant=variant, objective=objective,
+                                 max_iter=MIX_MAX_ITER if max_iter is None else int(max_iter), excerpt=True,
+                                 actor=actor)
+    else:
+        if targets is not None or overrides is not None:
+            raise InputError("targets / overrides belong to the cleanup stage")
+        prop = _mod("planner").propose(proj, stage, variant_id=variant, profile_id=profile, delivery_id=delivery,
+                                       max_iter=None if max_iter is None else int(max_iter),
+                                       objective=_objective_arg(objective))
+        _stamp_proposal(prop, actor)
+        rel = _save_proposal(proj, prop)
     return {"proposal_id": prop["proposal_id"], "proposal_path": rel, "stage": prop.get("stage"),
-            "applied": False, "summary": proposal_summary(prop), "proposal": prop}
+            "applied": False, "summary": stage_summary(prop), "proposal": prop}
+
+
+def _editable_processors(prop: dict) -> list[dict]:
+    """Processors whose parameters an approval may edit: the master chain, or every processor of a
+    mix proposal's changes (track chains, FX bus chains, mix-bus chain)."""
+    if prop.get("stage") == "mix":
+        ch = prop.get("changes") or {}
+        procs = [p for d in (ch.get("tracks") or {}).values() if isinstance(d, dict) for p in d.get("chain") or []]
+        procs += [p for b in ch.get("buses") or [] if isinstance(b, dict) for p in b.get("chain") or []]
+        procs += list(ch.get("mix_chain") or [])
+        return [p for p in procs if isinstance(p, dict)]
+    return [p for p in prop.get("chain") or [] if isinstance(p, dict)]
 
 
 def _apply_edits(prop: dict, edits: Any, actor: str) -> tuple[dict, list[str]]:
@@ -1443,7 +1473,8 @@ def _apply_edits(prop: dict, edits: Any, actor: str) -> tuple[dict, list[str]]:
     if not isinstance(edits, dict) or not all(isinstance(v, dict) for v in edits.values()):
         raise InputError('edits must be an object {"<processor id>": {"<param>": value}}')
     prop = json.loads(json.dumps(prop))
-    chain = [p for p in prop.get("chain") or [] if isinstance(p, dict)]
+    chain = _editable_processors(prop)
+    counts = Counter(p.get("id") for p in chain)
     by_id = {p.get("id"): p for p in chain}
     changed: list[str] = []
     for pid, params in edits.items():
@@ -1451,6 +1482,8 @@ def _apply_edits(prop: dict, edits: Any, actor: str) -> tuple[dict, list[str]]:
         if proc is None:
             raise InputError(f"proposal {prop.get('proposal_id')} has no processor '{pid}'",
                              details={"processors": list(by_id)})
+        if counts[pid] > 1:
+            raise InputError(f"processor id '{pid}' is ambiguous in proposal {prop.get('proposal_id')}")
         current = proc.get("params") if isinstance(proc.get("params"), dict) else {}
         for k, v in params.items():
             if k not in current:
@@ -1469,30 +1502,44 @@ def _apply_edits(prop: dict, edits: Any, actor: str) -> tuple[dict, list[str]]:
 @_face_safe
 def plan_apply(project_path: str | Path, proposal_or_id: Any, *, edits: Any = None,
                actor: str = "human") -> dict:
-    """Approve and apply a stage proposal (R-31). The variant stores the chain, the objective
-    evaluation (score + per-metric breakdown, constraints, gate) and the decisions. ``edits``
-    ({processor id: {param: value}}) changes parameters of the proposed chain before applying."""
+    """Approve and apply a stage proposal (R-31) of any stage (clean, mix, master).
+
+    master: the variant stores the chain, the objective evaluation (score + per-metric breakdown,
+    constraints, gate) and the decisions. mix: track gains / pans / chains / sends / automation, the
+    FX bus and the mix-bus chain go to the project (or the variant's track overrides) with
+    ``mix.applied`` / ``mix.decisions`` / ``mix.evaluation``. clean: cleaned audio, delta, records and
+    noise baselines are written and the per-track plan is stored. ``edits`` ({processor id: {param:
+    value}}) changes parameters of the proposed processors before applying (mix, master)."""
     proj = _open(project_path)
     prop, path = _load_stage_proposal(proj, proposal_or_id)
     if prop.get("status") == "rejected":
         raise InputError(f"proposal {prop.get('proposal_id')} was rejected; propose again to get a new plan",
                          details={"rejection": prop.get("rejection")})
+    stage = _STAGE_ALIASES.get(prop.get("stage"), prop.get("stage"))
+    if stage == "clean":
+        if edits not in (None, {}, ""):
+            raise InputError("cleanup proposals are changed through overrides: propose again with overrides "
+                             "(e.g. {\"spectral_reduction\": \"light\"})")
+        return {**_clean_apply(proj, prop, path, actor), "project": _project_summary(proj)}
     changed: list[str] = []
     if edits not in (None, {}, ""):
         prop, changed = _apply_edits(prop, edits, actor)
-    res = _mod("planner").apply(proj, prop, actor=actor)
-    entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
-    _mark_proposal(path, prop, status="applied",
-                   applied={"actor": actor, "at": _now_iso(), "journal_seq": entries[-1].get("seq")})
-    variant = _mod("mastering").find_variant(proj.data, prop.get("variant")) or {}
-    out = {**res, "evaluation_stored": bool(variant.get("evaluation")),
-           "decisions_stored": bool(variant.get("decisions")),
-           "score": (variant.get("evaluation") or {}).get("score"),
-           "send_back": prop.get("send_back"), "project": _project_summary(proj)}
+    if stage == "mix":
+        out = {**_mix_apply(proj, prop, path, actor), "project": _project_summary(proj)}
+    else:
+        res = _mod("planner").apply(proj, prop, actor=actor)
+        entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
+        _mark_proposal(path, prop, status="applied",
+                       applied={"actor": actor, "at": _now_iso(), "journal_seq": entries[-1].get("seq")})
+        variant = _mod("mastering").find_variant(proj.data, prop.get("variant")) or {}
+        out = {**res, "evaluation_stored": bool(variant.get("evaluation")),
+               "decisions_stored": bool(variant.get("decisions")),
+               "score": (variant.get("evaluation") or {}).get("score"),
+               "send_back": prop.get("send_back"), "project": _project_summary(proj)}
     if changed:
         out["edited"] = changed
         out["note"] = ("the stored objective evaluation was computed for the proposed parameters; "
-                       "propose again to evaluate the edited chain")
+                       "propose again to evaluate the edited processors")
     return out
 
 
@@ -1537,10 +1584,7 @@ def planner_run(project_path: str | Path, *, variant: str | None = None, profile
     planner = _mod("planner")
     prop = planner.propose(proj, "master", variant_id=variant, profile_id=profile, delivery_id=delivery,
                            max_iter=int(max_iter), objective=_objective_arg(objective))
-    prop["status"] = "proposed"
-    prop["proposed_at"] = _now_iso()
-    prop["author"] = _proposal_author(actor)
-    prop["requested_by"] = actor
+    _stamp_proposal(prop, actor)
     rel = _save_proposal(proj, prop)
     its = (prop.get("planner") or {}).get("iterations") or []
     out = {"proposal_id": prop["proposal_id"], "proposal_path": rel, "applied": False,
@@ -1562,6 +1606,472 @@ def planner_run(project_path: str | Path, *, variant: str | None = None, profile
         out["summary"]["status"] = "applied"
         out["project"] = _project_summary(proj)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Cleanup and mix stages (SPEC 6.4, 6.5, 7.2, 10.2, 10.3; R-20, R-22, R-31). The stage
+# modules (core/cleanstage.py, core/mixplan.py) make the proposals; this facade saves them
+# under cache/proposals/ with a status, applies them and marks them applied.
+# ---------------------------------------------------------------------------
+
+MIX_MAX_ITER = 4
+
+
+def _stamp_proposal(prop: dict, actor: str) -> dict:
+    prop["status"] = "proposed"
+    prop["proposed_at"] = _now_iso()
+    prop["author"] = _proposal_author(actor)
+    prop["requested_by"] = actor
+    return prop
+
+
+def _gate_brief(gate: Any) -> dict | None:
+    """{status, failed[]} from a gate given as {checks: {id: status}} or {checks: [{id, status}]}."""
+    if not isinstance(gate, dict):
+        return None
+    checks = gate.get("checks")
+    if isinstance(checks, dict):
+        failed = sorted(k for k, v in checks.items() if (v.get("status") if isinstance(v, dict) else v) == "fail")
+    else:
+        failed = sorted(c.get("id") for c in checks or [] if isinstance(c, dict) and c.get("status") == "fail")
+    return {"status": gate.get("status"), "failed": failed}
+
+
+def _failed_constraints(constraints: Any) -> list[str]:
+    if not isinstance(constraints, dict):
+        return []
+    return sorted(k for k, v in constraints.items() if (v.get("status") if isinstance(v, dict) else v) == "fail")
+
+
+def clean_proposal_summary(prop: dict) -> dict:
+    """Token-cheap view of a cleanup proposal: per asset the steps that run, and what is skipped why."""
+    route = prop.get("route")
+    items = [{"asset": i.get("asset"), "kind": i.get("kind"), "track": i.get("track"), "role": i.get("role"),
+              "mode": i.get("mode"), "plan_hash": (i.get("plan_hash") or "")[:12] or None,
+              "steps": {k: a for k, a in sorted((i.get("steps") or {}).items()) if a != "skip"}}
+             for i in prop.get("items") or [] if isinstance(i, dict)]
+    skipped = [{"asset": s.get("asset"), "kind": s.get("kind"), "code": s.get("code"), "reason": s.get("reason")}
+               for s in prop.get("skipped") or [] if isinstance(s, dict)]
+    return {"proposal_id": prop.get("proposal_id"), "stage": "clean", "status": prop.get("status"),
+            "route": route.get("route") if isinstance(route, dict) else route,
+            "items": items, "skipped": skipped, "to_apply": len(items),
+            "rules": prop.get("rules"), "operations": prop.get("operations")}
+
+
+def mix_proposal_summary(prop: dict) -> dict:
+    """Token-cheap view of a mix proposal: steps in the fixed order, kept moves, score, gate, open issues."""
+    ev = prop.get("objective_evaluation") or {}
+    meas = prop.get("measurements") or {}
+    moves = [m for m in prop.get("moves") or [] if isinstance(m, dict)]
+    kept = [m for m in moves if m.get("status") == "kept"]
+    route = prop.get("route")
+    return {
+        "proposal_id": prop.get("proposal_id"), "stage": "mix", "status": prop.get("status"),
+        "variant": prop.get("variant"), "lead": prop.get("lead"),
+        "route": route.get("route") if isinstance(route, dict) else route,
+        "balance_only": prop.get("balance_only"),
+        "steps": [{"n": s.get("n"), "id": s.get("id"), "status": s.get("status"), "kept": len(s.get("kept") or [])}
+                  for s in prop.get("order") or [] if isinstance(s, dict)],
+        "moves": {"kept": len(kept), "rejected": len(moves) - len(kept)},
+        "kept": [{"id": m.get("id"), "step": m.get("step"), "kind": m.get("kind"),
+                  "target": m.get("track") or m.get("bus"), "rules": m.get("rules")} for m in kept[:40]],
+        "score_start": _r4((meas.get("start") or {}).get("score")), "score": _r4(ev.get("score")),
+        "scope": ev.get("scope"), "failed_constraints": _failed_constraints(ev.get("constraints")),
+        "gate": _gate_brief(ev.get("gate")),
+        "unresolved": sorted({u.get("code") for u in prop.get("unresolved") or [] if isinstance(u, dict) and u.get("code")}),
+        "arrangement": [{"id": a.get("id"), "kind": a.get("kind"), "status": a.get("status")}
+                        for a in prop.get("arrangement") or [] if isinstance(a, dict)],
+        "operations": prop.get("operations"),
+    }
+
+
+def stage_summary(prop: dict) -> dict:
+    """The summary of a proposal of any stage."""
+    stage = _STAGE_ALIASES.get(prop.get("stage"), prop.get("stage"))
+    if stage == "clean":
+        return clean_proposal_summary(prop)
+    if stage == "mix":
+        return mix_proposal_summary(prop)
+    return proposal_summary(prop)
+
+
+def _list_arg(value: Any, what: str) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = [x.strip() for x in value.split(",") if x.strip()]
+    if not isinstance(value, (list, tuple)) or not all(isinstance(x, str) and x for x in value):
+        raise InputError(f"{what} must be a list of ids (or a comma-separated string)")
+    return list(value)
+
+
+def _object_arg(value: Any, what: str) -> dict | None:
+    if value is None or value == "":
+        return None
+    value = _parse_json_value(value, what) if isinstance(value, str) else value
+    if not isinstance(value, dict):
+        raise InputError(f"{what} must be a JSON object")
+    return value
+
+
+def _journal_seq(proj) -> int | None:
+    entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
+    return entries[-1].get("seq")
+
+
+def _clean_propose(proj, *, targets: Any, overrides: Any, actor: str) -> tuple[dict, str]:
+    prop = _mod("cleanstage").plan_clean(proj, targets=_list_arg(targets, "targets"),
+                                         overrides=_object_arg(overrides, "overrides"))
+    _stamp_proposal(prop, actor)
+    return prop, _save_proposal(proj, prop)
+
+
+def _clean_todo(prop: dict) -> int:
+    return len(prop.get("items") or []) + sum(1 for s in prop.get("skipped") or [] if s.get("plan_hash"))
+
+
+def _clean_apply(proj, prop: dict, path: Path | None, actor: str) -> dict:
+    if prop.get("stage") != "clean":
+        raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, not a cleanup proposal")
+    _mod("journal").check_actor(actor)
+    res = _mod("cleanstage").apply_clean(proj, prop, actor=actor)
+    _mark_proposal(path, prop, status="applied", applied={"actor": actor, "at": _now_iso(),
+                                                          "journal_seq": _journal_seq(proj)})
+    return res
+
+
+def _mix_propose(proj, *, variant: str | None, objective: Any, max_iter: Any, excerpt: bool,
+                 actor: str) -> tuple[dict, str]:
+    if max_iter is None or isinstance(max_iter, bool) or int(max_iter) < 0:
+        raise InputError("max_iter must be >= 0")
+    if variant is not None and _mod("mastering").find_variant(proj.data, variant) is None:
+        raise InputError(f"unknown variant '{variant}'", details={"valid": _variant_ids(proj.data)})
+    prop = _mod("mixplan").plan_mix(proj, variant_id=variant, objective=_objective_arg(objective),
+                                    max_iter=int(max_iter), excerpt=bool(excerpt))
+    _stamp_proposal(prop, actor)
+    return prop, _save_proposal(proj, prop)
+
+
+def _mix_apply(proj, prop: dict, path: Path | None, actor: str) -> dict:
+    if prop.get("stage") != "mix":
+        raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, not a mix proposal")
+    _mod("journal").check_actor(actor)
+    _mod("mixplan").apply_mix_plan(proj, prop, actor=actor)
+    _mark_proposal(path, prop, status="applied", applied={"actor": actor, "at": _now_iso(),
+                                                          "journal_seq": _journal_seq(proj)})
+    vid = prop.get("variant")
+    holder = (_mod("mastering").find_variant(proj.data, vid) or {}).get("mix") if vid else proj.data.get("mix")
+    holder = holder if isinstance(holder, dict) else {}
+    ev = prop.get("objective_evaluation") or {}
+    return {"applied": True, "stage": "mix", "proposal_id": prop.get("proposal_id"), "variant": vid,
+            "tracks_changed": sorted((prop.get("changes") or {}).get("tracks") or {}),
+            "buses_added": [b.get("id") for b in (prop.get("changes") or {}).get("buses") or []],
+            "evaluation_stored": bool(holder.get("evaluation")), "decisions_stored": bool(holder.get("decisions")),
+            "score": _r4(ev.get("score")), "gate": _gate_brief(ev.get("gate")),
+            "route": _mod("routes").select_route(proj)["route"]}
+
+
+@_face_safe
+def clean_plan(project_path: str | Path, *, targets: list[str] | str | None = None, overrides: Any = None,
+               apply: bool = False, actor: str = "human") -> dict:
+    """Propose the cleanup stage (SPEC 6.4, R-31): diagnose each stem (or the 2-mix on the full-mix
+    route) and plan the steps; assets where nothing is detected are listed as skipped with the
+    reason. ``targets``: asset ids, track ids or "fullmix"; ``overrides``: step overrides for every
+    target ({"spectral_reduction": "light"}) or keyed by asset / track id. Saved under
+    cache/proposals/; ``apply=True`` also applies it."""
+    proj = _open(project_path)
+    _mod("journal").check_actor(actor)
+    prop, rel = _clean_propose(proj, targets=targets, overrides=overrides, actor=actor)
+    out = {"proposal_id": prop["proposal_id"], "proposal_path": rel, "stage": "clean", "applied": False,
+           "summary": clean_proposal_summary(prop), "proposal": prop}
+    if apply:
+        if _clean_todo(prop):
+            out["apply"] = _clean_apply(proj, prop, Path(proj.root) / rel, actor)
+            out["applied"] = True
+            out["summary"]["status"] = "applied"
+        else:
+            out["note"] = "nothing to apply"
+    return out
+
+
+@_face_safe
+def clean_apply(project_path: str | Path, proposal_or_id: Any, *, actor: str = "human") -> dict:
+    """Approve and apply a cleanup proposal (id, JSON or project-relative file): cleaned audio,
+    delta, records and noise baselines are written; the per-track plan goes to project.json."""
+    proj = _open(project_path)
+    prop, path = _load_stage_proposal(proj, proposal_or_id)
+    if prop.get("stage") != "clean":
+        raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, "
+                         "not a cleanup proposal")
+    if prop.get("status") == "rejected":
+        raise InputError(f"proposal {prop.get('proposal_id')} was rejected; propose again to get a new plan",
+                         details={"rejection": prop.get("rejection")})
+    return {**_clean_apply(proj, prop, path, actor), "project": _project_summary(proj)}
+
+
+def _cleanup_target(proj, target: str) -> str:
+    data = proj.data
+    assets = {a.get("id") for a in _asset_list(data)}
+    if target in assets:
+        return target
+    if target in ("fullmix", "full_mix"):
+        fm = sorted(_fullmix_ids(data))
+        if not fm:
+            raise InputError("the project has no full mix")
+        return fm[0]
+    for t in data.get("tracks") or []:
+        if t.get("id") == target:
+            for c in t.get("clips") or []:
+                if c.get("asset"):
+                    return c["asset"]
+            raise InputError(f"track '{target}' has no clips")
+    raise InputError(f"unknown cleanup target '{target}' (asset id, track id or 'fullmix')",
+                     details={"assets": sorted(assets)})
+
+
+@_face_safe
+def clean_delta(project_path: str | Path, asset_id: str) -> dict:
+    """Write (if missing) and return the removed component of an asset's applied cleanup
+    (input minus output, SPEC 6.4.3) for listening. ``asset_id``: asset id, track id or "fullmix"."""
+    proj = _open(project_path)
+    aid = _cleanup_target(proj, asset_id)
+    cs = _mod("cleanstage")
+    rel = cs.delta(proj, aid)
+    entry = cs.applied_entry(proj.data, aid, include_skipped=True) or {}
+    rec = cs.cleanup_record(proj, aid) or {}
+    return {"asset": aid, "delta": rel, "record": cs.record_rel(aid), "plan_hash": entry.get("plan_hash"),
+            "steps": {k: s.get("action") for k, s in (rec.get("steps") or {}).items()},
+            "removed_energy": (rec.get("report") or {}).get("removed_energy")}
+
+
+@_face_safe
+def mix_plan(project_path: str | Path, *, variant: str | None = None, objective: Any = None,
+             max_iter: int = MIX_MAX_ITER, excerpt: bool = True, apply: bool = False,
+             actor: str = "human") -> dict:
+    """Propose the mix stage (SPEC 6.5, R-31): static balance, arrangement suggestions, subtractive
+    EQ, dynamics, additive EQ, space, mix bus, measured after every step on level-matched previews
+    (``excerpt``: representative excerpts; false = full length). ``variant`` plans a variant's mix
+    (stored as its track overrides, SPEC 9.4). Saved under cache/proposals/; ``apply=True`` applies it."""
+    proj = _open(project_path)
+    _mod("journal").check_actor(actor)
+    prop, rel = _mix_propose(proj, variant=variant, objective=objective, max_iter=max_iter, excerpt=excerpt,
+                             actor=actor)
+    out = {"proposal_id": prop["proposal_id"], "proposal_path": rel, "stage": "mix", "applied": False,
+           "summary": mix_proposal_summary(prop), "decision_texts": prop.get("decision_texts"), "proposal": prop}
+    if apply:
+        out["apply"] = _mix_apply(proj, prop, Path(proj.root) / rel, actor)
+        out["applied"] = True
+        out["summary"]["status"] = "applied"
+    return out
+
+
+@_face_safe
+def mix_apply(project_path: str | Path, proposal_or_id: Any, *, edits: Any = None, actor: str = "human") -> dict:
+    """Approve and apply a mix proposal (id, JSON or project-relative file). ``edits``
+    ({processor id: {param: value}}) changes proposed processor parameters first."""
+    proj = _open(project_path)
+    prop, path = _load_stage_proposal(proj, proposal_or_id)
+    if prop.get("stage") != "mix":
+        raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, not a mix proposal")
+    if prop.get("status") == "rejected":
+        raise InputError(f"proposal {prop.get('proposal_id')} was rejected; propose again to get a new plan",
+                         details={"rejection": prop.get("rejection")})
+    changed: list[str] = []
+    if edits not in (None, {}, ""):
+        prop, changed = _apply_edits(prop, edits, actor)
+    out = {**_mix_apply(proj, prop, path, actor), "project": _project_summary(proj)}
+    if changed:
+        out["edited"] = changed
+        out["note"] = ("the stored objective evaluation was computed for the proposed parameters; "
+                       "propose again to evaluate the edited processors")
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Remix operations on stems (SPEC 9.3; core/remix.py). Times are samples at the project
+# rate; every time argument also accepts seconds written as "12.5s".
+# ---------------------------------------------------------------------------
+
+STEM_EDIT_OPS = ("split", "mute", "move", "role", "range_replace", "remove")
+
+
+def _samples_arg(proj, value: Any, name: str) -> int:
+    if isinstance(value, bool) or value is None:
+        raise InputError(f"{name} must be a sample count (or seconds as '1.5s')")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        s = value.strip()
+        try:
+            if s.endswith("s"):
+                return int(round(float(s[:-1]) * _mod("mixrender").project_rate(proj.data)))
+            return int(s)
+        except ValueError:
+            pass
+    raise InputError(f"{name} must be a sample count (or seconds as '1.5s'), got {value!r}")
+
+
+def _remix():
+    return _mod("remix")
+
+
+@_face_safe
+def stem_list(project_path: str | Path) -> dict:
+    """Tracks (role, lead, level, pan, routing, clips), unused assets and R-22 notes."""
+    return _remix().stem_list(_open(project_path))
+
+
+@_face_safe
+def stem_add(project_path: str | Path, source: str | Path, *, role: str | None = None, mode: str = "copy",
+             reason: str = "", actor: str = "human") -> dict:
+    """Import a file as a new stem track (import checks + tempo / key consistency report, D-048)."""
+    if not Path(source).is_file():
+        raise InputError(f"source not found: {Path(source).name}")
+    if mode not in ("copy", "link"):
+        raise InputError(f"unknown import mode '{mode}' (use copy or link)")
+    return _remix().stem_add(_open(project_path), str(source), role=role, actor=actor, mode=mode, reason=reason)
+
+
+@_face_safe
+def stem_replace(project_path: str | Path, track_id: str, source: str | Path | None = None, *,
+                 asset: str | None = None, keep_chain: bool = True, mode: str = "copy", reason: str = "",
+                 actor: str = "human") -> dict:
+    """Point a track's clips at another audio file (``source``, imported) or an existing ``asset``."""
+    if (source is None) == (asset is None):
+        raise InputError("give exactly one of source (a file to import) or asset (an existing asset id)")
+    proj = _open(project_path)
+    if asset is not None:
+        if asset not in {a.get("id") for a in _asset_list(proj.data)}:
+            raise InputError(f"unknown asset '{asset}'")
+        src: Any = asset
+    else:
+        if not Path(source).is_file():
+            raise InputError(f"source not found: {Path(source).name}")
+        src = str(source)
+    return _remix().stem_replace(proj, track_id, src, keep_chain=keep_chain, actor=actor, mode=mode, reason=reason)
+
+
+@_face_safe
+def stem_remove(project_path: str | Path, track_id: str, *, reason: str = "", actor: str = "human") -> dict:
+    """Remove a track; its assets stay in the project, flagged unused."""
+    return _remix().stem_remove(_open(project_path), track_id, actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_move(project_path: str | Path, clip_id: str, timeline_start: int | str, *, reason: str = "",
+              actor: str = "human") -> dict:
+    """Move a clip on the timeline (samples, or seconds as '1.5s')."""
+    proj = _open(project_path)
+    return _remix().clip_move(proj, clip_id, _samples_arg(proj, timeline_start, "timeline_start"),
+                              actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_split(project_path: str | Path, clip_id: str, at: int | str, *, reason: str = "",
+               actor: str = "human") -> dict:
+    """Split a clip at a timeline position; both halves play exactly as before."""
+    proj = _open(project_path)
+    return _remix().clip_split(proj, clip_id, _samples_arg(proj, at, "at"), actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_mute(project_path: str | Path, track_id: str, start: int | str, end: int | str, *, reason: str = "",
+              actor: str = "human") -> dict:
+    """Mute [start, end) of a track (the clips are split at the edges, the pieces inside muted)."""
+    proj = _open(project_path)
+    return _remix().range_mute(proj, track_id, _samples_arg(proj, start, "start"), _samples_arg(proj, end, "end"),
+                               actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_range_replace(project_path: str | Path, track_id: str, start: int | str, end: int | str, asset: str, *,
+                       source_start: int | str = 0, reason: str = "", actor: str = "human") -> dict:
+    """Mute [start, end) of a track and place a clip of another asset there (from ``source_start``)."""
+    proj = _open(project_path)
+    return _remix().range_replace(proj, track_id, _samples_arg(proj, start, "start"), _samples_arg(proj, end, "end"),
+                                  asset, source_start=_samples_arg(proj, source_start, "source_start"),
+                                  actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_role(project_path: str | Path, track_id: str, role: str, *, is_lead: bool | None = None,
+              reason: str = "", actor: str = "human") -> dict:
+    """Change a track's role and, optionally, make it (or stop it being) the single lead."""
+    return _remix().set_role(_open(project_path), track_id, role, is_lead=is_lead, actor=actor, reason=reason)
+
+
+@_face_safe
+def stem_edit(project_path: str | Path, op: str, *, track: str | None = None, clip: str | None = None,
+              start: int | str | None = None, end: int | str | None = None, at: int | str | None = None,
+              timeline_start: int | str | None = None, role: str | None = None, is_lead: bool | None = None,
+              asset: str | None = None, source_start: int | str = 0, reason: str = "",
+              actor: str = "human") -> dict:
+    """One remix edit selected by ``op``: split (clip, at), mute (track, start, end), move (clip,
+    timeline_start), role (track, role, is_lead), range_replace (track, start, end, asset,
+    source_start), remove (track). Times in samples or seconds ('1.5s')."""
+    need = {"split": ("clip", "at"), "mute": ("track", "start", "end"), "move": ("clip", "timeline_start"),
+            "role": ("track", "role"), "range_replace": ("track", "start", "end", "asset"), "remove": ("track",)}
+    if op not in need:
+        raise InputError(f"unknown stem edit '{op}'", details={"valid": list(STEM_EDIT_OPS)})
+    given = {"track": track, "clip": clip, "start": start, "end": end, "at": at, "timeline_start": timeline_start,
+             "role": role, "asset": asset}
+    missing = [k for k in need[op] if given[k] is None]
+    if missing:
+        raise InputError(f"stem edit '{op}' needs: {', '.join(missing)}")
+    if op == "split":
+        return stem_split(project_path, clip, at, reason=reason, actor=actor)
+    if op == "mute":
+        return stem_mute(project_path, track, start, end, reason=reason, actor=actor)
+    if op == "move":
+        return stem_move(project_path, clip, timeline_start, reason=reason, actor=actor)
+    if op == "role":
+        return stem_role(project_path, track, role, is_lead=is_lead, reason=reason, actor=actor)
+    if op == "range_replace":
+        return stem_range_replace(project_path, track, start, end, asset, source_start=source_start,
+                                  reason=reason, actor=actor)
+    return stem_remove(project_path, track, reason=reason, actor=actor)
+
+
+@_face_safe
+def stem_export(project_path: str | Path, tracks: list[str] | str | None = None, *, processed: bool = True,
+                out_dir: str = "renders/stems", subtype: str = "FLOAT", variant: str | None = None) -> dict:
+    """Write one stereo WAV per stem track (full timeline from sample 0) plus manifest.json under
+    ``out_dir`` (project-relative). processed: as the track sits in the mix (chain, fader, pan);
+    otherwise the edited clip layout only. ``subtype``: FLOAT, PCM_24 or PCM_16 (TPDF dither)."""
+    proj = _open(project_path)
+    if variant is not None and _mod("mastering").find_variant(proj.data, variant) is None:
+        raise InputError(f"unknown variant '{variant}'", details={"valid": _variant_ids(proj.data)})
+    return _remix().stem_export(proj, _list_arg(tracks, "tracks"), processed=processed, out_dir=out_dir,
+                                subtype=subtype, variant_id=variant)
+
+
+# ---------------------------------------------------------------------------
+# One-shot pipeline (SPEC 6, 7.1, 10.2 `run`): the planner alone, from the input files to
+# verified masters and the Mix Report (core/pipeline.py).
+# ---------------------------------------------------------------------------
+
+@_face_safe
+def run(sources: list[str], *, objective: Any = "comfort", profile: str | list[str] = "streaming_universal",
+        delivery: str | list[str] | None = None, variants: Any = None, out: str | Path | None = None,
+        project: str | Path | None = None, genre: str | None = None, title: str | None = None,
+        separate: bool = False, mode: str = "copy", variant_mix: bool = False,
+        mix_max_iter: int = MIX_MAX_ITER, master_max_iter: int = 6, excerpt: bool = True,
+        actor: str = "planner") -> dict:
+    """Run every stage with the planner only (no agent, SPEC 7.1): create or open the project, import
+    as-is, analyze, clean (plan + apply; skipped when nothing is detected), mix (plan + apply when
+    stems exist; a 2-mix alone takes the full-mix route), master per variant (planner loop, applied),
+    render, verify, Mix Report (ja + en) and copy the deliverables (masters, manifests, reports) to
+    ``out``. A failed stage gate stops the run with the stage, the reason and ``exit_code`` (1 for a
+    failed gate or verification). ``objective``: 'id', 'id:intensity' or 'a:0.6+b:0.4';
+    ``profile`` / ``delivery``: one or several (every profile gets every delivery); ``variants``:
+    [{objective, profile, delivery}] instead. ``project`` defaults to '<name>.mmx' next to ``out``
+    (or in the current folder)."""
+    return _mod("pipeline").run(sources, objective=objective, profile=profile, delivery=delivery,
+                                variants=variants, out=out, project=project, genre=genre, title=title,
+                                separate=separate, mode=mode, variant_mix=variant_mix, mix_max_iter=mix_max_iter,
+                                master_max_iter=master_max_iter, excerpt=excerpt, actor=actor)
 
 
 @_face_safe
@@ -1930,6 +2440,32 @@ def proposal_view(prop: dict) -> dict:
     steps: list[dict] = []
     if isinstance(prop.get("steps"), list):
         steps = [s for s in prop["steps"] if isinstance(s, dict)]
+    elif stage == "clean":
+        for i in prop.get("items") or []:
+            if not isinstance(i, dict):
+                continue
+            params = {k: a for k, a in sorted((i.get("steps") or {}).items())}
+            steps.append({"target": i.get("track") or i.get("asset"),
+                          "processor": {"id": f"cleanup:{i.get('asset')}", "type": "cleanup", "params": params,
+                                        "reason": "R-20: " + ", ".join(f"{k}={a}" for k, a in params.items()
+                                                                     if a != "skip")},
+                          "editable": []})
+    elif stage == "mix":
+        ch = prop.get("changes") or {}
+        for tid, d in (ch.get("tracks") or {}).items():
+            for p in (d or {}).get("chain") or []:
+                if isinstance(p, dict):
+                    steps.append({"target": tid, "processor": {**p, "reason": p.get("reason", "")},
+                                  "editable": sorted(p.get("params") or {})})
+        for b in ch.get("buses") or []:
+            for p in (b or {}).get("chain") or []:
+                if isinstance(p, dict):
+                    steps.append({"target": b.get("id"), "processor": {**p, "reason": p.get("reason", "")},
+                                  "editable": sorted(p.get("params") or {})})
+        for p in ch.get("mix_chain") or []:
+            if isinstance(p, dict):
+                steps.append({"target": ch.get("mix_bus") or "mix", "processor": {**p, "reason": p.get("reason", "")},
+                              "editable": sorted(p.get("params") or {})})
     else:
         for p in prop.get("chain") or []:
             if not isinstance(p, dict):

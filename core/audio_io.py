@@ -84,7 +84,25 @@ def write(path: str | Path, data: np.ndarray, sample_rate: int, *, subtype: str 
     if arr.ndim == 1:
         arr = arr[:, None]
     fmt = format or {".wav": "WAV", ".flac": "FLAC", ".aif": "AIFF", ".aiff": "AIFF"}.get(p.suffix.lower(), "WAV")
-    sf.write(str(p), arr, int(sample_rate), subtype=subtype, format=fmt)
+    with sf.SoundFile(str(p), "w", int(sample_rate), arr.shape[1], subtype=subtype, format=fmt) as f:
+        _no_peak_chunk(f)
+        f.write(arr)
+
+
+_SFC_SET_ADD_PEAK_CHUNK = 0x1050  # sndfile.h
+
+
+def _no_peak_chunk(f) -> None:
+    """Disable libsndfile's PEAK chunk for float files.
+
+    The chunk carries a wall-clock timestamp, so two renders of identical audio
+    would differ byte for byte (SPEC 16.1 determinism). Must run before any data
+    is written; harmless for formats without a PEAK chunk.
+    """
+    try:
+        sf._snd.sf_command(f._file, _SFC_SET_ADD_PEAK_CHUNK, sf._ffi.NULL, 0)
+    except Exception:  # pragma: no cover - private libsndfile handle unavailable
+        pass
 
 
 def ffmpeg_path() -> str | None:

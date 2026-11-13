@@ -57,7 +57,25 @@
 
 `doctor` の `models` は、公式（verified）／候補／BYOW の件数と、ウェイトが手元にあるモデル（`downloaded`、`byow_available`）を返す。
 
-後続マイルストーンのコマンド（`stem` `clean` `mix` `run`）は登録済みで、現時点では `not implemented yet (milestone Mx)` を返して終了コード 2 で終わる。
+段の処理、リミックス操作、一括実行（§6.4、§6.5、§9.3、§7.1）:
+
+| コマンド | コア API | 内容 |
+|---|---|---|
+| `clean plan [--target T ...] [--overrides JSON] [--apply]` | `clean_plan` | 整音の計画。ステムごと（フルミックス経路では 2mix）に診断し、何も検出しなかった素材は理由つきで `skipped`。`--overrides '{"spectral_reduction": "light"}'`（全対象、または素材・トラック id ごと）。`cache/proposals/cln_*.json` に保存 |
+| `clean apply PROPOSAL` | `clean_apply` | 整音の提案を承認して適用（整音済み音声、除去分、記録、ノイズ基準。トラックごとの計画を正本へ） |
+| `clean delta ASSET` | `clean_delta` | 除去分の音声（入力 − 出力）を `renders/delta/<asset>.wav` に書き出す。素材 id、トラック id、`fullmix` |
+| `mix plan [--variant V] [--objective O] [--max-iter N] [--full-length] [--apply]` | `mix_plan` | ミックス段の計画（固定順: 静的バランス、編曲の提案、減算 EQ、ダイナミクス、加算 EQ、空間、ミックスバス。各段の後で測定）。`--variant` はバリアントの `track_overrides` として保存 |
+| `mix apply PROPOSAL [--edits JSON]` | `mix_apply` | ミックスの提案を承認して適用（`mix.applied` / `decisions` / `evaluation`） |
+| `plan propose --stage clean\|mix\|master` / `plan apply` / `plan reject` | `plan_propose` / `plan_apply` / `plan_reject` | 全段で共通の提案・承認・却下（clean は `--target` / `--overrides`） |
+| `stem list` | `stem_list` | トラック、クリップ、未使用の素材、R-22 の注記 |
+| `stem add FILE [--role R]` / `stem replace TRACK (FILE \| --asset ID) [--drop-chain]` / `stem remove TRACK` | `stem_add` / `stem_replace` / `stem_remove` | ステムの追加・差し替え（取り込み検査、テンポ・キーの整合は報告のみ、D-048）・削除（素材は残り `unused`） |
+| `stem split CLIP AT` / `stem mute TRACK START END` / `stem move CLIP POS` / `stem range-replace TRACK START END ASSET [--source-start S]` / `stem role TRACK ROLE [--lead\|--no-lead]` | `stem_split` / `stem_mute` / `stem_move` / `stem_range_replace` / `stem_role` | クリップの分割、区間の無効化、再配置、区間の差し替え、役割と主役。時間はサンプル数か秒（`1.5s`） |
+| `stem export [--track T ...] [--raw] [--out-dir D] [--subtype FLOAT\|PCM_24\|PCM_16] [--variant V]` | `stem_export` | 処理後（または編集後のクリップだけ）のステムの書き出しとマニフェスト |
+| `run SOURCES... [--objective O] [--profile P ...] [--delivery D ...] [--variants JSON] [--out DIR] [--genre G] [--title T] [--separate] [--variant-mix] [--mix-max-iter N] [--max-iter N]` | `run` | 一括実行（プランナーだけ）。取り込み → 解析 → 整音 → ミックス（ステムがある場合。2mix だけならフルミックス経路）→ バリアントごとのマスタリング → レンダリング → 検証 → Mix Report（ja + en）。`--out` にマスター、マニフェスト、レポート、`run_summary.json` を置く。プロジェクトは既定で `--out` の隣の `<名前>.mmx`。段ゲートに落ちたら理由つきで止まり（整音 S-07、ミックス S-03/S-04。マスタリングのプレビューでの S-nn 不合格は報告して検証へ委ねる。OF-5 不合格は `unresolved` に記録）、検証不合格は終了コード 1（そのバリアントのマスターは納品しない） |
+
+`--profile` と `--delivery` は繰り返せる（全プロファイルに全納品形式）。`--variants '[{"objective": "bass_heavy:0.7", "profile": "club"}]'` で組み合わせを直接指定できる。最初の目的関数のバリアントは `var_<profile>`、それ以外は `var_<objective>_<profile>`。
+
+`STUB_GROUPS` の仕組み（未実装のグループを登録して `not implemented yet (milestone Mx)` で終了コード 2 を返す）は、後続のグループのために残している。現時点で該当するグループはない。
 
 ```
 mankomix init song.mmx --title "Example Song" --genre jpop
@@ -71,6 +89,12 @@ mankomix -p song.mmx render var_spotify
 mankomix -p song.mmx report var_spotify --lang ja
 mankomix model list
 mankomix -p song.mmx separate --mode preview
+mankomix -p song.mmx clean plan --apply
+mankomix -p song.mmx mix plan
+mankomix -p song.mmx mix apply mxp_0123456789ab
+mankomix -p song.mmx stem mute trk_vocals 12.5s 14s
+mankomix run ./stems --objective comfort --profile spotify --delivery distributor_44k16 --out ./out
+mankomix run ./stems --objective bass_heavy:0.7 --profile club --out ./out
 mankomix serve --project song.mmx
 python -m mankomix.cli doctor
 ```

@@ -23,14 +23,10 @@ from .format import render_text
 
 ACTORS = ("human", "agent", "planner")
 
-# Later-milestone groups (SPEC 10.2 / 17). They are registered so that the
-# command surface is stable, but exit with EXIT_INPUT_ERROR for now.
-STUB_GROUPS = {
-    "stem": ("M4", "remix operations: list/add/replace/remove/move/mute/role/export"),
-    "clean": ("M5", "cleanup plan/apply/delta"),
-    "mix": ("M4", "mix plan/apply"),
-    "run": ("M4", "one-shot pipeline with the planner"),
-}
+# Later-milestone groups (SPEC 10.2 / 17). A group listed here is registered so that the
+# command surface is stable, but exits with EXIT_INPUT_ERROR until it is implemented.
+# Every group of SPEC 10.2 is implemented now; the mechanism stays for future groups.
+STUB_GROUPS: dict[str, tuple[str, str]] = {}
 OBJECTIVE_STUBS: dict[str, str] = {}
 
 
@@ -185,9 +181,14 @@ def cmd_reference_remove(a):
     return api.reference_remove(_project(a), a.id, actor=a.actor)
 
 
+def _overrides(text):
+    return json.loads(_read_arg_or_file(text)) if text else None
+
+
 def cmd_plan_propose(a):
     return api.plan_propose(_project(a), a.stage, variant=a.variant, profile=a.profile, delivery=a.delivery,
-                            objective=a.objective, max_iter=a.max_iter, actor=a.actor)
+                            objective=a.objective, max_iter=a.max_iter, targets=a.target,
+                            overrides=_overrides(a.overrides), actor=a.actor)
 
 
 def cmd_plan_apply(a):
@@ -317,6 +318,98 @@ def cmd_separate(a):
     return api.separate(_project(a), model=a.model, source=a.source, mode=a.mode, stems=_csv(a.stems),
                         device=a.device, allow_candidate=a.allow_candidate, add_tracks=a.add_tracks,
                         excerpt_s=a.excerpt_s, actor=a.actor)
+
+
+# -- stages: cleanup and mix (SPEC 6.4, 6.5, 10.2) --
+
+def cmd_clean_plan(a):
+    return api.clean_plan(_project(a), targets=a.target, overrides=_overrides(a.overrides), apply=a.apply,
+                          actor=a.actor)
+
+
+def cmd_clean_apply(a):
+    return api.clean_apply(_project(a), _read_arg_or_file(a.proposal), actor=a.actor)
+
+
+def cmd_clean_delta(a):
+    return api.clean_delta(_project(a), a.asset)
+
+
+def cmd_mix_plan(a):
+    return api.mix_plan(_project(a), variant=a.variant, objective=a.objective, max_iter=a.max_iter,
+                        excerpt=not a.full_length, apply=a.apply, actor=a.actor)
+
+
+def cmd_mix_apply(a):
+    edits = _read_arg_or_file(a.edits) if a.edits else None
+    return api.mix_apply(_project(a), _read_arg_or_file(a.proposal), edits=edits, actor=a.actor)
+
+
+# -- remix operations (SPEC 9.3) --
+
+def cmd_stem_list(a):
+    return api.stem_list(_project(a))
+
+
+def cmd_stem_add(a):
+    return api.stem_add(_project(a), a.file, role=a.role, mode=a.mode, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_replace(a):
+    if (a.file is None) == (a.asset is None):
+        raise InputError("give a FILE to import or --asset ID (exactly one)")
+    return api.stem_replace(_project(a), a.track, a.file, asset=a.asset, keep_chain=not a.drop_chain,
+                            mode=a.mode, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_remove(a):
+    return api.stem_remove(_project(a), a.track, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_move(a):
+    return api.stem_move(_project(a), a.clip, a.position, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_mute(a):
+    return api.stem_mute(_project(a), a.track, a.start, a.end, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_split(a):
+    return api.stem_split(_project(a), a.clip, a.at, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_range_replace(a):
+    return api.stem_range_replace(_project(a), a.track, a.start, a.end, a.asset, source_start=a.source_start,
+                                  reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_role(a):
+    return api.stem_role(_project(a), a.track, a.role, is_lead=a.lead, reason=a.reason or "", actor=a.actor)
+
+
+def cmd_stem_export(a):
+    return api.stem_export(_project(a), a.track, processed=not a.raw, out_dir=a.out_dir, subtype=a.subtype,
+                           variant=a.variant)
+
+
+# -- one-shot pipeline (SPEC 7.1, 10.2) --
+
+def cmd_run(a):
+    variants = None
+    if a.variants:
+        try:
+            variants = json.loads(_read_arg_or_file(a.variants))
+        except ValueError:
+            raise InputError("--variants must be a JSON list of {objective, profile, delivery}, "
+                             "'@file' or '-'") from None
+    # the planner performs the run unless another actor is named explicitly
+    actor = a.actor if a.actor != "human" else "planner"
+    profiles = a.profile or ["streaming_universal"]
+    return api.run(a.sources, objective=a.objective, profile=profiles[0] if len(profiles) == 1 else profiles,
+                   delivery=a.delivery, variants=variants, out=a.out, project=a.project, genre=a.genre,
+                   title=a.title, separate=a.separate, mode=a.mode, variant_mix=a.variant_mix,
+                   mix_max_iter=a.mix_max_iter, master_max_iter=a.max_iter, excerpt=not a.full_length,
+                   actor=actor)
 
 
 def cmd_report(a):
@@ -467,9 +560,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("propose", cmd_plan_propose,
              "propose a stage plan refined by the planner (saved under cache/proposals/)", gsub)
-    sp.add_argument("--stage", choices=("master", "mix", "clean"), default="master")
+    sp.add_argument("--stage", choices=("master", "mix", "clean", "cleanup"), default="master")
     plan_opts(sp)
-    sp.add_argument("--max-iter", dest="max_iter", type=int, help="planner iteration cap (default 6)")
+    sp.add_argument("--max-iter", dest="max_iter", type=int,
+                    help="planner iteration cap (default: master 6, mix 4)")
+    sp.add_argument("--target", action="append",
+                    help="clean stage: asset id, track id or 'fullmix' (repeatable; default: every stem)")
+    sp.add_argument("--overrides", help="clean stage: step overrides as JSON inline, '@file' or '-'")
     sp = add("apply", cmd_plan_apply, "approve and apply a proposal", gsub)
     sp.add_argument("proposal", help="proposal id, JSON inline, '@file' or '-'")
     sp.add_argument("--edits", help="parameter edits applied first: {\"<processor id>\": {\"<param>\": value}} "
@@ -588,6 +685,108 @@ def build_parser() -> argparse.ArgumentParser:
                     help="preview excerpt length in seconds (default 30)")
     sp.add_argument("--records", action="store_true", help="list the project's separation records instead")
 
+    grp = add("clean", None, "cleanup stage (SPEC 6.4): plan, apply, delta")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    sp = add("plan", cmd_clean_plan, "propose a cleanup plan per stem (or the 2-mix on the full-mix route)", gsub)
+    sp.add_argument("--target", action="append",
+                    help="asset id, track id or 'fullmix' (repeatable; default: every stem)")
+    sp.add_argument("--overrides", help="step overrides, e.g. '{\"spectral_reduction\": \"light\"}', "
+                                        "inline, '@file' or '-'")
+    sp.add_argument("--apply", action="store_true", help="apply the proposal right away")
+    sp = add("apply", cmd_clean_apply, "approve and apply a cleanup proposal", gsub)
+    sp.add_argument("proposal", help="proposal id, JSON inline, '@file' or '-'")
+    sp = add("delta", cmd_clean_delta, "write the removed component of an applied cleanup (for listening)", gsub)
+    sp.add_argument("asset", help="asset id, track id or 'fullmix'")
+
+    grp = add("mix", None, "mix stage (SPEC 6.5): plan, apply")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    sp = add("plan", cmd_mix_plan, "propose a mix in the fixed order (balance .. mix bus), measured per step", gsub)
+    sp.add_argument("--variant", help="plan a variant's mix (stored as its track overrides)")
+    sp.add_argument("--objective", help="objective for this plan, e.g. vocal_forward:0.7 (default: the project's)")
+    sp.add_argument("--max-iter", dest="max_iter", type=int, default=4, help="iteration cap (default 4)")
+    sp.add_argument("--full-length", dest="full_length", action="store_true",
+                    help="evaluate on the full length instead of representative excerpts")
+    sp.add_argument("--apply", action="store_true", help="apply the proposal right away")
+    sp = add("apply", cmd_mix_apply, "approve and apply a mix proposal", gsub)
+    sp.add_argument("proposal", help="proposal id, JSON inline, '@file' or '-'")
+    sp.add_argument("--edits", help="parameter edits applied first: {\"<processor id>\": {\"<param>\": value}} "
+                                    "inline, '@file' or '-'")
+
+    grp = add("stem", None, "remix operations on stems (SPEC 9.3); times in samples or seconds ('1.5s')")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+
+    def reason(sp):
+        sp.add_argument("--reason", help="why (recorded in the journal)")
+        return sp
+
+    add("list", cmd_stem_list, "list tracks, clips, unused assets and R-22 notes", gsub)
+    sp = reason(add("add", cmd_stem_add, "import a file as a new stem track (checks + tempo/key report)", gsub))
+    sp.add_argument("file")
+    sp.add_argument("--role", help="role, e.g. guitar (default: estimated from the file name)")
+    sp.add_argument("--mode", choices=("copy", "link"), default="copy")
+    sp = reason(add("replace", cmd_stem_replace, "point a track at another file or asset", gsub))
+    sp.add_argument("track")
+    sp.add_argument("file", nargs="?", help="audio file to import")
+    sp.add_argument("--asset", help="use an existing asset id instead of a file")
+    sp.add_argument("--drop-chain", dest="drop_chain", action="store_true",
+                    help="clear the track chain (default: keep it)")
+    sp.add_argument("--mode", choices=("copy", "link"), default="copy")
+    sp = reason(add("remove", cmd_stem_remove, "remove a track (its assets stay, flagged unused)", gsub))
+    sp.add_argument("track")
+    sp = reason(add("move", cmd_stem_move, "move a clip on the timeline", gsub))
+    sp.add_argument("clip")
+    sp.add_argument("position", help="new timeline start (samples or '1.5s')")
+    sp = reason(add("mute", cmd_stem_mute, "mute a range of a track", gsub))
+    sp.add_argument("track")
+    sp.add_argument("start")
+    sp.add_argument("end")
+    sp = reason(add("split", cmd_stem_split, "split a clip at a timeline position", gsub))
+    sp.add_argument("clip")
+    sp.add_argument("at")
+    sp = reason(add("range-replace", cmd_stem_range_replace,
+                    "mute a range of a track and place a clip of another asset there", gsub))
+    sp.add_argument("track")
+    sp.add_argument("start")
+    sp.add_argument("end")
+    sp.add_argument("asset", help="asset id to place")
+    sp.add_argument("--source-start", dest="source_start", default="0", help="offset in the asset (default 0)")
+    sp = reason(add("role", cmd_stem_role, "change a track's role and lead flag", gsub))
+    sp.add_argument("track")
+    sp.add_argument("role")
+    sp.add_argument("--lead", dest="lead", action="store_true", default=None, help="make it the single lead")
+    sp.add_argument("--no-lead", dest="lead", action="store_false", help="stop it being the lead")
+    sp = add("export", cmd_stem_export, "write processed (or raw) stems as WAV files plus a manifest", gsub)
+    sp.add_argument("--track", action="append", help="track id (repeatable; default: every stem track)")
+    sp.add_argument("--raw", action="store_true", help="edited clip layout only (no chain, fader or pan)")
+    sp.add_argument("--out-dir", dest="out_dir", default="renders/stems", help="project-relative folder")
+    sp.add_argument("--subtype", choices=("FLOAT", "PCM_24", "PCM_16"), default="FLOAT")
+    sp.add_argument("--variant", help="render with a variant's track overrides")
+
+    sp = add("run", cmd_run, "one-shot pipeline with the planner: import, analyze, clean, mix, master, render, "
+                             "verify, report; deliverables to --out (exit 1 if a gate or verification fails)")
+    sp.add_argument("sources", nargs="+", help="stem folder, files or a single 2-mix")
+    sp.add_argument("--objective", default="comfort",
+                    help="'comfort', 'bass_heavy:0.7' or a blend 'comfort:0.6+bass_heavy:0.4' (default comfort)")
+    sp.add_argument("--profile", action="append", help="media profile (repeatable; default streaming_universal)")
+    sp.add_argument("--delivery", action="append",
+                    help="delivery format for every profile (repeatable; default: the profile's)")
+    sp.add_argument("--variants", help="JSON list of {objective, profile, delivery} instead of the options "
+                                       "above, inline, '@file' or '-'")
+    sp.add_argument("--out", help="folder for the deliverables (masters, manifests, reports, run_summary.json)")
+    sp.add_argument("--genre", help="genre id for priors (e.g. jpop)")
+    sp.add_argument("--title", help="song title for a new project (default: the source name)")
+    sp.add_argument("--separate", action="store_true", help="separate a 2-mix into stems first (registered model)")
+    sp.add_argument("--mode", choices=("copy", "link"), default="copy", help="import mode (default copy)")
+    sp.add_argument("--variant-mix", dest="variant_mix", action="store_true",
+                    help="plan a separate mix for every variant whose objective differs from the first")
+    sp.add_argument("--mix-max-iter", dest="mix_max_iter", type=int, default=4, help="mix iteration cap (default 4)")
+    sp.add_argument("--max-iter", dest="max_iter", type=int, default=6, help="master iteration cap (default 6)")
+    sp.add_argument("--full-length", dest="full_length", action="store_true",
+                    help="evaluate mix candidates on the full length instead of excerpts")
+
     sp = add("report", cmd_report, "build the Mix Report (JSON + Markdown, ja/en)")
     sp.add_argument("variant", nargs="?")
     sp.add_argument("--lang", choices=("ja", "en", "both"), default="both")
@@ -660,7 +859,7 @@ def main(argv: list[str] | None = None) -> int:
         _emit(result, fmt, command)
         if command == "doctor" and result.get("status") == "error":
             return EXIT_ENV_ERROR
-        if command in ("verify", "gate") and isinstance(result, dict) and result.get("exit_code"):
+        if command in ("verify", "gate", "run") and isinstance(result, dict) and result.get("exit_code"):
             return int(result["exit_code"])
         return EXIT_OK
     except MankoError as e:

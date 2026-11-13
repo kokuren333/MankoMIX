@@ -84,7 +84,19 @@ python -m mankomix.mcp --root <作業フォルダ>
 
 `plan_propose` / `plan_run` で作った提案には `author: "agent"` が記録され、GUI では承認待ちのエージェント提案として表示される（D-035）。
 
-後続マイルストーンのツール（`clean_*` / `mix_*`、`render_spectrogram`、`stems_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。`render_preview` / `export_run` / `verify_run` / `report_get` / `master_plan` / `master_apply` は `render` / `export` / `verify` / `report` / `master_plan` / `master_apply` を包む。
+段の処理、リミックス操作、一括実行:
+
+| ツール | コア API | CLI | 内容 |
+|---|---|---|---|
+| `clean_plan` / `clean_apply` / `clean_delta` | `clean_plan` / `clean_apply` / `clean_delta` | `clean plan` / `apply` / `delta` | 整音の計画（`targets`、`overrides`、`apply`）、承認して適用、除去分の書き出し（ジョブ可） |
+| `mix_plan` / `mix_apply` | `mix_plan` / `mix_apply` | `mix plan` / `apply` | ミックス段の計画（固定順、段ごとの測定、`variant` でバリアントの差分）と適用（`edits` 可。ジョブ可） |
+| `plan_propose` / `plan_apply` | 同名 | `plan propose --stage` / `plan apply` | `stage: "clean" \| "mix" \| "master"` で段ごとの提案と適用（§10.3） |
+| `stems_list` / `stems_add` / `stems_replace` / `stems_remove` | `stem_list` / `stem_add` / `stem_replace` / `stem_remove` | `stem list` / `add` / `replace` / `remove` | リミックス操作（§9.3）。`stems_replace` は `source`（作業フォルダ内のファイル）か `asset`（既存の素材 id） |
+| `stems_edit` | `stem_edit` | `stem split` / `mute` / `move` / `role` / `range-replace` / `remove` | `op` で分割・区間の無効化・再配置・役割・区間の差し替え・削除。時間はサンプル数か `1.5s` |
+| `stems_export` | `stem_export` | `stem export` | ステムの書き出し（`out_dir` はプロジェクト相対。ジョブ可） |
+| `pipeline_run` | `run` | `run` | 一括実行（取り込みから検証と Mix Report まで、プランナーだけ）。段ごとの状態とゲート、検証結果、納品物を返す。`exit_code` 1 は段ゲートか検証の不合格。`project` を省くと `out` の隣の `<名前>.mmx`（作業フォルダ内）。ジョブ可 |
+
+`render_spectrogram` は表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。`render_preview` / `export_run` / `verify_run` / `report_get` / `master_plan` / `master_apply` は `render` / `export` / `verify` / `report` / `master_plan` / `master_apply` を包む。
 
 `project_get` と `knowledge_lookup` もコア API（`api.project_get`、`api.knowledge_lookup`、実体は `core/knowledge.py`）を包む。判断規則の索引（R-01〜R-33）は `knowledge/rules.json` のデータで、`knowledge_lookup` の `kind: "rule"` として引ける。
 

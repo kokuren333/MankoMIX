@@ -289,6 +289,50 @@ def _sum_gate(r: dict) -> dict:
         "corrective_suggestions": r.get("corrective_suggestions") or [], "notes": r.get("notes") or []}
 
 
+def _sum_clean_apply(r: dict) -> dict:
+    return {k: r.get(k) for k in ("applied", "stage", "proposal_id", "s07_pass", "noise_baseline_path")} | {
+        "assets": [{"asset": a.get("asset"), "kind": a.get("kind"), "skipped": a.get("skipped"),
+                    "plan_hash": (a.get("plan_hash") or "")[:12] or None,
+                    "s07_pass": (a.get("s07") or {}).get("pass"), "delta": (a.get("files") or {}).get("delta")}
+                   for a in r.get("assets") or [] if isinstance(a, dict)],
+        "hint": "clean_delta for the removed component of an asset; detail='full' for the records"}
+
+
+def _sum_mix_apply(r: dict) -> dict:
+    return {k: r.get(k) for k in ("applied", "stage", "proposal_id", "variant", "tracks_changed", "buses_added",
+                                  "evaluation_stored", "decisions_stored", "score", "gate", "route", "edited",
+                                  "note") if k in r}
+
+
+def _sum_stems(r: dict) -> dict:
+    return {"sample_rate": r.get("sample_rate"), "timeline_length": r.get("timeline_length"), "lead": r.get("lead"),
+            "tracks": [{k: t.get(k) for k in ("id", "role", "is_lead", "stem", "muted", "gain_db", "chain_length",
+                                              "assets")} | {"clips": [{k: c.get(k) for k in
+                                                                       ("id", "asset", "timeline_start", "length",
+                                                                        "muted")}
+                                                                      for c in t.get("clips") or []]}
+                       for t in r.get("tracks") or [] if isinstance(t, dict)],
+            "unused_assets": r.get("unused_assets"), "notes": r.get("notes")}
+
+
+def _sum_run(r: dict) -> dict:
+    """One-shot pipeline: per-stage status and gate, verification per variant, deliverables."""
+    results = r.get("results") or {}
+    return {k: r.get(k) for k in ("status", "exit_code", "project", "created", "objective", "route", "stopped_at",
+                                  "reason", "error", "summary_file")} | {
+        "variants": r.get("variants"),
+        "stages": [{k: v for k, v in (("stage", s.get("stage")), ("status", s.get("status")),
+                                      ("variant", s.get("variant")), ("gate", (s.get("gate") or {}).get("status")))
+                    if v is not None} for s in r.get("stages") or [] if isinstance(s, dict)],
+        "verify": {vid: (res.get("verify") or {}).get("overall") for vid, res in results.items()
+                   if isinstance(res, dict)},
+        "unresolved": [{k: u.get(k) for k in ("stage", "variant", "code", "failed") if u.get(k) is not None}
+                       for u in r.get("unresolved") or [] if isinstance(u, dict)],
+        "deliverables": (r.get("deliverables") or {}).get("files"),
+        "hint": "detail='full' for every stage record; report_get for the Mix Report",
+    }
+
+
 # ---------------------------------------------------------------------------
 # declarative table
 # ---------------------------------------------------------------------------
@@ -307,12 +351,28 @@ class ToolSpec:
     summary: Callable[[dict], dict] | None = None
     fallback: Callable[..., dict] | None = None  # used when the API lacks every candidate
     derive: Callable[[dict], None] | None = None  # fill derived defaults into the api kwargs
+    derive_ws: Callable[[dict, Any], None] | None = None  # same, with the workspace (path defaults)
 
 
 def _derive_title(kw: dict) -> None:
     # Same default as `mankomix init`: the folder name without a .mmx suffix.
     if not kw.get("title"):
         kw["title"] = Path(kw["path"]).name.removesuffix(".mmx") or "Untitled"
+
+
+def _derive_run_project(kw: dict, ws: Any) -> None:
+    # Same default as `mankomix run` ('<name>.mmx' next to out), kept inside the workspace.
+    if kw.get("project"):
+        return
+    from mankomix.core.pipeline import default_project_path
+    sources = kw.get("sources") or []
+    if not sources:
+        return
+    cand = default_project_path(sources, kw.get("out"))
+    try:
+        kw["project"] = str(ws.resolve(str(cand), what="project"))
+    except InputError:
+        kw["project"] = str(ws.root / cand.name)
 
 
 _P = {"project": {"type": "string", "description": "project folder, relative to the workspace (default '.')"}}
@@ -384,17 +444,22 @@ SPECS: list[ToolSpec] = [
     ToolSpec("reference_list", ("reference_list",), "List registered references and the target source."),
     ToolSpec("reference_remove", ("reference_remove",), "Remove a reference and its stored vector."),
     # stage plans (R-31): propose -> approve and apply / reject and request an alternative
-    ToolSpec("plan_propose", ("plan_propose",), "Propose a stage plan (master): the deterministic planner "
-             "refines the chain against the objective on level-matched previews. Returns the proposal id, chain, "
-             "per-metric breakdown, constraints and the translation gate; nothing is applied.",
+    ToolSpec("plan_propose", ("plan_propose",), "Propose a stage plan: stage 'clean' (cleanup per stem or "
+             "the 2-mix), 'mix' (fixed-order mix plan measured per step) or 'master' (planner loop on the chain). "
+             "Returns the proposal id and a summary (steps, score breakdown, constraints, translation gate); "
+             "nothing is applied.",
              long=True, mutates=True, summary=_sum_plan,
-             schema={"stage": {"enum": ["master", "mix", "clean"]},
+             schema={"stage": {"enum": ["master", "mix", "clean", "cleanup"]},
                      "objective": {"description": "objective for this plan (spec object or 'comfort:0.6+bass_heavy:0.4'); "
                                                   "default: the project's"},
-                     "max_iter": {"description": "planner iteration cap (default 6)"}}),
-    ToolSpec("plan_apply", ("plan_apply",), "Approve and apply a proposal (by proposal_id); the variant stores "
-             "the chain, the objective evaluation and the decisions. Optional edits change processor "
-             "parameters first.",
+                     "max_iter": {"description": "planner iteration cap (default: master 6, mix 4)"},
+                     "targets": {"description": "clean stage: asset ids, track ids or 'fullmix' (default: every stem)"},
+                     "overrides": {"description": "clean stage: step overrides, e.g. {\"spectral_reduction\": "
+                                                  "\"light\"}, for every target or keyed by asset / track id"}}),
+    ToolSpec("plan_apply", ("plan_apply",), "Approve and apply a proposal of any stage (by proposal_id): "
+             "cleanup writes cleaned audio and records; mix writes track / bus processing and the decision record; "
+             "master stores the chain, the objective evaluation and the decisions. Optional edits change "
+             "processor parameters first (mix, master).",
              rename={"proposal_or_id": "proposal"},
              schema={"proposal": {"description": "proposal_id from plan_propose (or the proposal object)"},
                      "edits": {"type": ["object", "null"],
@@ -435,13 +500,36 @@ SPECS: list[ToolSpec] = [
                      "kind": {"description": "rule, term, band, genre, section, table, ..."},
                      "source": {"description": "knowledge file name without .json, e.g. rules"}},
              summary=_keep),
-    # later milestones: appear automatically once the API function exists
-    ToolSpec("stems_list", ("stems_list", "stem_list"), "List stems (remix view)."),
-    ToolSpec("stems_add", ("stems_add", "stem_add"), "Add a stem."),
-    ToolSpec("stems_replace", ("stems_replace", "stem_replace"), "Replace a stem's audio."),
-    ToolSpec("stems_edit", ("stems_edit", "stem_edit"), "Edit stems: remove, move, mute, role."),
-    ToolSpec("stems_remove", ("stems_remove", "stem_remove"), "Remove a stem."),
-    ToolSpec("stems_export", ("stems_export", "stem_export"), "Export stems.", long=True),
+    # remix operations (SPEC 9.3); times in samples at the project rate or seconds as "1.5s"
+    ToolSpec("stems_list", ("stems_list", "stem_list"), "List stem tracks (role, lead, level, pan, routing, "
+             "clips), unused assets and R-22 notes.", summary=_sum_stems),
+    ToolSpec("stems_add", ("stems_add", "stem_add"), "Import an audio file as a new stem track (import checks, "
+             "tempo / key consistency report; no time-stretch or pitch-shift, D-048).", mutates=True,
+             schema={"source": {"description": "audio file, relative to the workspace"},
+                     "role": {"description": "role (default: estimated from the file name)"},
+                     "mode": {"enum": ["copy", "link"]}}),
+    ToolSpec("stems_replace", ("stems_replace", "stem_replace"), "Point a track's clips at another audio file "
+             "(source, imported) or an existing asset (asset); the chain is kept unless keep_chain=false.",
+             mutates=True,
+             schema={"source": {"description": "audio file to import, relative to the workspace"},
+                     "asset": {"description": "existing asset id (instead of source)"},
+                     "mode": {"enum": ["copy", "link"]}}),
+    ToolSpec("stems_edit", ("stems_edit", "stem_edit"), "One remix edit selected by op: split (clip, at), mute "
+             "(track, start, end), move (clip, timeline_start), role (track, role, is_lead), range_replace (track, "
+             "start, end, asset, source_start), remove (track). Times in samples or seconds ('1.5s'). Journaled; "
+             "undo with history_undo.", mutates=True,
+             schema={"op": {"enum": ["split", "mute", "move", "role", "range_replace", "remove"]},
+                     "start": {"description": "range start (samples or '1.5s')"},
+                     "end": {"description": "range end, exclusive (samples or '1.5s')"},
+                     "at": {"description": "split position on the timeline (samples or '1.5s')"},
+                     "timeline_start": {"description": "new clip position (samples or '1.5s')"}}),
+    ToolSpec("stems_remove", ("stems_remove", "stem_remove"), "Remove a track (its assets stay, flagged unused).",
+             mutates=True),
+    ToolSpec("stems_export", ("stems_export", "stem_export"), "Write one WAV per stem track (processed as it "
+             "sits in the mix, or the raw clip layout) plus manifest.json under out_dir (project-relative).",
+             long=True, mutates=True, kinds={"out_dir": "plain"},
+             schema={"out_dir": {"description": "project-relative folder (default renders/stems)"},
+                     "subtype": {"enum": ["FLOAT", "PCM_24", "PCM_16"]}}),
     ToolSpec("separate_run", ("separate_run", "separate"), "Separate a project asset (default: the full mix) "
              "into stems with a registered model. mode 'preview' = loudest excerpt, assets only; 'full' = whole "
              "file plus tracks restricted to balance operations (R-22). Never downloads weights.",
@@ -465,11 +553,33 @@ SPECS: list[ToolSpec] = [
     ToolSpec("model_verify", ("model_verify",), "Re-hash a model's local weight files against the pinned sha256."),
     ToolSpec("model_remove", ("model_remove",), "Delete downloaded weights (official) or forget a BYOW "
              "registration (the file itself is kept).", mutates=True),
-    ToolSpec("clean_plan", ("clean_plan",), "Propose a cleanup plan."),
-    ToolSpec("clean_apply", ("clean_apply",), "Apply a cleanup plan."),
-    ToolSpec("clean_delta", ("clean_delta",), "Write the removed (delta) audio of the cleanup.", long=True),
-    ToolSpec("mix_plan", ("mix_plan",), "Propose a mix plan."),
-    ToolSpec("mix_apply", ("mix_apply",), "Apply a mix plan."),
+    # cleanup and mix stages (SPEC 6.4, 6.5); plan_propose / plan_apply with a stage do the same
+    ToolSpec("clean_plan", ("clean_plan",), "Propose the cleanup stage: diagnose each stem (or the 2-mix on the "
+             "full-mix route) and plan the steps; assets where nothing is detected are listed as skipped. "
+             "apply=true also applies it.", long=True, mutates=True, summary=_sum_plan,
+             schema={"targets": {"description": "asset ids, track ids or 'fullmix' (default: every stem)"},
+                     "overrides": {"description": "step overrides, e.g. {\"spectral_reduction\": \"light\"}, for "
+                                                  "every target or keyed by asset / track id"}}),
+    ToolSpec("clean_apply", ("clean_apply",), "Approve and apply a cleanup proposal (by proposal_id): cleaned "
+             "audio, delta, records and noise baselines.", long=True, summary=_sum_clean_apply,
+             rename={"proposal_or_id": "proposal"},
+             schema={"proposal": {"description": "proposal_id from clean_plan (or the proposal object)"}}),
+    ToolSpec("clean_delta", ("clean_delta",), "Write the removed component of an applied cleanup (input minus "
+             "output) for listening; returns its project-relative path.", long=True,
+             schema={"asset_id": {"description": "asset id, track id or 'fullmix'"}}),
+    ToolSpec("mix_plan", ("mix_plan",), "Propose the mix stage in the fixed order (static balance, arrangement "
+             "suggestions, subtractive EQ, dynamics, additive EQ, space, mix bus), measured after every step on "
+             "level-matched previews. variant= plans a variant's mix (its track overrides). apply=true also "
+             "applies it.", long=True, mutates=True, summary=_sum_plan,
+             schema={"objective": {"description": "objective for this plan (spec object or 'vocal_forward:0.7'); "
+                                                  "default: the project's"},
+                     "excerpt": {"description": "evaluate on representative excerpts (false: full length)"}}),
+    ToolSpec("mix_apply", ("mix_apply",), "Approve and apply a mix proposal (by proposal_id); optional edits "
+             "change processor parameters first.", summary=_sum_mix_apply,
+             rename={"proposal_or_id": "proposal"},
+             schema={"proposal": {"description": "proposal_id from mix_plan (or the proposal object)"},
+                     "edits": {"type": ["object", "null"],
+                               "description": "{\"<processor id>\": {\"<param>\": value}} applied before approval"}}),
     ToolSpec("master_plan", ("master_plan",), "Propose a mastering plan."),
     ToolSpec("master_apply", ("master_apply",), "Apply a mastering plan."),
     ToolSpec("render_preview", ("render_preview", "render"), "Render a preview (sections or full length).",
@@ -478,8 +588,19 @@ SPECS: list[ToolSpec] = [
     ToolSpec("export_run", ("export_run", "export"), "Render the final export for each output.", long=True),
     ToolSpec("verify_run", ("verify_run", "verify"), "Run verification of the rendered outputs."),
     ToolSpec("report_get", ("report_get", "report"), "Get the Mix Report."),
-    ToolSpec("pipeline_run", ("run_pipeline", "run"), "One-shot pipeline with the planner (import to report).",
-             long=True),
+    ToolSpec("pipeline_run", ("run_pipeline", "run"), "One-shot pipeline with the planner only: import as-is, "
+             "analyze, clean, mix (stems) or full-mix route (2-mix), master per variant, render, verify, Mix Report; "
+             "deliverables (masters, manifests, reports, run_summary.json) to out. Returns per-stage status and "
+             "gates; exit_code 1 when a gate or verification failed.",
+             long=True, mutates=True, kinds={"project": "path"}, derive_ws=_derive_run_project, summary=_sum_run,
+             schema={"sources": {"description": "stem folder, files or a single 2-mix, relative to the workspace"},
+                     "objective": {"description": "'comfort', 'bass_heavy:0.7' or 'comfort:0.6+bass_heavy:0.4'"},
+                     "profile": {"description": "media profile id, or a list (every profile gets every delivery)"},
+                     "delivery": {"description": "delivery format id or a list (default: the profile's)"},
+                     "variants": {"description": "[{objective, profile, delivery}] instead of objective / profile "
+                                                 "/ delivery"},
+                     "out": {"description": "folder for the deliverables, relative to the workspace"},
+                     "project": {"description": "project folder (default: '<name>.mmx' next to out)"}}),
 ]
 
 
@@ -616,6 +737,8 @@ class Tool:
                 kw[p.api] = v
         if self.spec.derive is not None:
             self.spec.derive(kw)
+        if self.spec.derive_ws is not None:
+            self.spec.derive_ws(kw, ws)
         return kw, key
 
 

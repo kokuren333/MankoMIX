@@ -71,12 +71,25 @@ Conventions
 
 Determinism: identical project data, assets, engine version and seed give
 identical output (no randomness except what the engine derives from ``seed``).
+
+Per-track render cache (performance only): the pre-fader signal of a track
+(clips -> conform -> chain) over a processing window is kept in a
+process-local LRU keyed by everything it depends on (asset sha256 + file
+stat, applied cleanup plan hash, clip layout, canonical engine chain, project
+rate, timeline length, window, seed, engine version). Mix-plan iterations that
+change one track re-render only that track. A cache hit replays the render
+record side effects (conform entries, backends, warnings, cleanup facts), so
+outputs and records are identical with and without the cache.
+``MANKOMIX_RENDER_CACHE_MB`` sets the budget (default 512; 0 disables).
 """
 
 from __future__ import annotations
 
 import copy
 import math
+import os
+import threading
+from collections import OrderedDict
 from fractions import Fraction
 from typing import Any
 
@@ -407,12 +420,16 @@ class _Ctx:
         self.backends: dict[str, Any] = {}
         self.used_assets: list[str] = []
         self.cleaned: dict[str, set[str]] = {}  # asset id -> plan hashes of the cleaned audio used
+        self.meta: dict[str, tuple[int, int]] = {}  # audio key -> (file rate, frames at the project rate)
+        self.registered: set[str] = set()
+        self.touches: list[tuple] | None = None  # asset uses recorded for the track cache
 
     def asset_audio(self, aid: str, cleanup: dict | None = None) -> np.ndarray:
         """Audio of an asset at the project rate; ``cleanup`` (an applied cleanup entry)
         selects the cleaned cache instead of the raw asset (regenerated if missing)."""
         key = aid if cleanup is None else f"{aid}#clean:{cleanup.get('plan_hash')}"
         if key in self.audio:
+            self._touch(aid, cleanup, key)
             return self.audio[key]
         asset = self.assets.get(aid)
         if asset is None:
@@ -420,30 +437,47 @@ class _Ctx:
         if cleanup is not None:
             from .cleanstage import asset_audio_path
             path = asset_audio_path(self.project, aid, cleanup)
-            self.cleaned.setdefault(aid, set()).add(str(cleanup.get("plan_hash")))
         else:
             path = self.project.asset_path(aid)
         x, sr = audio_io.read(path)
         if x.shape[1] > 2:
             raise InputError(f"asset '{aid}' has {x.shape[1]} channels; v1 renders mono or stereo stems only")
         if sr != self.pr:
-            f = Fraction(self.pr, sr)
             x = resample(x, sr, self.pr)
+        x = np.ascontiguousarray(x, dtype=np.float64)
+        x.setflags(write=False)
+        self.audio[key] = x
+        self.meta[key] = (int(sr), int(x.shape[0]))
+        self._touch(aid, cleanup, key)
+        return x
+
+    def _touch(self, aid: str, cleanup: dict | None, key: str) -> None:
+        sr, frames = self.meta[key]
+        if self.touches is not None:
+            self.touches.append((aid, None if cleanup is None else copy.deepcopy(cleanup), sr, frames))
+        self.register_asset(aid, cleanup, sr, frames)
+
+    def register_asset(self, aid: str, cleanup: dict | None, sr: int, frames: int) -> None:
+        """Record facts of an asset use (cleanup, conform, used assets) once per audio key."""
+        key = aid if cleanup is None else f"{aid}#clean:{cleanup.get('plan_hash')}"
+        if key in self.registered:
+            return
+        self.registered.add(key)
+        if cleanup is not None:
+            self.cleaned.setdefault(aid, set()).add(str(cleanup.get("plan_hash")))
+        if sr != self.pr:
+            f = Fraction(self.pr, sr)
             self.applied.append({"asset": aid, "from_rate": int(sr), "to_rate": self.pr,
                                  "action": "resample_at_render", "backend": RESAMPLER,
                                  "up": f.numerator, "down": f.denominator})
             self.backends.setdefault("resample", _resampler_version())
-        x = np.ascontiguousarray(x, dtype=np.float64)
-        x.setflags(write=False)
-        self.audio[key] = x
         if aid not in self.used_assets:
             self.used_assets.append(aid)
-        if x.shape[0] < self.total and aid not in self.pads:
+        if frames < self.total and aid not in self.pads:
             self.pads.add(aid)
             self.applied.append({"asset": aid, "from_rate": int(sr), "to_rate": self.pr,
-                                 "action": "pad_silence_at_render", "asset_length": int(x.shape[0]),
+                                 "action": "pad_silence_at_render", "asset_length": int(frames),
                                  "project_length": int(self.total)})
-        return x
 
     def cleanup_record(self) -> dict:
         """Which assets entered the render cleaned (SPEC 6.4, 9.6)."""
@@ -469,6 +503,9 @@ class _Ctx:
                                            "step": getattr(exc, "step", None)}) from None
         self.backends.update(res.backends)
         self.warnings.extend(w for w in res.warnings if not w.startswith("S-09: DC"))
+        if self.touches is not None:
+            self.touches.append(("__chain__", dict(res.backends),
+                                 [w for w in res.warnings if not w.startswith("S-09: DC")]))
         y = np.asarray(res.audio, dtype=np.float64)
         if y.shape[1] == 1:
             y = np.concatenate([y, y], axis=1)
@@ -566,6 +603,119 @@ def _track_source(ctx: _Ctx, track: dict, w0: int, w1: int) -> tuple[np.ndarray,
     return buf, (1 if channels == {1} else 2), used
 
 
+# --------------------------------------------------------------------------
+# per-track render cache (performance only; see the module docstring)
+
+
+_CACHE_LOCK = threading.Lock()
+_TRACK_CACHE: "OrderedDict[str, dict]" = OrderedDict()
+_CACHE_STATS = {"hits": 0, "misses": 0, "bytes": 0}
+DEFAULT_CACHE_MB = 512
+
+
+def _cache_budget() -> int:
+    try:
+        mb = float(os.environ.get("MANKOMIX_RENDER_CACHE_MB", DEFAULT_CACHE_MB))
+    except ValueError:
+        mb = DEFAULT_CACHE_MB
+    return max(0, int(mb * 1024 * 1024))
+
+
+def clear_track_cache() -> None:
+    with _CACHE_LOCK:
+        _TRACK_CACHE.clear()
+        _CACHE_STATS.update(hits=0, misses=0, bytes=0)
+
+
+def track_cache_info() -> dict:
+    with _CACHE_LOCK:
+        return {"entries": len(_TRACK_CACHE), "budget_bytes": _cache_budget(), **_CACHE_STATS}
+
+
+def _file_stamp(path) -> list:
+    try:
+        st = os.stat(path)
+        return [os.path.normcase(os.path.abspath(path)), st.st_size, st.st_mtime_ns]
+    except OSError:
+        return [str(path), None, None]
+
+
+def _track_key(ctx: _Ctx, track: dict, w0: int, w1: int, chain: list[dict] | None) -> str | None:
+    """Everything the pre-fader signal of ``track`` on [w0, w1) depends on (None: do not cache)."""
+    from .cleanstage import track_cleanup_entry
+    clips = []
+    for clip in track.get("clips") or []:
+        aid = clip.get("asset")
+        asset = ctx.assets.get(aid)
+        if asset is None:
+            return None
+        ce = track_cleanup_entry(track, aid)
+        try:
+            stamp = _file_stamp(ctx.project.asset_path(aid))
+        except Exception:  # noqa: BLE001 - an unresolvable asset is reported by the real render
+            return None
+        clips.append({"clip": clip, "asset": asset, "file": stamp,
+                      "cleanup": None if ce is None else {"plan_hash": ce.get("plan_hash"),
+                                                          "asset_sha256": ce.get("asset_sha256")}})
+    try:
+        return canonical_hash({"v": 1, "engine": mankomix.ENGINE_VERSION, "pr": ctx.pr, "total": ctx.total,
+                               "window": [int(w0), int(w1)], "seed": ctx.seed, "clips": clips,
+                               "chain": engine_chain(chain),
+                               "native": os.environ.get("MANKOMIX_NATIVE_LIB")})
+    except (TypeError, ValueError):
+        return None
+
+
+def _track_pre(ctx: _Ctx, track: dict, w0: int, w1: int,
+               chain: list[dict] | None) -> tuple[np.ndarray, int, list[str], list[dict]]:
+    """Pre-fader signal of a track on [w0, w1): clips -> conform -> chain (cached)."""
+    budget = _cache_budget()
+    key = _track_key(ctx, track, w0, w1, chain) if budget > 0 else None
+    if key is not None:
+        with _CACHE_LOCK:
+            hit = _TRACK_CACHE.get(key)
+            if hit is not None:
+                _TRACK_CACHE.move_to_end(key)
+                _CACHE_STATS["hits"] += 1
+        if hit is not None:
+            for t in hit["touches"]:
+                if t[0] == "__chain__":
+                    ctx.backends.update(t[1])
+                    ctx.warnings.extend(t[2])
+                else:
+                    ctx.register_asset(*t)
+            return hit["x"].copy(), hit["src_ch"], list(hit["clips"]), copy.deepcopy(hit["steps"])
+    outer = ctx.touches
+    ctx.touches = [] if key is not None else outer
+    try:
+        x, src_ch, clips = _track_source(ctx, track, w0, w1)
+        steps: list[dict] = []
+        if chain:
+            x, steps = ctx.run_chain(x, chain, "track")
+        touches = ctx.touches
+    finally:
+        ctx.touches = outer
+    if key is not None:
+        if outer is not None:
+            outer.extend(touches)
+        stored = np.array(x, dtype=np.float64, copy=True)
+        stored.setflags(write=False)
+        size = int(stored.nbytes)
+        with _CACHE_LOCK:
+            _CACHE_STATS["misses"] += 1
+            if size <= budget:
+                old = _TRACK_CACHE.pop(key, None)
+                if old is not None:
+                    _CACHE_STATS["bytes"] -= int(old["x"].nbytes)
+                _TRACK_CACHE[key] = {"x": stored, "src_ch": src_ch, "clips": list(clips),
+                                     "steps": copy.deepcopy(steps), "touches": touches}
+                _CACHE_STATS["bytes"] += size
+                while _CACHE_STATS["bytes"] > budget and _TRACK_CACHE:
+                    _, ev = _TRACK_CACHE.popitem(last=False)
+                    _CACHE_STATS["bytes"] -= int(ev["x"].nbytes)
+    return x, src_ch, clips, steps
+
+
 def _window(ctx: _Ctx, start: int | None, length: int | None, stateful: bool,
             preroll: int | None) -> tuple[int, int, int, int]:
     """(s0, n, w0, w1): requested excerpt and the processing window around it."""
@@ -650,10 +800,7 @@ def render_track(project, track_id: str, *, sr: int | None = None, seed: int = 0
     chain = track.get("chain") if apply_chain else None
     stateful = chain_is_stateful(chain)
     s0, n, w0, w1 = _window(ctx, start, length, stateful, preroll)
-    x, src_ch, clips = _track_source(ctx, track, w0, w1)
-    steps: list[dict] = []
-    if chain:
-        x, steps = ctx.run_chain(x, chain, "track")
+    x, src_ch, clips, steps = _track_pre(ctx, track, w0, w1, chain)
     if apply_fader:
         g = _db_to_lin(track.get("gain_db", 0.0) or 0.0)
         env = _automation_env(track, w0, w1 - w0)
@@ -767,10 +914,7 @@ def render_mix(project, *, variant_id: str | None = None, sr: int | None = None,
         if not audible(t):
             track_recs.append(trec)
             continue
-        x, src_ch, clips = _track_source(ctx, t, w0, w1)
-        steps: list[dict] = []
-        if t.get("chain"):
-            x, steps = ctx.run_chain(x, t.get("chain"), "track")
+        x, src_ch, clips, steps = _track_pre(ctx, t, w0, w1, t.get("chain"))
         pre = x
         g = _db_to_lin(t.get("gain_db", 0.0) or 0.0)
         env = _automation_env(t, w0, w1 - w0)
@@ -899,5 +1043,5 @@ __all__ = [
     "render_track", "render_mix", "static_sum", "pan_stereo", "pan_gains", "pan_coefficients",
     "pan_position", "track_pan", "bus_order", "engine_chain", "chain_is_stateful", "apply_track_overrides",
     "effective_data", "stem_tracks", "is_stem_track", "find_track", "clip_length", "timeline_length",
-    "project_rate", "asset_length_at", "separated_notes", "resample",
+    "project_rate", "asset_length_at", "separated_notes", "resample", "clear_track_cache", "track_cache_info",
 ]

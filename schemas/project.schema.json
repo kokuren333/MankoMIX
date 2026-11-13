@@ -107,7 +107,8 @@
         "role": { "$ref": "#/$defs/role" },
         "role_source": { "enum": ["filename_pattern", "filename_keyword", "user", "default"] },
         "origin": { "enum": ["native_stem", "separated", "reference_fullmix", "derived", "added"] },
-        "linked": { "type": "boolean" }
+        "linked": { "type": "boolean" },
+        "unused": { "type": "boolean", "description": "No clip refers to the asset any more (kept, never deleted; SPEC 9.3)." }
       },
       "if": { "properties": { "linked": { "const": true } }, "required": ["linked"] },
       "then": { "properties": { "path": { "pattern": "^linked/[^/]+$" } } }
@@ -219,7 +220,9 @@
         "params": { "type": "object" },
         "reason": { "type": "string" },
         "backend": { "type": ["string", "null"] },
-        "enabled": { "type": "boolean" }
+        "enabled": { "type": "boolean" },
+        "owner": { "type": "string", "description": "Who added the item (e.g. mixplan); a newly applied plan of that owner replaces it." },
+        "note_values": { "type": "object", "additionalProperties": true, "description": "Time parameters as note values at the project tempo (R-11), e.g. {\"release\": {\"note\": \"1/8\", \"ms\": 250.0}}." }
       }
     },
     "chain": { "type": "array", "items": { "$ref": "#/$defs/processor" } },
@@ -237,6 +240,7 @@
         "gain_db": { "type": "number" },
         "fade_in": { "$ref": "#/$defs/samples" },
         "fade_out": { "$ref": "#/$defs/samples" },
+        "fade_curve": { "enum": ["equal_power", "linear"], "description": "Fade curve (default equal_power: quarter sine, -3 dB at the midpoint)." },
         "muted": { "type": "boolean" }
       }
     },
@@ -261,7 +265,9 @@
           "additionalProperties": true,
           "properties": {
             "position": { "type": "number", "minimum": -1, "maximum": 1 },
-            "width": { "type": "number", "minimum": 0 }
+            "width": { "type": "number", "minimum": 0 },
+            "preset": { "enum": ["L", "LC", "C", "RC", "R"], "description": "Discrete pan preset (SPEC 6.5.2), used when position is absent." },
+            "fine": { "type": "number", "minimum": -1, "maximum": 1, "description": "Offset added to the preset position (the sum is clamped to [-1, 1])." }
           }
         },
         "muted": { "type": "boolean" },
@@ -275,12 +281,43 @@
             "properties": {
               "bus": { "type": "string" },
               "level_db": { "type": "number" },
-              "pre_fader": { "type": "boolean" }
+              "pre_fader": { "type": "boolean" },
+              "owner": { "type": "string", "description": "Who added the item (e.g. mixplan); a newly applied plan of that owner replaces it." },
+              "note_values": { "type": "object", "additionalProperties": true, "description": "Time parameters as note values at the project tempo (R-11), e.g. {\"release\": {\"note\": \"1/8\", \"ms\": 250.0}}." }
             }
           }
         },
         "output": { "type": "string" },
-        "automation": { "type": "object" },
+        "automation": {
+          "description": "Time-varying parameters as breakpoint lists (SPEC 9.2; v1: gain only). Linear in dB between breakpoints, held before the first and after the last; multiplies the track fader.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "gain_db": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "array", "prefixItems": [{ "type": "integer", "minimum": 0 }, { "type": "number" }], "minItems": 2, "maxItems": 2, "description": "[timeline sample at the project rate, gain dB]" },
+                  { "type": "object", "required": ["at", "value"], "additionalProperties": true, "properties": { "at": { "type": "integer", "minimum": 0 }, "value": { "type": "number" } } }
+                ]
+              }
+            },
+            "owner": { "type": "string", "description": "Who added the item (e.g. mixplan); a newly applied plan of that owner replaces it." },
+            "reason": { "type": "string" }
+          }
+        },
+        "consistency": {
+          "description": "Tempo / key consistency of an added or replacement stem against the project (reported only, never corrected: D-048).",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "status": { "type": "string" },
+            "action": { "type": "string" },
+            "rule": { "type": "string" },
+            "tempo": { "type": "object" },
+            "key": { "type": "object" }
+          }
+        },
         "restrictions": {
           "description": "Limits on what the agent may do with this track (R-22: separated stems are for balance only).",
           "type": "object",
@@ -305,7 +342,9 @@
         "name": { "type": "string" },
         "chain": { "$ref": "#/$defs/chain" },
         "gain_db": { "type": "number" },
-        "output": { "type": "string" }
+        "output": { "type": "string" },
+        "owner": { "type": "string", "description": "Who added the item (e.g. mixplan); a newly applied plan of that owner replaces it." },
+        "note_values": { "type": "object", "additionalProperties": true, "description": "Time parameters as note values at the project tempo (R-11), e.g. {\"release\": {\"note\": \"1/8\", \"ms\": 250.0}}." }
       }
     },
 
@@ -315,7 +354,10 @@
       "additionalProperties": true,
       "properties": {
         "pan_law_center_db": { "type": "number", "maximum": 0, "minimum": -6 },
-        "declared_depth_order": { "type": "array", "items": { "type": "string" } }
+        "declared_depth_order": { "type": "array", "items": { "type": "string" } },
+        "applied": { "type": "object", "additionalProperties": true, "description": "Record of the applied mix proposal: proposal id, lead, the steps in the fixed order (SPEC 6.5.1) with the kept moves, reorderings, arrangement suggestions, route, R-22 restrictions." },
+        "decisions": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "object" } }, "description": "Decision log of the applied mix proposal by element (balance, panning, frequency, depth, dynamics, interest; SPEC 6.8 section 4)." },
+        "evaluation": { "type": "object", "additionalProperties": true, "description": "Objective evaluation of the applied mix proposal: score, guard, per-metric terms, constraints, translation gate, measurements (SPEC 4.1)." }
       }
     },
 
@@ -403,6 +445,21 @@
           }
         },
         "track_overrides": { "type": "object" },
+        "bus_overrides": {
+          "description": "Per-bus parameter diffs of a variant (SPEC 9.4): {bus id: {param: value}}.",
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        },
+        "mix": {
+          "description": "Mix-stage record of a variant plan; its track changes live in track_overrides (SPEC 9.4).",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "applied": { "type": "object", "additionalProperties": true, "description": "Record of the applied mix proposal: proposal id, lead, the steps in the fixed order (SPEC 6.5.1) with the kept moves, reorderings, arrangement suggestions, route, R-22 restrictions." },
+            "decisions": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "object" } }, "description": "Decision log of the applied mix proposal by element (balance, panning, frequency, depth, dynamics, interest; SPEC 6.8 section 4)." },
+            "evaluation": { "type": "object", "additionalProperties": true, "description": "Objective evaluation of the applied mix proposal: score, guard, per-metric terms, constraints, translation gate, measurements (SPEC 4.1)." }
+          }
+        },
         "evaluation": {
           "description": "Objective evaluation of the applied stage proposal (SPEC 4.1, 6.8 sections 5-6): score, per-metric breakdown, constraints, translation gate. Written by the apply step; the Mix Report reads it.",
           "type": "object",
