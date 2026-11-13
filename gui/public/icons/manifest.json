@@ -1,0 +1,368 @@
+{
+  "schema_version": 1,
+  "size": [
+    16,
+    16
+  ],
+  "palette": {
+    "name": "ui-icons",
+    "colors": [
+      {
+        "index": 0,
+        "name": "transparent",
+        "color": null
+      },
+      {
+        "index": 1,
+        "name": "ink",
+        "color": "#0B2A3A"
+      },
+      {
+        "index": 2,
+        "name": "trace-deep",
+        "color": "#0A86A8"
+      },
+      {
+        "index": 3,
+        "name": "trace",
+        "color": "#19C3E6"
+      },
+      {
+        "index": 4,
+        "name": "trace-soft",
+        "color": "#BFEFF9"
+      },
+      {
+        "index": 5,
+        "name": "white",
+        "color": "#FFFFFF"
+      },
+      {
+        "index": 6,
+        "name": "warn",
+        "color": "#E8A317"
+      },
+      {
+        "index": 7,
+        "name": "error",
+        "color": "#E5484D"
+      },
+      {
+        "index": 8,
+        "name": "agent",
+        "color": "#7C5CFF"
+      },
+      {
+        "index": 9,
+        "name": "ink-soft",
+        "color": "#43606E"
+      },
+      {
+        "index": 10,
+        "name": "agent-soft",
+        "color": "#D9D0FF"
+      }
+    ]
+  },
+  "theme": "Circuit White / Solder Mask (CyberSprite SPEC 14.3; MankoMIX D-067)",
+  "icons": [
+    {
+      "name": "add",
+      "file": "add.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/add.png",
+      "source_original": "assets/ui/icons/add.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "ef467e91a324ba4c02099c4c55e66844a129190fe1cd63d225119c945f7a9900"
+    },
+    {
+      "name": "agent",
+      "file": "agent.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/agent.png",
+      "source_original": "assets/ui/icons/agent.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "fed949057d30cab59433ce5f42ace9fda9a33d5324d61c35b7460219d18f2ee2"
+    },
+    {
+      "name": "chain",
+      "file": "chain.png",
+      "origin": "new",
+      "meaning": "processing chain / plan",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "d6560bdf527f7e660cf7657b386fb0c218c2aff8ad4fd7105e79e1c068daca4a"
+    },
+    {
+      "name": "download",
+      "file": "download.png",
+      "origin": "new",
+      "meaning": "download / fetch a model (arrow into a tray)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "d51303cef3f4977fc6226afcdd854397945692d975bf481649418318d5764fcc"
+    },
+    {
+      "name": "error",
+      "file": "error.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/error.png",
+      "source_original": "assets/ui/icons/error.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "37901b4ad62514027e9fa0826eedf71cf7fc0f2cd9ebdd59e6c2c08e8f57ed74"
+    },
+    {
+      "name": "export",
+      "file": "export.png",
+      "origin": "new",
+      "meaning": "export / bounce (arrow out of a tray)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "7a41137758f5fa75ddb6e0f8a740cc0c6c0da95705dfc321fa405403b81e8264"
+    },
+    {
+      "name": "first",
+      "file": "first.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/first.png",
+      "source_original": "assets/ui/icons/first.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "2b2213c94cc827ac3ce942e73092c5b2914a0eb0892e654807503d7d9b546cc5"
+    },
+    {
+      "name": "folder",
+      "file": "folder.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/folder.png",
+      "source_original": "assets/ui/icons/folder.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "0b505004ace3fb5dd80033b32697d8567e9be07fc56473b51d5a2d6455060466"
+    },
+    {
+      "name": "grid",
+      "file": "grid.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/grid.png",
+      "source_original": "assets/ui/icons/grid.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "4a8d3ff5dd53c0c1985c83d8ae94c13f24c80fc1783e537bcc77cea0c9f5ff46"
+    },
+    {
+      "name": "headphones",
+      "file": "headphones.png",
+      "origin": "new",
+      "meaning": "listening (A/B)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "535aac38f7ec00a78aa0e666df8b7e7cfd23a4b149f53cd7c3e7f57109f5a8d7"
+    },
+    {
+      "name": "human",
+      "file": "human.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/human.png",
+      "source_original": "assets/ui/icons/human.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "a8790e45fa57635eb99515917f14ebd4ec881084045caa263f5744b95bfc47fa"
+    },
+    {
+      "name": "info",
+      "file": "info.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/info.png",
+      "source_original": "assets/ui/icons/info.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "6942372c3e3c8999b31220ad12f138164d4a9f61e161ef5ab61758e3e3a5598d"
+    },
+    {
+      "name": "link",
+      "file": "link.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/link.png",
+      "source_original": "assets/ui/icons/link.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "a48a4e96d037249bfc6340312b9647a648baa512472d5871c9c902c8bdb3a2b7"
+    },
+    {
+      "name": "lock",
+      "file": "lock.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/lock.png",
+      "source_original": "assets/ui/icons/lock.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "908008fe6d1bf4483c056dc5771b2899c5f640388548b82fa406883af3a622dd"
+    },
+    {
+      "name": "meter",
+      "file": "meter.png",
+      "origin": "new",
+      "meaning": "analysis / measurement bars",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "c02340e83bcfcdfcb48a96fcdd02502a9cc1018d2512bfc78cc21cec45255442"
+    },
+    {
+      "name": "model",
+      "file": "model.png",
+      "origin": "new",
+      "meaning": "model registry (neural network nodes)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "21c2c603a6462c7b6c47fa4b1b4bdb830315aeba998ee34d11d06d967fe91849"
+    },
+    {
+      "name": "pause",
+      "file": "pause.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/pause.png",
+      "source_original": "assets/ui/icons/pause.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "accbe7651ffb94f8a3155e39e0fbe8fa9005ac0854c58a67580894e989c2bade"
+    },
+    {
+      "name": "play",
+      "file": "play.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/play.png",
+      "source_original": "assets/ui/icons/play.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "70caa17236a31a5cddbe58398244865bb5b8308fa87e8f9b9edd31f39a0f7b72"
+    },
+    {
+      "name": "remove",
+      "file": "remove.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/remove.png",
+      "source_original": "assets/ui/icons/remove.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "2f61c329aa1487456fbc39df0915882b56b81d0dc80d938a7374d609cd4895cf"
+    },
+    {
+      "name": "report",
+      "file": "report.png",
+      "origin": "new",
+      "meaning": "Mix Report (page with text lines)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "5bd89d98b5c021ba2b7e7d4c6bbfb446ef0f76c95ee33b43c853e7b956e8327c"
+    },
+    {
+      "name": "separate",
+      "file": "separate.png",
+      "origin": "new",
+      "meaning": "stem separation (one source forks into lanes)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "4f18a753d3c9e7117f3f209190ebe8bd75798e8831cbc83d079c7513f791644d"
+    },
+    {
+      "name": "settings",
+      "file": "settings.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/settings.png",
+      "source_original": "assets/ui/icons/settings.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "cd2dcf775b07e058d5117ecc2930c850e1a4da65d0b41b318a4f47f9ecf943f5"
+    },
+    {
+      "name": "sources",
+      "file": "sources.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/sources.png",
+      "source_original": "assets/ui/icons/sources.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "065a05045d5d88194ee9ab43c9f5ad7f87fbf708a80bc49f4df6f08edacf64e8"
+    },
+    {
+      "name": "stem",
+      "file": "stem.png",
+      "origin": "new",
+      "meaning": "stems / multitrack lanes",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "1cb907bb408c6669f94ee3bbfc32a67f970b53cb41a12c11a7c82f2b4dc3c539"
+    },
+    {
+      "name": "undo",
+      "file": "undo.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/undo.png",
+      "source_original": "assets/ui/icons/undo.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "461f175f448ad97f42777939e3a8d3534862fd84e821d77ac45e0453aaa5daae"
+    },
+    {
+      "name": "validate-ok",
+      "file": "validate-ok.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/validate-ok.png",
+      "source_original": "assets/ui/icons/validate-ok.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "dbcb77468806478d51e98289b49ea13c556994e5fc6a19d76fcd16425d92e804"
+    },
+    {
+      "name": "warning",
+      "file": "warning.png",
+      "origin": "reused",
+      "source_project": "CyberSprite",
+      "source_file": "gui/public/icons/warning.png",
+      "source_original": "assets/ui/icons/warning.csprite",
+      "author": "kokuren333 (same owner as MankoMIX)",
+      "license": "Apache-2.0",
+      "sha256": "147bb95050537c7dfd21b490f19a80e5a55300dea5ab56d4951500d090d2f0f1"
+    },
+    {
+      "name": "waveform",
+      "file": "waveform.png",
+      "origin": "new",
+      "meaning": "audio waveform (audio material, A/B position)",
+      "drawn_by": "tools/make_icons.py design data, written with the CyberSprite CLI (draw_rows, validate, export image)",
+      "author": "kokuren333",
+      "license": "Apache-2.0",
+      "sha256": "5b4cc1322a985c0c21d64c7c93a3b01fd1d17779e2c01989b40ba91496b2960b"
+    }
+  ]
+}

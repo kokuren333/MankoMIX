@@ -1,0 +1,230 @@
+/* MankoMIX GUI theme tokens — product family theme "Circuit White", option C "Solder Mask" (D-067).
+ *
+ * Structure (same as CyberSprite):
+ *   base tokens  --cs-*   colours of the family palette (canonical source: CyberSprite
+ *                         gui/src/theme/tokens.css, CyberSprite SPEC §14.3.1)
+ *   role tokens  --ui-*   family roles (text, panel line, pad, focus, ...) -> base tokens
+ *   role tokens  --mm-*   MankoMIX-specific roles (below) -> base / family role tokens
+ * Components and styles.css use role tokens only, never raw colours or base tokens.
+ *
+ * The block between "BEGIN verbatim" and "END verbatim" is copied unchanged from CyberSprite
+ * (same owner, Apache-2.0). Do not edit it here; update it by copying the file again.
+ * MankoMIX is light-only (the family theme has no dark variant); the high-contrast block is kept.
+ */
+
+/* ===== BEGIN verbatim: CyberSprite gui/src/theme/tokens.css ===== */
+/* CyberSprite theme "Circuit White", option C "Solder Mask" (SPEC §14.3, SELECTION.md).
+ * Every colour and metric used by the GUI is a CSS variable defined here.
+ * Base tokens (--cs-*) follow SPEC §14.3.1; role tokens (--ui-*) map roles to base tokens
+ * and are what components use. scripts/check-contrast.mjs parses this file: keep one
+ * declaration per line inside the theme blocks and plain #RRGGBB / var() values.
+ *
+ * M8 mitigations from SELECTION.md:
+ *   1. whiter, less saturated board          (--cs-board)
+ *   2. idle panel header strips are white; only the active panel is filled cyan
+ *   3. body text size setting 12 / 13 / 14 px (default 13, html[data-text])
+ *   4. reduced motion stops every animation  (html[data-motion=reduce] + OS setting)
+ */
+
+/* @theme normal */
+:root {
+  --cs-board: #EEF6F8;
+  --cs-panel: #FFFFFF;
+  --cs-pad: #EAF6F9;
+  --cs-pad-shade: #B9DDE6;
+  --cs-trace: #19C3E6;
+  --cs-trace-soft: #BFEFF9;
+  --cs-trace-deep: #0A86A8;
+  --cs-ink: #0B2A3A;
+  --cs-ink-soft: #43606E;
+  --cs-warn: #E8A317;
+  --cs-error: #E5484D;
+  --cs-agent: #7C5CFF;
+  --cs-canvas-surround: #D5DEE2;
+  --cs-checker-a: #FFFFFF;
+  --cs-checker-b: #E1E7EA;
+
+  --ui-text: var(--cs-ink);
+  --ui-text-soft: var(--cs-ink-soft);
+  --ui-text-inverse: #FFFFFF;
+  --ui-inverse-bg: var(--cs-ink);
+  --ui-panel-line: var(--cs-trace);
+  --ui-panel-line-on: var(--cs-trace-deep);
+  --ui-ph-bg: #FFFFFF;
+  --ui-ph-bg-on: var(--cs-trace);
+  --ui-ph-line: var(--cs-trace-soft);
+  --ui-ph-line-on: var(--cs-trace-deep);
+  --ui-ph-text: var(--cs-ink);
+  --ui-ph-text-on: var(--cs-ink);
+  --ui-ph-meta: var(--cs-ink-soft);
+  --ui-ph-meta-on: var(--cs-ink);
+  --ui-sep: var(--cs-trace-soft);
+  --ui-sep-weak: #E4F3F7;
+  --ui-pad-line: var(--cs-pad-shade);
+  --ui-pad-hover: #DDF2F8;
+  --ui-pad-on-bg: #CDEFF7;
+  --ui-on-line: var(--cs-trace-deep);
+  --ui-sel-bg: #E3F5FA;
+  --ui-cur-col: #EDF8FB;
+  --ui-focus: var(--cs-ink);
+  --ui-field-line: #6F8A97;
+  --ui-swatch-line: var(--ui-field-line);
+  --ui-canvas-edge: #97ADB8;
+  --ui-grid-line: #8FA5B0;
+  --ui-selection-line: var(--cs-trace-deep);
+  --ui-change-line: var(--cs-agent);
+  --ui-via-ring: var(--cs-trace-deep);
+  --ui-via-hole: #FFFFFF;
+  --ui-trace-decor: var(--cs-trace-soft);
+  --ui-signal: var(--cs-trace-deep);
+  --ui-error-bg: #FDECEC;
+  --ui-warn-bg: #FDF4E1;
+  --ui-scrim: #0B2A3A;
+}
+
+/* @theme high-contrast: lines are ink, surfaces are white (SPEC §14.3.3) */
+:root[data-contrast="high"] {
+  --cs-board: #FFFFFF;
+  --cs-panel: #FFFFFF;
+  --cs-pad: #FFFFFF;
+  --cs-pad-shade: #0B2A3A;
+  --cs-trace: #0B2A3A;
+  --cs-trace-soft: #0B2A3A;
+  --cs-trace-deep: #0B2A3A;
+  --cs-ink: #0B2A3A;
+  --cs-ink-soft: #0B2A3A;
+  --cs-canvas-surround: #D5DEE2;
+
+  --ui-text: #0B2A3A;
+  --ui-text-soft: #0B2A3A;
+  --ui-text-inverse: #FFFFFF;
+  --ui-inverse-bg: #0B2A3A;
+  --ui-panel-line: #0B2A3A;
+  --ui-panel-line-on: #0B2A3A;
+  --ui-ph-bg: #FFFFFF;
+  --ui-ph-bg-on: #0B2A3A;
+  --ui-ph-line: #0B2A3A;
+  --ui-ph-line-on: #0B2A3A;
+  --ui-ph-text: #0B2A3A;
+  --ui-ph-text-on: #FFFFFF;
+  --ui-ph-meta: #0B2A3A;
+  --ui-ph-meta-on: #FFFFFF;
+  --ui-sep: #0B2A3A;
+  --ui-sep-weak: #5E7682;
+  --ui-pad-line: #0B2A3A;
+  --ui-pad-hover: #FFFFFF;
+  --ui-pad-on-bg: #FFFFFF;
+  --ui-on-line: #0B2A3A;
+  --ui-sel-bg: #FFFFFF;
+  --ui-cur-col: #FFFFFF;
+  --ui-focus: #0B2A3A;
+  --ui-field-line: #0B2A3A;
+  --ui-swatch-line: #0B2A3A;
+  --ui-canvas-edge: #0B2A3A;
+  --ui-grid-line: #5E7682;
+  --ui-selection-line: #0B2A3A;
+  --ui-change-line: #5A3BE0;
+  --ui-via-ring: #0B2A3A;
+  --ui-via-hole: #FFFFFF;
+  --ui-trace-decor: #0B2A3A;
+  --ui-signal: #0B2A3A;
+  --ui-error-bg: #FFFFFF;
+  --ui-warn-bg: #FFFFFF;
+}
+
+/* metrics (theme independent). Integer pixels only. */
+:root {
+  --font-ui: "Segoe UI", "Yu Gothic UI", "Meiryo", "Hiragino Sans", "Noto Sans CJK JP", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", "Menlo", "DejaVu Sans Mono", monospace;
+  --fs: 13px;
+  --fs-s: 12px;
+  --bw: 2px;
+  --notch: 10px;
+  --gap: 8px;
+  --ph-h: 28px;
+  --tab-h: 30px;
+  --pad-h: 26px;
+  --row-h: 24px;
+  --cell-w: 34px;
+  --tool-btn: 40px;
+  --layer-w: 240px;
+  --palette-w: 224px;
+  --agent-w: 330px;
+  --timeline-h: 240px;
+  --dock-h: 300px;
+  --chamfer: polygon(2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 1px 2px, 1px 1px, 2px 1px);
+}
+:root[data-text="12"] { --fs: 12px; --fs-s: 11px; }
+:root[data-text="14"] { --fs: 14px; --fs-s: 12px; }
+:root[data-contrast="high"] { --bw: 2px; }
+/* ===== END verbatim ===== */
+
+/* ===== MankoMIX role tokens (--mm-*), added by D-067 =====
+ * Every added token is listed here. All values reference base tokens (--cs-*) or family role
+ * tokens (--ui-*); no new colour is introduced, so the palette family stays the 11-colour set.
+ *
+ *  token                  -> value                 role
+ *  --mm-page              -> --cs-board            page background (white circuit board)
+ *  --mm-surface           -> --cs-panel            card / panel face
+ *  --mm-surface-2         -> --cs-pad              inset areas, chips, secondary buttons
+ *  --mm-accent            -> --cs-trace-deep       "powered" accent: active nav, selected A/B, primary button line
+ *  --mm-accent-fill       -> --ui-pad-on-bg        filled face of an active / primary control
+ *  --mm-series-after      -> --cs-trace-deep       chart series "After" (solid line)
+ *  --mm-series-before     -> --cs-ink-soft         chart series "Before" (dashed line: shape, not colour)
+ *  --mm-band              -> --cs-trace-soft       reference band (LTAS / target range)
+ *  --mm-waveform          -> --cs-trace-deep       waveform / position track
+ *  --mm-stem-fill         -> --cs-trace            stem dot fill on the mix map
+ *  --mm-stem-line         -> --cs-panel            stem dot outline
+ *  --mm-stem-lead-line    -> --cs-ink              lead stem outline (plus heavier stroke)
+ *  --mm-lead-mark         -> --cs-trace-deep       lead stem row / card marker
+ *  --mm-pass              -> --cs-trace-deep       verify pass (badge line; icon validate-ok carries the meaning)
+ *  --mm-pass-bg           -> --ui-pad-on-bg        verify pass badge face
+ *  --mm-fail              -> --cs-error            verify fail / critical (icon error)
+ *  --mm-fail-bg           -> --ui-error-bg         verify fail badge face
+ *  --mm-warn              -> --cs-warn             warning (icon warning)
+ *  --mm-warn-bg           -> --ui-warn-bg          warning badge / notice face
+ *  --mm-idle              -> --ui-field-line       not run / incomplete / info (dashed badge line)
+ *  --mm-meter-track       -> --cs-pad              meter / toggle track (off)
+ *  --mm-meter-fill        -> --cs-trace-deep       meter fill / toggle on
+ *  --mm-mask-critical     -> --cs-error            masking link, critical (solid dash)
+ *  --mm-mask-warning      -> --cs-warn             masking link, warning (long dash)
+ *  --mm-agent             -> --cs-agent            agent activity marker (toasts, history actor)
+ *  --mm-planner           -> --cs-ink-soft         deterministic planner actor marker (dashed)
+ *  --mm-synthetic         -> --cs-warn             "synthetic placeholder data" flag line
+ *  --mm-grid              -> --ui-sep-weak         chart grid lines
+ *  --mm-axis              -> --ui-grid-line        chart axes, crosshair
+ *  --mm-tick              -> --ui-text-soft        chart tick labels
+ */
+:root {
+  color-scheme: light;
+  --mm-page: var(--cs-board);
+  --mm-surface: var(--cs-panel);
+  --mm-surface-2: var(--cs-pad);
+  --mm-accent: var(--cs-trace-deep);
+  --mm-accent-fill: var(--ui-pad-on-bg);
+  --mm-series-after: var(--cs-trace-deep);
+  --mm-series-before: var(--cs-ink-soft);
+  --mm-band: var(--cs-trace-soft);
+  --mm-waveform: var(--cs-trace-deep);
+  --mm-stem-fill: var(--cs-trace);
+  --mm-stem-line: var(--cs-panel);
+  --mm-stem-lead-line: var(--cs-ink);
+  --mm-lead-mark: var(--cs-trace-deep);
+  --mm-pass: var(--cs-trace-deep);
+  --mm-pass-bg: var(--ui-pad-on-bg);
+  --mm-fail: var(--cs-error);
+  --mm-fail-bg: var(--ui-error-bg);
+  --mm-warn: var(--cs-warn);
+  --mm-warn-bg: var(--ui-warn-bg);
+  --mm-idle: var(--ui-field-line);
+  --mm-meter-track: var(--cs-pad);
+  --mm-meter-fill: var(--cs-trace-deep);
+  --mm-mask-critical: var(--cs-error);
+  --mm-mask-warning: var(--cs-warn);
+  --mm-agent: var(--cs-agent);
+  --mm-planner: var(--cs-ink-soft);
+  --mm-synthetic: var(--cs-warn);
+  --mm-grid: var(--ui-sep-weak);
+  --mm-axis: var(--ui-grid-line);
+  --mm-tick: var(--ui-text-soft);
+}

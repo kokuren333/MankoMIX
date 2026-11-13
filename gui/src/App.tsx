@@ -13,19 +13,20 @@ import { VerifyScreen } from "./screens/VerifyScreen";
 import { ReportScreen } from "./screens/ReportScreen";
 import { ModelsScreen } from "./screens/ModelsScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
+import { Icon, type IconName } from "./components/Icon";
 
-export const SCREENS: { id: string; label: StringKey; component: ComponentType }[] = [
-  { id: "project", label: "nav.project", component: ProjectScreen },
-  { id: "stems", label: "nav.stems", component: StemsScreen },
-  { id: "mixmap", label: "nav.mixmap", component: MixMapScreen },
-  { id: "analysis", label: "nav.analysis", component: AnalysisScreen },
-  { id: "intent", label: "nav.intent", component: IntentScreen },
-  { id: "plan", label: "nav.plan", component: PlanScreen },
-  { id: "listen", label: "nav.listen", component: ListenScreen },
-  { id: "verify", label: "nav.verify", component: VerifyScreen },
-  { id: "report", label: "nav.report", component: ReportScreen },
-  { id: "models", label: "nav.models", component: ModelsScreen },
-  { id: "history", label: "nav.history", component: HistoryScreen },
+export const SCREENS: { id: string; label: StringKey; icon: IconName; component: ComponentType }[] = [
+  { id: "project", label: "nav.project", icon: "folder", component: ProjectScreen },
+  { id: "stems", label: "nav.stems", icon: "stem", component: StemsScreen },
+  { id: "mixmap", label: "nav.mixmap", icon: "grid", component: MixMapScreen },
+  { id: "analysis", label: "nav.analysis", icon: "meter", component: AnalysisScreen },
+  { id: "intent", label: "nav.intent", icon: "settings", component: IntentScreen },
+  { id: "plan", label: "nav.plan", icon: "chain", component: PlanScreen },
+  { id: "listen", label: "nav.listen", icon: "headphones", component: ListenScreen },
+  { id: "verify", label: "nav.verify", icon: "validate-ok", component: VerifyScreen },
+  { id: "report", label: "nav.report", icon: "report", component: ReportScreen },
+  { id: "models", label: "nav.models", icon: "model", component: ModelsScreen },
+  { id: "history", label: "nav.history", icon: "undo", component: HistoryScreen },
 ];
 
 function readHash(): string {
@@ -49,7 +50,10 @@ export function MockBanner() {
   if (caps.mode !== "mock") return null;
   return (
     <aside className="mock-banner" role="note" aria-label={t("mock.title")} data-testid="mock-banner">
-      <strong>{t("mock.title")}</strong>
+      <strong className="with-icon">
+        <Icon name="info" />
+        {t("mock.title")}
+      </strong>
       <p>{t("mock.body")}</p>
       <details>
         <summary>{t("mock.cannot")}</summary>
@@ -70,6 +74,7 @@ function ChangeToast() {
   if (connection === "lost")
     return (
       <div className="toast warn" role="status">
+        <Icon name="warning" />
         {t("app.liveLost")}
       </div>
     );
@@ -77,6 +82,7 @@ function ChangeToast() {
   const who = lastEvent.actor ? t(`actor.${lastEvent.actor}` as StringKey) : "";
   return (
     <div className={"toast" + (lastEvent.actor === "agent" ? " agent" : "")} role="status">
+      <Icon name={lastEvent.actor === "agent" ? "agent" : lastEvent.actor === "planner" ? "chain" : "human"} />
       {t("app.changedBy")} <strong>{who}</strong>
       {lastEvent.seq != null && ` (#${lastEvent.seq})`} {label(lastEvent.summary)}
       <button type="button" className="link" onClick={clearEvent}>
@@ -127,8 +133,15 @@ export function App() {
       <header className="topbar">
         <div className="brand">
           <span className="logo">{t("app.title")}</span>
-          <span className={`mode-badge mode-${caps.mode}`}>{caps.mode === "mock" ? t("app.backend.mock") : t("app.backend.local")}</span>
-          {caps.liveUpdates && connection === "open" && <span className="live-dot" title={t("app.liveOn")} aria-label={t("app.liveOn")} />}
+          <span className={`mode-badge mode-${caps.mode}`}>
+            {caps.mode === "mock" && <Icon name="lock" />}
+            {caps.mode === "mock" ? t("app.backend.mock") : t("app.backend.local")}
+          </span>
+          {caps.liveUpdates && connection === "open" && (
+            <span className="live-dot">
+              <Icon name="link" label={t("app.liveOn")} />
+            </span>
+          )}
         </div>
         <div className="topbar-controls">
           <VariantPicker />
@@ -144,6 +157,7 @@ export function App() {
               e.preventDefault();
               go(s.id);
             }}>
+              <Icon name={s.icon} />
               {t(s.label)}
             </a>
           ))}

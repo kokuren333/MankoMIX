@@ -1,8 +1,12 @@
 import { useState } from "react";
+import { Icon, type IconName } from "../components/Icon";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, CapButton } from "../components/ui";
 import type { StringKey } from "../i18n/strings";
+import type { Actor } from "../types";
+
+const ACTOR_ICON: Record<Actor, IconName> = { human: "human", agent: "agent", planner: "chain" };
 
 export function HistoryScreen() {
   const { backend, revision, t, label, caps, bump, lang } = useApp();
@@ -29,7 +33,7 @@ export function HistoryScreen() {
     <Card
       title={t("nav.history")}
       actions={
-        <CapButton allowed={caps.undo} busy={busy} onClick={undo} data-testid="undo">
+        <CapButton allowed={caps.undo} busy={busy} icon="undo" onClick={undo} data-testid="undo">
           {t("history.undo")}
         </CapButton>
       }
@@ -48,7 +52,10 @@ export function HistoryScreen() {
               {entries.map((e) => (
                 <li key={e.seq} className={"history-item" + (e.undone ? " undone" : "")}>
                   <span className="num muted">#{e.seq}</span>
-                  <span className={`actor actor-${e.actor}`}>{t(`actor.${e.actor}` as StringKey)}</span>
+                  <span className={`actor actor-${e.actor}`}>
+                    <Icon name={ACTOR_ICON[e.actor] ?? "human"} />
+                    {t(`actor.${e.actor}` as StringKey)}
+                  </span>
                   <span className="history-what">
                     <code>{e.op}</code> {label(e.summary)}
                     {e.reason && <span className="muted small block">{e.reason}</span>}

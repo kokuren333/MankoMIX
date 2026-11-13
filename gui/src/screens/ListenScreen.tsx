@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, SyntheticFlag, fmtNum, fmtTime } from "../components/ui";
+import { Icon } from "../components/Icon";
 import { sourceGains, type MonitorSettings, type SourceId } from "../audio/gains";
 import type { LoadStatus } from "../audio/engine";
 import type { AudioSet } from "../types";
@@ -142,8 +143,22 @@ export function Player({ set }: { set: AudioSet }) {
 
       <div className="transport" role="group" aria-label={t("listen.ab")}>
         <div className="transport-row">
+          <button
+            type="button"
+            className="btn secondary to-start"
+            onClick={() => {
+              engine.seek(0);
+              setPos(0);
+            }}
+            disabled={!playable}
+            aria-label={t("listen.toStart")}
+            title={t("listen.toStart")}
+            data-testid="to-start"
+          >
+            <Icon name="first" />
+          </button>
           <button type="button" className="btn play" onClick={togglePlay} disabled={!playable} aria-label={playing ? t("listen.pause") : t("listen.play")}>
-            {playing ? "❚❚" : "▶"}
+            <Icon name={playing ? "pause" : "play"} scale={2} />
           </button>
           <div className="ab" role="radiogroup" aria-label={t("listen.ab")}>
             {sources.map((s) => (
@@ -163,6 +178,7 @@ export function Player({ set }: { set: AudioSet }) {
         </div>
         <label className="position">
           <span className="sr-only">{t("listen.position")}</span>
+          <Icon name="waveform" />
           <span className="num small">{fmtTime(pos)}</span>
           <input
             type="range"

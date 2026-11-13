@@ -3,13 +3,33 @@ import { useApp } from "../AppContext";
 import type { AsyncState } from "../hooks/useAsync";
 import { BackendError } from "../backend/Backend";
 import type { StringKey } from "../i18n/strings";
+import { Icon, type IconName } from "./Icon";
 
-export function Card({ title, children, actions, id, className }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; id?: string; className?: string }) {
+export function Card({
+  title,
+  children,
+  actions,
+  id,
+  className,
+  icon,
+}: {
+  title?: ReactNode;
+  children: ReactNode;
+  actions?: ReactNode;
+  id?: string;
+  className?: string;
+  icon?: IconName;
+}) {
   return (
     <section className={"card" + (className ? " " + className : "")} id={id}>
       {(title || actions) && (
         <header className="card-head">
-          {title && <h2>{title}</h2>}
+          {title && (
+            <h2>
+              {icon && <Icon name={icon} />}
+              {title}
+            </h2>
+          )}
           {actions && <div className="card-actions">{actions}</div>}
         </header>
       )}
@@ -20,16 +40,17 @@ export function Card({ title, children, actions, id, className }: { title?: Reac
 
 type AnyStatus = "pass" | "fail" | "warning" | "not_run" | "ok" | "incomplete" | "info" | "reject" | "critical";
 
-const ICON: Record<AnyStatus, string> = {
-  pass: "✓",
-  ok: "✓",
-  fail: "✕",
-  reject: "✕",
-  critical: "✕",
-  warning: "!",
+// Pixel icon by status (shape carries the meaning); states without an icon keep a text glyph.
+const ICON: Record<AnyStatus, IconName | string> = {
+  pass: "validate-ok",
+  ok: "validate-ok",
+  fail: "error",
+  reject: "error",
+  critical: "error",
+  warning: "warning",
   incomplete: "…",
   not_run: "–",
-  info: "i",
+  info: "info",
 };
 
 const TONE: Record<AnyStatus, string> = {
@@ -51,9 +72,13 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
   const key = `status.${s}` as StringKey;
   return (
     <span className={`badge tone-${TONE[s] ?? "muted"}`} data-status={s}>
-      <span aria-hidden="true" className="badge-icon">
-        {ICON[s] ?? "?"}
-      </span>
+      {ICON[s] && ICON[s].length > 1 ? (
+        <Icon name={ICON[s] as IconName} />
+      ) : (
+        <span aria-hidden="true" className="badge-icon">
+          {ICON[s] ?? "?"}
+        </span>
+      )}
       {t(key) === key ? s : t(key)}
     </span>
   );
@@ -65,7 +90,8 @@ export function Async<T>({ state, children }: { state: AsyncState<T>; children: 
   if (state.error) {
     const notGen = state.error instanceof BackendError && state.error.code === "not_generated";
     return (
-      <div className={notGen ? "notice" : "error"} role={notGen ? "status" : "alert"}>
+      <div className={notGen ? "notice info" : "error with-icon"} role={notGen ? "status" : "alert"}>
+        <Icon name={notGen ? "info" : "error"} />
         {notGen ? t("app.notGenerated") : `${t("app.error")}: ${state.error.message}`}{" "}
         {!notGen && (
           <button type="button" className="link" onClick={state.reload}>
@@ -89,8 +115,10 @@ export function CapButton({
   children,
   className,
   busy,
+  icon,
   ...rest
 }: {
+  icon?: IconName;
   allowed: boolean;
   onClick: () => void;
   children: ReactNode;
@@ -111,6 +139,7 @@ export function CapButton({
         onClick={onClick}
         data-testid={rest["data-testid"]}
       >
+        {icon && <Icon name={icon} />}
         {children}
       </button>
       {!allowed && <span className="cap-why">{why}</span>}

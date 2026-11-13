@@ -40,7 +40,7 @@ function ProjectView({ project: p }: { project: Project }) {
         actions={
           <>
             <input ref={fileRef} type="file" accept="audio/*,.wav,.flac,.aiff,.aif" multiple hidden onChange={(e) => onFiles(e.target.files)} />
-            <CapButton allowed={caps.importAudio} busy={busy} onClick={() => fileRef.current?.click()} data-testid="import-button">
+            <CapButton allowed={caps.importAudio} busy={busy} icon="folder" onClick={() => fileRef.current?.click()} data-testid="import-button">
               {busy ? t("project.importing") : t("project.import")}
             </CapButton>
           </>
@@ -68,7 +68,7 @@ function ProjectView({ project: p }: { project: Project }) {
         )}
       </Card>
 
-      <Card title={t("project.provenance")}>
+      <Card title={t("project.provenance")} icon="sources">
         {p.provenance ? (
           <dl className="kv">
             {Object.entries(p.provenance).map(([k, v]) => (
@@ -116,7 +116,7 @@ function ProjectView({ project: p }: { project: Project }) {
         )}
       </Card>
 
-      <Card title={`${t("project.assets")} (${p.assets.length})`} className="span-2">
+      <Card title={`${t("project.assets")} (${p.assets.length})`} icon="waveform" className="span-2">
         <div className="table-scroll">
           <table>
             <thead>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, fmtNum } from "../components/ui";
+import { Icon } from "../components/Icon";
 import { ROLES, type PatchOp, type Project, type Track } from "../types";
 
 export function StemsScreen() {
@@ -138,6 +139,14 @@ function StemsView({ project }: { project: Project }) {
   };
 
   const name = (tr: Track) => tr.name ?? tr.id;
+  // Origin shown by shape: delivered stem vs. stem separated from a mix (labelled for screen readers).
+  const originOf = (tr: Track) => project.assets.find((a) => a.id === tr.clips?.[0]?.asset)?.origin;
+  const origin = (tr: Track) =>
+    originOf(tr) === "separated" ? (
+      <Icon name="separate" label={t("stems.origin.separated")} />
+    ) : originOf(tr) === "native_stem" ? (
+      <Icon name="stem" label={t("stems.origin.native_stem")} />
+    ) : null;
   const chainText = (tr: Track) => (tr.chain ?? []).map((p) => `${p.type} (${p.reason})`).join(" → ") || "—";
 
   return (
@@ -155,7 +164,10 @@ function StemsView({ project }: { project: Project }) {
             return (
               <article key={tr.id} className={"stem-card" + (tr.is_lead ? " is-lead" : "")}>
                 <header>
-                  <strong>{name(tr)}</strong>
+                  <strong className="with-icon">
+                    {origin(tr)}
+                    {name(tr)}
+                  </strong>
                   <label className="inline">
                     {c.lead} {t("stems.lead")}
                   </label>
@@ -209,7 +221,10 @@ function StemsView({ project }: { project: Project }) {
                 return (
                   <tr key={tr.id} className={tr.is_lead ? "is-lead" : undefined}>
                     <td>
-                      <strong>{name(tr)}</strong>
+                      <strong className="with-icon">
+                        {origin(tr)}
+                        {name(tr)}
+                      </strong>
                       <div className="muted small">{(tr.clips ?? []).length} {t("stems.clips")}</div>
                     </td>
                     <td>{c.role}</td>

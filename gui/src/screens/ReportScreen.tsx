@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Icon } from "../components/Icon";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, StatusBadge, SyntheticFlag, fmtTime } from "../components/ui";
@@ -216,6 +217,7 @@ export function ReportView({ report, reportLang, onLang, variantId }: { report: 
               ))}
             </span>
             <button type="button" className="btn secondary" onClick={download}>
+              <Icon name="export" />
               {t("report.download")}
             </button>
           </span>

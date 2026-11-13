@@ -4,3 +4,19 @@ Copyright 2026 kokuren333
 This product is licensed under the Apache License, Version 2.0.
 Third-party components and their licenses will be listed in
 third_party/ as they are introduced.
+
+GUI theme and icons (D-067)
+---------------------------
+The GUI theme tokens (gui/src/theme/tokens.css, block marked "verbatim") and the
+following 16x16 icons in gui/public/icons/ are copied from CyberSprite, a project
+by the same author (kokuren333), licensed under the Apache License, Version 2.0.
+Original files: CyberSprite gui/src/theme/tokens.css and gui/public/icons/<name>.png
+(icon originals: CyberSprite assets/ui/icons/<name>.csprite).
+
+  add, agent, error, first, folder, grid, human, info, link, lock, pause, play,
+  remove, settings, sources, undo, validate-ok, warning
+
+The icons chain, download, export, headphones, meter, model, report, separate,
+stem and waveform are original MankoMIX work in the same 11-colour palette,
+drawn by tools/make_icons.py with the CyberSprite CLI. Per-file provenance and
+SHA-256 hashes are in gui/public/icons/manifest.json.

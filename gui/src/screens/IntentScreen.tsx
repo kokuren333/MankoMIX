@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon } from "../components/Icon";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, CapButton, fmtNum } from "../components/ui";
@@ -207,7 +208,8 @@ function IntentView({ project, catalog, profiles, deliveries }: { project: Proje
                 </p>
               )}
               {editable && outputs.length > 1 && (
-                <button type="button" className="link" onClick={() => setOutputs(outputs.filter((_, j) => j !== i))}>
+                <button type="button" className="link with-icon" onClick={() => setOutputs(outputs.filter((_, j) => j !== i))}>
+                  <Icon name="remove" />
                   {t("intent.remove")}
                 </button>
               )}
@@ -220,6 +222,7 @@ function IntentView({ project, catalog, profiles, deliveries }: { project: Proje
             className="btn secondary"
             onClick={() => setOutputs([...outputs, { profile: profiles[0]?.id ?? "", delivery: profiles[0]?.default_delivery ?? deliveries[0]?.id ?? "" }])}
           >
+            <Icon name="add" />
             {t("intent.addOutput")}
           </button>
         )}
@@ -240,7 +243,7 @@ function IntentView({ project, catalog, profiles, deliveries }: { project: Proje
       </Card>
 
       <div className="span-2 apply-bar">
-        <CapButton allowed={editable} busy={busy} onClick={apply} data-testid="intent-apply">
+        <CapButton allowed={editable} busy={busy} icon="settings" onClick={apply} data-testid="intent-apply">
           {busy ? t("app.saving") : t("app.save")}
         </CapButton>
         {msg && (

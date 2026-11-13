@@ -30,7 +30,7 @@ export function ModelsScreen() {
                   key={m.id}
                   title={<code>{m.id}</code>}
                   actions={
-                    <CapButton allowed={caps.modelDownload && !!m.weights?.source_url} onClick={() => pull(m.id)} className="btn secondary">
+                    <CapButton allowed={caps.modelDownload && !!m.weights?.source_url} icon="download" onClick={() => pull(m.id)} className="btn secondary">
                       {t("models.pull")}
                     </CapButton>
                   }

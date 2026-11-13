@@ -84,6 +84,8 @@ const en = {
   "stems.chain": "Chain",
   "stems.clips": "Clips",
   "stems.readOnly": "Read-only: editing needs the local server.",
+  "stems.origin.native_stem": "Stem as delivered",
+  "stems.origin.separated": "Stem separated from a mix",
 
   "mixmap.desc": "x = pan, y = spectral centroid (log), size and opacity = depth (near = large, opaque).",
   "mixmap.masking": "Masking warnings",
@@ -161,6 +163,7 @@ const en = {
   "listen.delta": "Delta (removed)",
   "listen.play": "Play",
   "listen.pause": "Pause",
+  "listen.toStart": "Back to start",
   "listen.levelMatch": "Level match",
   "listen.levelMatchOn": "Level match ON",
   "listen.levelMatchOff": "Level match OFF (actual output levels)",
@@ -344,6 +347,8 @@ const ja: Record<StringKey, string> = {
   "stems.chain": "チェーン",
   "stems.clips": "クリップ",
   "stems.readOnly": "閲覧のみ（編集にはローカルサーバーが必要です）。",
+  "stems.origin.native_stem": "受け取ったままのステム",
+  "stems.origin.separated": "ミックスから分離したステム",
 
   "mixmap.desc": "左右＝パン、上下＝スペクトル重心（対数）、大きさと濃さ＝奥行き（近いほど大きく濃い）。",
   "mixmap.masking": "マスキングの警告",
@@ -421,6 +426,7 @@ const ja: Record<StringKey, string> = {
   "listen.delta": "除去分（delta）",
   "listen.play": "再生",
   "listen.pause": "一時停止",
+  "listen.toStart": "先頭へ戻る",
   "listen.levelMatch": "レベルマッチ",
   "listen.levelMatchOn": "レベルマッチ ON",
   "listen.levelMatchOff": "レベルマッチ OFF（実際の出力レベル）",

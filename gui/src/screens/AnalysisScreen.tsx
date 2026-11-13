@@ -34,7 +34,7 @@ function AnalysisView({ a }: { a: Analysis }) {
         className="span-2"
         actions={
           caps.mode === "local" ? (
-            <CapButton allowed={caps.runAnalysis} onClick={() => void backend.analyze().then(bump)}>
+            <CapButton allowed={caps.runAnalysis} icon="meter" onClick={() => void backend.analyze().then(bump)}>
               {t("analysis.run")}
             </CapButton>
           ) : undefined

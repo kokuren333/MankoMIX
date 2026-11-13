@@ -27,6 +27,22 @@
 
 UI の言語は日本語と英語（右上の JA/EN、`?lang=ja|en`）。画面は URL のハッシュ（`#/listen` など）で選ぶので、どのサブパスに置いても動く。
 
+## テーマとアイコン（D-067、`docs/SPEC.md` §11.5）
+
+製品ファミリーのテーマ「Circuit White / Solder Mask」（CyberSprite と共通）。
+
+- `src/theme/tokens.css`: CyberSprite の `gui/src/theme/tokens.css` を「verbatim」の区画にそのまま取り込み（ベーストークン `--cs-*` とファミリーの役割トークン `--ui-*`）、その後ろに MankoMIX 固有の役割トークン `--mm-*` を置く（一覧と対応は同ファイルの注記）。`--mm-*` はベーストークンかファミリーの役割トークンへの参照だけで、新しい色を足さない
+- `src/styles.css` とコンポーネントは役割トークンだけを参照し、生の色値を書かない（`src/test/theme.test.ts` が検査）。テーマは明色だけ
+- `public/icons/`: 16×16、ui-icons パレット（11 色）のアイコン。`manifest.json` にアイコンごとの来歴（CyberSprite から複写したものは元のファイル名と SHA-256、新しく描いたものは意味）を持つ。コンポーネントからは `src/components/Icon.tsx` の `<Icon name=... />` で使う（文字に添えるときは装飾、アイコンだけのときは `label` を付ける）
+- アイコンの作り直し（CyberSprite の checkout と `uv` が要る）と検査（標準ライブラリだけ）:
+
+```
+python -I tools/make_icons.py build [--cybersprite ../CyberSprite]
+python -I tools/make_icons.py check
+```
+
+`build` は使い回すアイコンを CyberSprite の `gui/public/icons/` から複写し、MankoMIX 固有のアイコンは設計データ（`tools/make_icons.py`）を CyberSprite の CLI で `_private/icon_work/`（git 管理外）のプロジェクトに `draw_rows` で描き、`validate` と `export image` で `public/icons/` に書き出す。CyberSprite のリポジトリには何も書かない。
+
 ## 開発
 
 Node 24 と npm。

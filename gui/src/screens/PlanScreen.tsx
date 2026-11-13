@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon } from "../components/Icon";
 import { useApp } from "../AppContext";
 import { useAsync } from "../hooks/useAsync";
 import { Async, Card, CapButton } from "../components/ui";
@@ -32,7 +33,7 @@ export function PlanScreen() {
         <Card title={t("plan.propose")}>
           <div className="row">
             {STAGES.map((s) => (
-              <CapButton key={s} allowed={caps.runPlanner} busy={busy === s} onClick={() => propose(s)} className="btn secondary">
+              <CapButton key={s} allowed={caps.runPlanner} busy={busy === s} icon="chain" onClick={() => propose(s)} className="btn secondary">
                 {t(`plan.stage.${s}` as StringKey)}
               </CapButton>
             ))}
@@ -120,6 +121,7 @@ function ProposalCard({ proposal: p }: { proposal: Proposal }) {
       actions={
         <span className="row">
           <span className={`actor actor-${p.author}`}>
+            <Icon name={p.author === "agent" ? "agent" : p.author === "planner" ? "chain" : "human"} />
             {t("plan.author")}: {t(`actor.${p.author}` as StringKey)}
           </span>
           <span className="tag">{t(`plan.status.${p.status}` as StringKey)}</span>
@@ -184,7 +186,7 @@ function ProposalCard({ proposal: p }: { proposal: Proposal }) {
         <div className="decide">
           {isAgent && !caps.agentLink && <p className="notice small">{t("plan.agentNeedsLink")}</p>}
           <div className="row">
-            <CapButton allowed={canDecide} busy={busy} onClick={() => run(() => backend.applyPlan(p.id, edits))} data-testid="plan-approve">
+            <CapButton allowed={canDecide} busy={busy} icon="validate-ok" onClick={() => run(() => backend.applyPlan(p.id, edits))} data-testid="plan-approve">
               {t("plan.approve")}
             </CapButton>
             <input
@@ -195,7 +197,7 @@ function ProposalCard({ proposal: p }: { proposal: Proposal }) {
               disabled={!canDecide}
               onChange={(e) => setReason(e.target.value)}
             />
-            <CapButton allowed={canDecide} busy={busy} className="btn danger" onClick={() => run(() => backend.rejectPlan(p.id, reason))} data-testid="plan-reject">
+            <CapButton allowed={canDecide} busy={busy} icon="remove" className="btn danger" onClick={() => run(() => backend.rejectPlan(p.id, reason))} data-testid="plan-reject">
               {t("plan.reject")}
             </CapButton>
           </div>

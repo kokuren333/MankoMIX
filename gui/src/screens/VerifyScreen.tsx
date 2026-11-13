@@ -43,7 +43,7 @@ function VerifyView({ v, profiles }: { v: Verification; profiles: MediaProfile[]
         className="span-2"
         actions={
           caps.mode === "local" ? (
-            <CapButton allowed={caps.runVerify} busy={busy} onClick={run}>
+            <CapButton allowed={caps.runVerify} busy={busy} icon="validate-ok" onClick={run}>
               {t("verify.run")}
             </CapButton>
           ) : undefined
