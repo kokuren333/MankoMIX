@@ -2,7 +2,7 @@
 
 AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地がよいもの**に、あるいは**目的に沿ったもの**（重低音強化、ボーカル前面など）に仕上げるための、AI エージェント向けミックス／マスタリングツール。
 
-> **状態: 設計段階。** 現在このリポジトリにあるのは、全体仕様とリポジトリの骨格だけで、動作するコードはまだない。実装は次のフェーズで行う。
+> **状態: 実装中（v0.1、非公開）。** 取り込み、測定、整音、ミックス、マスタリング、検証、Mix Report、ステム分離、CLI、MCP、ローカル GUI が動く。公開前の監査（ライセンス、権利条件、Linux / macOS での動作確認）を進めている。進み具合は [docs/SPEC.md](docs/SPEC.md) §17 のマイルストーンに沿う。
 
 ## 何をするツールか
 
@@ -28,6 +28,63 @@ AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地が
 
 自動指標は知覚の代理に過ぎない。最終判定は人の耳であり、Mix Report は必ず「人の耳で確認すべき点」を含む。
 
+## 使い方
+
+### インストール
+
+Python 3.11 以上。FFmpeg は同梱しないので、別にインストールして `PATH` に置く（コーデック往復の検証と、MP3 などの読み込みに使う。LGPL 構成のビルドを推奨。`mankomix doctor` がビルド構成を確認する）。
+
+```
+pip install -e .                 # コア（numpy / scipy / soundfile / jsonschema）
+pip install -e ".[separation]"   # 任意: ステム分離（推論は別プロセスで動く）
+python -I tools/build_native.py  # 任意: ネイティブ DSP 核（C++）。なければ Python 実装で同じ結果を出す
+mankomix doctor
+```
+
+コマンドは `mankomix`（短縮名 `mmx`）。全コマンドが JSON を出力し、終了コードで成否を返す（0 成功 / 1 検証不合格 / 2 入力エラー / 3 環境エラー）。
+
+### 一括実行
+
+```
+mankomix run ./stems --objective comfort --profile spotify --delivery distributor_44k16 --out ./out
+mankomix run ./stems --objective bass_heavy:0.7 --profile club --out ./out
+mankomix run ./song.wav --objective comfort:0.6+vocal_forward:0.4 --profile apple_music --out ./out
+```
+
+`./stems` は、Suno Studio のマルチトラック書き出しを展開したフォルダをそのまま指定できる。2mix を 1 本だけ渡すと、フルミックス経路でマスタリングする（`--separate` でステム分離から始めることもできる）。`./out` にマスター、マニフェスト、検証結果、Mix Report（JSON と Markdown）が出る。検証に通らなかった出口のマスターは納品物に入れず、理由（差し戻し）をレポートに書く。
+
+### 段ごとの操作
+
+```
+mankomix init my_song.mmx --genre hiphop
+mankomix -p my_song.mmx import ./stems
+mankomix -p my_song.mmx analyze
+mankomix -p my_song.mmx objective set comfort
+mankomix -p my_song.mmx clean plan                 # 提案だけ（適用はしない）。提案 ID が返る
+mankomix -p my_song.mmx clean apply <提案 ID>       # 確認してから適用
+mankomix -p my_song.mmx mix plan --apply            # 提案してそのまま適用
+mankomix -p my_song.mmx master plan --profile streaming_universal --apply
+mankomix -p my_song.mmx render && mankomix -p my_song.mmx verify && mankomix -p my_song.mmx report
+```
+
+提案は全て、適用前に確認・編集・却下できる。正本（`project.json`）の変更は全て履歴に残り、`undo` / `checkout` で戻せる。コマンドの一覧は [cli/README.md](cli/README.md)。
+
+### エージェントから（MCP）
+
+```
+mankomix mcp --root <作業フォルダ>
+```
+
+標準入出力の MCP サーバー。ツールは CLI と 1 対 1 で対応し、応答は要約が既定（詳細度は引数で指定）。時間のかかる処理はジョブとして実行する。設定例とツールの一覧は [mcp/README.md](mcp/README.md)。
+
+### GUI
+
+```
+mankomix serve -p my_song.mmx
+```
+
+ループバックでローカルサーバーを起動し、ブラウザの GUI から同じプロジェクトを操作する。CLI や MCP からの変更は GUI に即座に反映される。詳しくは [gui/README.md](gui/README.md)。
+
 ## サンプル聴き比べ
 
 > 準備中。公式サンプル楽曲のステムを本ツールで処理し、処理前と処理後を聴き比べられるようにする予定。
@@ -45,7 +102,8 @@ AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地が
 
 - [docs/SPEC.md](docs/SPEC.md) — 全体仕様
 - [docs/REQUIREMENTS_NOTES.md](docs/REQUIREMENTS_NOTES.md) — 決定事項の記録
-- [UPSTREAM_REPORT.md](UPSTREAM_REPORT.md) — 上流設計の作業報告と未決事項
+- [UPSTREAM_REPORT.md](UPSTREAM_REPORT.md) — 上流設計の作業報告
+- [cli/README.md](cli/README.md) / [mcp/README.md](mcp/README.md) / [gui/README.md](gui/README.md) — 各インターフェース
 
 ## リポジトリ構成
 

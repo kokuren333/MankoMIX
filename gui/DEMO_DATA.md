@@ -2,9 +2,9 @@
 
 GitHub Pages デモ（SPEC §11.4）の `MockBackend`（`src/backend/MockBackend.ts`）が読む、事前計算データの配置。
 
-**本番のデータは、本体のコアで生成するビルド手順（Python）が書き出す。手書きしない。** 今リポジトリにある `public/demo/` は、GUI の開発とテストのための**合成のプレースホルダー**（`scripts/make-placeholder-demo.mjs` が生成。全ファイルに `"synthetic": true`、音声なし）であり、実際の処理結果ではない。GUI は `synthetic` のデータに注意書きを表示する。
+**本番のデータは、本体のコアで生成するビルド手順（`tools/build_demo_data.py`）が書き出す。手書きしない。** 今リポジトリにある `public/demo/` は、GUI の開発とテストのための**合成のプレースホルダー**（`scripts/make-placeholder-demo.mjs` が生成。全ファイルに `"synthetic": true`、音声なし）であり、実際の処理結果ではない。GUI は `synthetic` のデータに注意書きを表示する。
 
-The real dataset is written by a Python build step from the core, using exactly this layout, and replaces the placeholder. All paths inside the files are **relative to the demo root**; absolute paths and URLs to other hosts are rejected by the mock (the demo only fetches same-origin static files).
+The real dataset is written by `tools/build_demo_data.py` from a project, only through `core/api.py` (the same calls the local server makes), using exactly this layout; it replaces the placeholder. All paths inside the files are **relative to the demo root**; absolute paths and URLs to other hosts are rejected by the mock (the demo only fetches same-origin static files).
 
 ## Layout
 
@@ -20,7 +20,7 @@ public/demo/
 │  └─ models.json                  ← registry/models.json
 ├─ audio/                          shared listening copies (MP3 320 kbps, not masters)
 │  ├─ before.mp3                   unity-gain stem sum (SPEC 15.2)
-│  ├─ before_level_matched.mp3     main pair only
+│  ├─ before_level_matched.mp3     main pair only, when Before is the louder side
 │  ├─ fullmix_reference.mp3        reference only, never the "before" baseline
 │  └─ delta.mp3                    removed by cleanup (main sample)
 └─ variants/
@@ -31,8 +31,11 @@ public/demo/
       ├─ report.ja.json            Report (schemas/report.schema.json), language "ja"
       ├─ report.en.json            Report, language "en" (fallback: report.json)
       ├─ audio.json                AudioSet (URLs relative to the demo root)
-      └─ after.mp3                 processed listening copy
+      ├─ after.mp3                 processed listening copy (of the rendered master)
+      └─ after_level_matched.mp3   main pair only, when After is the louder side
 ```
+
+Audio files exist only when the dataset was built with `--mp3`. A second, different Before (a variant on another route) is written as `audio/before_vNN.mp3`.
 
 Payload types are defined in `gui/API.md` (same as the local server responses) and `src/types.ts`.
 
@@ -62,6 +65,8 @@ Payload types are defined in `gui/API.md` (same as the local server responses) a
 ```
 
 - `variants` lists the 11 kinds of `samples/sample_set.json` in order (a test checks this). `available: false` marks a variant whose files have not been generated; the GUI shows "not generated" instead of failing.
+- The builder adds per variant: `label` (`{ja, en}`, from the objective catalogue and the media profiles), `project_variant` (the project variant id, or `null`) and, when unavailable, `unavailable_reason`: `not_in_project` (no single-objective variant with that objective, profile and intensity), `not_rendered`, or `incomplete` with `missing: ["analysis" | "verification" | "audio" | "report"]`. Nothing is filled in for a missing variant.
+- It also adds `source` (`project_id`, `content_hash` = the journal head, `sample_set`) and `audio`: `{ included, format: "mp3", listening_copies: true, masters: false, encoder: { tool: "ffmpeg", version, build, license, codec: "libmp3lame", bitrate_kbps: 320, mode: "CBR", options }, files[] }` (`included: false`, `encoder: null` for a JSON-only build).
 - The objective × profile switch in the demo is the selection of one of these precomputed variants.
 
 ## `audio.json`
@@ -82,8 +87,23 @@ Payload types are defined in `gui/API.md` (same as the local server responses) a
 }
 ```
 
-- `match_gain_db` comes from the sample manifest (SPEC 15.3: only the main pair has a level-matched file; the others carry the gain as a number). The player applies it with a Web Audio `GainNode` to `match_target` (the louder side) while level match is on, which is the default.
+- `match_gain_db` and `match_target` come from the core's level-matched comparison (`audio_set`: equal integrated loudness by lowering the louder side, so `match_gain_db` ≤ 0). SPEC 15.3: only the main pair has a level-matched file (`before_level_matched`, or `after_level_matched` when After is louder); the others carry the gain as a number. The player applies it with a Web Audio `GainNode` to `match_target` while level match is on, which is the default.
+- The builder also writes `project_variant`, `before_kind` (`stem_sum` or `fullmix`), `note`, `listening_copies` and `source_files` (project-relative names of the masters the copies were made from).
+- The other per-variant files are the core payloads unchanged: `analysis_view`, `proposal_list` (the variant's proposals plus the project-wide cleanup / mix proposals, ordered cleanup → mix → master), `verification_get`, `report(lang, write=False)`.
 - Any file may be `null` or missing; the player then shows a message instead of failing.
+
+## Building the dataset from a project
+
+```
+python -I tools/build_demo_data.py --project <song.mmx> [--out tmp/demo_data] [--variants-from samples/sample_set.json | --project-variants] [--mp3] [--ffmpeg PATH]
+```
+
+- The project must be analysed, and each variant rendered and verified (e.g. by `mankomix run`); the builder only reads results (the core's view caches under `cache/listen/` are the only thing written in the project). The delta file needs a cleanup delta rendered beforehand.
+- `--mp3` encodes the listening copies with an external ffmpeg (libmp3lame, 320 kbps CBR, no tags, bit-exact) and records the encoder in `index.json`. Without it the dataset is JSON only.
+- The default `--out` is `tmp/demo_data/` (gitignored). An existing `--out` must be empty or hold a previous dataset; only the builder's own entries are replaced.
+- Output is deterministic: JSON with sorted keys, stable file names; two builds of the same project are byte-identical. The build refuses to write if any file would contain an absolute path, a local folder or an e-mail address; project asset paths outside the project become `linked/<name>`.
+- **Audio is not committed** (D-061): MP3 files under `public/demo/` stay uncommitted (`*.mp3` is gitignored) until the owner approves the M9 public audit; until then only the JSON may replace the placeholder. Audio is regenerated with the command above at any time.
+- Check a generated dataset with the GUI tests: `MANKOMIX_DEMO_DIR=<dataset folder> npm test` runs `src/test/demo-dataset.test.tsx` (loads every file through `MockBackend` and renders every screen); without the variable that suite is skipped.
 
 ## Regenerating the placeholder
 

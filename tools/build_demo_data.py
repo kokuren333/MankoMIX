@@ -13,7 +13,8 @@ Usage:
         [--variants-from samples/sample_set.json | --project-variants] [--mp3] [--ffmpeg PATH]
 
 The default output folder is ``tmp/demo_data`` (gitignored). Writing into ``gui/public/demo``
-replaces the committed placeholder; audio there is committed only at release milestones.
+replaces the committed placeholder. Audio there is not committed until the owner approves the M9
+public audit (D-061), and after that only at release milestones (SPEC 15.3).
 Layout: gui/DEMO_DATA.md. Exit code 0 on success, 1 when the build fails, 2 on usage errors.
 """
 
