@@ -188,10 +188,7 @@ def test_fullmix_route_is_deterministic(tmp_path):
         xa, sra = sf.read(str(a / w), dtype="float64")
         xb, srb = sf.read(str(b / w), dtype="float64")
         assert sra == srb and np.array_equal(xa, xb)
-        if sf.info(str(a / w)).subtype != "FLOAT":
-            # integer deliverables are byte-identical; float WAVs carry libsndfile's PEAK chunk
-            # timestamp, so only their samples are compared
-            assert _sha(a / w) == _sha(b / w)
+        assert _sha(a / w) == _sha(b / w)          # float WAVs too: no PEAK chunk timestamp
     sa = json.loads((tmp_path / "out_a" / "run_summary.json").read_text(encoding="utf-8"))
     sb = json.loads((tmp_path / "out_b" / "run_summary.json").read_text(encoding="utf-8"))
     for x in (sa, sb):
@@ -254,6 +251,30 @@ def test_stage_gate_stops_the_run(tmp_path, monkeypatch):
     stored = json.loads((tmp_path / "out" / "run_summary.json").read_text(encoding="utf-8"))
     assert stored["stopped_at"] == "clean"
     assert not (tmp_path / "song.mmx" / "renders" / "var_spotify").exists()
+
+
+def test_master_send_back_stops_the_run(tmp_path):
+    """The synthetic 2-mix pushed to the club window needs more limiting than R-14 allows (and S-08
+    would fail): the master plan sends the problem back to the mix stage, which a planner-only run
+    cannot revisit, so the run stops at master with exit code 1 and says why (SPEC 6, 6.6.3)."""
+    mix = _write_2mix(tmp_path / "in" / "song.wav")
+    code, res = _cli(tmp_path, "run", mix, "--objective", "bass_heavy:0.7", "--profile", "club",
+                     "--out", tmp_path / "out", "--max-iter", "0")
+    assert code == EXIT_VERIFY_FAILED == res["exit_code"]
+    assert res["status"] == "stopped" and res["stopped_at"] == "master"
+    assert [s["stage"] for s in res["stages"]] == STAGE_ORDER[:STAGE_ORDER.index("master") + 1]
+    master = _stage(res, "master", "var_club")
+    assert master["status"] == "failed" and master["gate"]["status"] == "fail"
+    sb = master["send_back"]
+    assert "R-14" in sb["rules"] and master["gate"]["send_back"] == sb["rules"]
+    r14 = next(i for i in sb["items"] if i["rule"] == "R-14")
+    assert r14["measured"]["gr_p95_db"] > 5.0 and r14["reason"]["en"]
+    assert "R-14" in res["reason"]["en"] and res["reason"]["ja"]
+    sent = [u for u in res["unresolved"] if u["code"] == "send_back"]
+    assert sent and sent[0]["stage"] == "master" and sent[0]["rules"] == sb["rules"]
+    assert res["deliverables"] is None and not list((tmp_path / "out").rglob("*.wav"))
+    stored = json.loads((tmp_path / "out" / "run_summary.json").read_text(encoding="utf-8"))
+    assert stored["stopped_at"] == "master" and stored["exit_code"] == EXIT_VERIFY_FAILED
 
 
 # --------------------------------------------------------------------------

@@ -29,10 +29,13 @@ master    per variant (objective x profile): planner loop, applied; further deli
           run (SPEC 4.1: a correction target, not a rejection; 7.2: report the best candidate
           and the unresolved issues): the gate reads "warning" and the summary lists it
           under ``unresolved``.
+          A send-back of the master plan (SPEC 6.6.3: R-14 limiter dependency, R-15 EQ beyond
+          the master limit, S-08 noise return that no target in the profile window fixes) is a
+          failed stage gate: the master stage cannot solve the problem, it belongs to the mix
+          or cleanup stage, which a planner-only run cannot revisit. The run stops at
+          ``master`` with exit code 1; the stage record, ``reason`` and ``unresolved`` carry
+          the rules, the measured values and the suggestions.
 render    every output (masters + manifests).
-          A send-back of the master plan (e.g. S-08: the noise floor would return inside the
-          profile window) is recorded on the stage and under ``unresolved``; S-08 is a hard
-          verify check, so such a master may legitimately fail verification.
 verify    every variant; a failed verification gives exit code 1 (the run still writes
           the reports so the failure is explained, but no master of a failed variant is
           delivered).
@@ -274,17 +277,20 @@ def _unresolved(summary: dict, stage: str, variant: str | None, gate: dict, code
                       "failed": gate["of5"]["failed"],
                       "note": _T("トランスレーション・ゲート不合格: 反復上限までに是正できなかった（人の判断に委ねる）",
                                  "translation gate failed: not corrected within the iteration cap (left to a human)")})
-    for c in sorted({c for c in codes or [] if isinstance(c, str)} - {"gate_fail", "send_back"}):
+    for c in sorted({c for c in codes or [] if isinstance(c, str)} - {"gate_fail", "send_back", "constraint_fail"}):
         items.append({"stage": stage, "variant": variant, "code": c})
 
 
 def send_back_brief(sb: Any) -> dict | None:
-    """{rules, reason} of a master plan's send-back to the mix / cleanup stage (R-14 .. S-08)."""
+    """{rules, reason, measured, suggestions} of a master plan's send-back to the mix / cleanup
+    stage (R-14, R-15, S-08), one entry per rule under ``items``."""
     if not isinstance(sb, dict) or not sb:
         return None
-    rules = sb.get("rules") or [r for r in [sb.get("rule")] + [a.get("rule") for a in sb.get("also") or []
-                                                              if isinstance(a, dict)] if r]
-    return {"rules": list(rules), "reason": sb.get("reason")}
+    parts = [sb] + [a for a in sb.get("also") or [] if isinstance(a, dict)]
+    items = [{"rule": a.get("rule"), "reason": a.get("reason"), "measured": a.get("measured"),
+              "suggestions": a.get("suggestions") or []} for a in parts]
+    rules = sb.get("rules") or [i["rule"] for i in items if i["rule"]]
+    return {"rules": list(rules), "reason": sb.get("reason"), "items": items}
 
 
 def _verify_output_brief(o: dict) -> dict:
@@ -293,6 +299,17 @@ def _verify_output_brief(o: dict) -> dict:
     out = {"profile": (o.get("output") or {}).get("profile", o.get("profile")),
            "delivery": (o.get("output") or {}).get("delivery", o.get("delivery")),
            "overall": o.get("overall"), "failed": failed}
+    measured = {}
+    for k in failed:
+        c = checks[k]
+        m = {f: c[f] for f in ("problems", "measured", "values", "true_peak_dbtp", "ceiling_dbtp", "lufs_i",
+                               "gain_db") if f in c}
+        if isinstance(c.get("deltas"), dict):
+            m["deltas"] = {d: v for d, v in c["deltas"].items() if isinstance(v, dict) and v.get("pass") is False}
+        if m:
+            measured[k] = m
+    if measured:
+        out["measured"] = measured
     sugg = []
     for k in failed:
         for sg in checks[k].get("suggestions") or []:
@@ -486,12 +503,15 @@ def run(sources: list[str], *, objective: Any = "comfort", profile: Any = "strea
             of5_failed = sorted(c.get("id") for c in (s.get("gate") or {}).get("checks") or []
                                 if isinstance(c, dict) and c.get("status") == "fail")
             gate = _gate(fails, {"status": gstat, "failed": of5_failed}, defer=True)
+            sb = send_back_brief(s.get("send_back"))
+            if sb is not None:
+                gate["status"] = "fail"
+                gate["send_back"] = sb["rules"]
             rec = _stage(summary, "master", "failed" if gate["status"] == "fail" else "applied", t0, variant=vid,
                          proposal_id=pr["proposal_id"], score_start=pr.get("score_start"),
                          score=pr.get("score_final"), converged=pr.get("converged"), gate=gate)
             if vmix is not None:
                 rec["variant_mix"] = vmix
-            sb = send_back_brief(s.get("send_back"))
             if sb is not None:
                 rec["send_back"] = sb
             summary["results"][vid] = {"master": {"proposal_id": pr["proposal_id"], "gate": gate, "send_back": sb}}
@@ -501,10 +521,15 @@ def run(sources: list[str], *, objective: Any = "comfort", profile: Any = "strea
                 summary["unresolved"].append({"stage": "master", "variant": vid, "code": "constraint_fail",
                                               "failed": fails, "deferred_to": "verify"})
             if sb is not None:
-                # SPEC 6.6.3: the master plan sends the problem back to the mix / cleanup stage; the
-                # planner-only run cannot act on it, so it is reported (verify decides the outcome)
+                # SPEC 6.6.3: the master plan sends the problem back to the mix / cleanup stage; a
+                # planner-only run cannot revisit those stages, so the run stops here
                 summary["unresolved"].append({"stage": "master", "variant": vid, "code": "send_back",
-                                              "rules": sb["rules"], "reason": sb["reason"]})
+                                              "rules": sb["rules"], "reason": sb["reason"], "items": sb["items"]})
+                en = (sb.get("reason") or {}).get("en", "") if isinstance(sb.get("reason"), dict) else ""
+                ja = (sb.get("reason") or {}).get("ja", "") if isinstance(sb.get("reason"), dict) else ""
+                raise _Stop("master", _T(f"マスタリング段からの差し戻し（{vid}: {', '.join(sb['rules'])}）: {ja}",
+                                         f"the master plan sends the problem back ({vid}: {', '.join(sb['rules'])}): "
+                                         f"{en}"))
             if gate["status"] == "fail":
                 raise _Stop("master", _T(f"マスタリング段の安全条件に落ちた（{vid}: " + ", ".join(fails) + "）",
                                          f"the mastering stage violates a safety constraint ({vid}: "

@@ -326,7 +326,7 @@ def _sum_run(r: dict) -> dict:
                     if v is not None} for s in r.get("stages") or [] if isinstance(s, dict)],
         "verify": {vid: (res.get("verify") or {}).get("overall") for vid, res in results.items()
                    if isinstance(res, dict)},
-        "unresolved": [{k: u.get(k) for k in ("stage", "variant", "code", "failed") if u.get(k) is not None}
+        "unresolved": [{k: u.get(k) for k in ("stage", "variant", "code", "rules", "failed") if u.get(k) is not None}
                        for u in r.get("unresolved") or [] if isinstance(u, dict)],
         "deliverables": (r.get("deliverables") or {}).get("files"),
         "hint": "detail='full' for every stage record; report_get for the Mix Report",

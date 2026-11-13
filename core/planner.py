@@ -788,17 +788,22 @@ def _unresolved(final: dict, blocked, valves, base, resolved) -> list[dict]:
 
 def propose(project, stage: str = "master", *, variant_id: str | None = None, profile_id: str | None = None,
             delivery_id: str | None = None, max_iter: int | None = None, min_improvement: float = 0.005,
-            objective=None) -> dict:
+            objective=None, targets=None, overrides=None, excerpt: bool = True) -> dict:
     """Stage proposal (R-31): parameters, rationale with rule ids, alternatives.
 
-    stage "master": mastering.plan_master refined by run_loop. "mix" and
-    "clean" are hooks for M4 / M5.
+    stage "master": mastering.plan_master refined by run_loop. "mix":
+    mixplan.plan_mix (fixed order of SPEC 6.5.1; ``max_iter`` default 4).
+    "clean": cleanstage.plan_clean (``targets`` / ``overrides``).
     """
     if stage not in STAGES:
         raise InputError(f"unknown stage '{stage}'", details={"valid": list(STAGES)})
-    if stage != "master":
-        raise InputError(f"the {stage} stage planner is not available yet",
-                         details={"stage": stage, "milestone": "M4" if stage == "mix" else "M5"})
+    if stage == "mix":
+        from .mixplan import plan_mix
+        return plan_mix(project, variant_id=variant_id, objective=objective,
+                        max_iter=4 if max_iter is None else max_iter, excerpt=excerpt)
+    if stage == "clean":
+        from .cleanstage import plan_clean
+        return plan_clean(project, targets=targets, overrides=overrides)
     if profile_id is None and variant_id is not None:
         v = next((v for v in project.data.get("variants") or [] if v.get("id") == variant_id), None)
         outs = (v or {}).get("outputs") or []
@@ -869,7 +874,15 @@ def apply(project, proposal: dict, *, actor: str = "planner") -> dict:
         apply_master_plan(project, proposal, actor=actor)
         return {"applied": True, "stage": "master", "variant": proposal.get("variant"),
                 "proposal_id": proposal.get("proposal_id")}
-    raise InputError(f"cannot apply a '{stage}' proposal yet", details={"stage": stage})
+    if stage == "mix":
+        from .mixplan import apply_mix_plan
+        apply_mix_plan(project, proposal, actor=actor)
+        return {"applied": True, "stage": "mix", "variant": proposal.get("variant"),
+                "proposal_id": proposal.get("proposal_id")}
+    if stage in ("clean", "cleanup"):
+        from .cleanstage import apply_clean
+        return apply_clean(project, proposal, actor=actor)
+    raise InputError(f"cannot apply a '{stage}' proposal", details={"stage": stage, "valid": list(STAGES)})
 
 
 __all__ = ["STAGES", "choose_excerpts", "build_chain", "run_loop", "propose", "apply"]

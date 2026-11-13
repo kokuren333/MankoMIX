@@ -1378,7 +1378,13 @@ def _r4(x: Any) -> Any:
 
 
 def proposal_summary(prop: dict) -> dict:
-    """Token-cheap view of a stage proposal: chain, score breakdown, constraints, gate, open issues."""
+    """Token-cheap view of a stage proposal: chain, score breakdown, constraints, gate, open issues.
+    Mix and cleanup proposals (no chain / planner keys) get their own summaries."""
+    stage = _STAGE_ALIASES.get(prop.get("stage"), prop.get("stage"))
+    if stage == "clean":
+        return clean_proposal_summary(prop)
+    if stage == "mix":
+        return mix_proposal_summary(prop)
     ev = prop.get("objective_evaluation") or {}
     gate = ev.get("gate") or {}
     planner = prop.get("planner") or {}
@@ -1687,11 +1693,6 @@ def mix_proposal_summary(prop: dict) -> dict:
 
 def stage_summary(prop: dict) -> dict:
     """The summary of a proposal of any stage."""
-    stage = _STAGE_ALIASES.get(prop.get("stage"), prop.get("stage"))
-    if stage == "clean":
-        return clean_proposal_summary(prop)
-    if stage == "mix":
-        return mix_proposal_summary(prop)
     return proposal_summary(prop)
 
 
@@ -1720,8 +1721,8 @@ def _journal_seq(proj) -> int | None:
 
 
 def _clean_propose(proj, *, targets: Any, overrides: Any, actor: str) -> tuple[dict, str]:
-    prop = _mod("cleanstage").plan_clean(proj, targets=_list_arg(targets, "targets"),
-                                         overrides=_object_arg(overrides, "overrides"))
+    prop = _mod("planner").propose(proj, "clean", targets=_list_arg(targets, "targets"),
+                                   overrides=_object_arg(overrides, "overrides"))
     _stamp_proposal(prop, actor)
     return prop, _save_proposal(proj, prop)
 
@@ -1734,7 +1735,7 @@ def _clean_apply(proj, prop: dict, path: Path | None, actor: str) -> dict:
     if prop.get("stage") != "clean":
         raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, not a cleanup proposal")
     _mod("journal").check_actor(actor)
-    res = _mod("cleanstage").apply_clean(proj, prop, actor=actor)
+    res = _mod("planner").apply(proj, prop, actor=actor)
     _mark_proposal(path, prop, status="applied", applied={"actor": actor, "at": _now_iso(),
                                                           "journal_seq": _journal_seq(proj)})
     return res
@@ -1746,8 +1747,8 @@ def _mix_propose(proj, *, variant: str | None, objective: Any, max_iter: Any, ex
         raise InputError("max_iter must be >= 0")
     if variant is not None and _mod("mastering").find_variant(proj.data, variant) is None:
         raise InputError(f"unknown variant '{variant}'", details={"valid": _variant_ids(proj.data)})
-    prop = _mod("mixplan").plan_mix(proj, variant_id=variant, objective=_objective_arg(objective),
-                                    max_iter=int(max_iter), excerpt=bool(excerpt))
+    prop = _mod("planner").propose(proj, "mix", variant_id=variant, objective=_objective_arg(objective),
+                                   max_iter=int(max_iter), excerpt=bool(excerpt))
     _stamp_proposal(prop, actor)
     return prop, _save_proposal(proj, prop)
 
@@ -1756,7 +1757,7 @@ def _mix_apply(proj, prop: dict, path: Path | None, actor: str) -> dict:
     if prop.get("stage") != "mix":
         raise InputError(f"proposal {prop.get('proposal_id')} is a '{prop.get('stage')}' proposal, not a mix proposal")
     _mod("journal").check_actor(actor)
-    _mod("mixplan").apply_mix_plan(proj, prop, actor=actor)
+    _mod("planner").apply(proj, prop, actor=actor)
     _mark_proposal(path, prop, status="applied", applied={"actor": actor, "at": _now_iso(),
                                                           "journal_seq": _journal_seq(proj)})
     vid = prop.get("variant")

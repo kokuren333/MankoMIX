@@ -413,7 +413,9 @@ class Project:
     data: dict
 
     def __init__(self, root: Path, data: dict, *, base: dict | None, disk_hash: str | None):
-        self.root = Path(root)
+        # resolved once: every path built on the root (renders, reports, caches) is absolute, so
+        # rel() and the faces never join a cwd-relative project path twice
+        self.root = Path(root).resolve()
         self.data = data
         self._base = base            # data as last read from / written to disk
         self._disk_hash = disk_hash  # sha256 of project.json bytes at that time
