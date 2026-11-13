@@ -173,7 +173,10 @@ def test_tools_list_schemas(server):
     expected = {"doctor", "project_init", "project_open", "project_get", "project_set", "project_patch",
                 "project_validate", "import_files", "analyze_run", "measure_audio", "compare_audio",
                 "objective_list", "objective_get", "profile_list", "profile_get", "history_list",
-                "history_undo", "history_checkout", "knowledge_lookup", "job_status", "job_result", "job_list"}
+                "history_undo", "history_checkout", "knowledge_lookup", "job_status", "job_result", "job_list",
+                # M3 (SPEC 10.3)
+                "objective_set", "objective_validate", "reference_add", "reference_list", "reference_remove",
+                "plan_propose", "plan_apply", "plan_reject", "plan_run", "gate_check"}
     assert expected <= set(names)
     for t in tools:
         assert t["description"]
@@ -315,6 +318,31 @@ def test_knowledge_and_catalogue_tools(server):
     assert d["status"] in ("ok", "warning", "error") and "packages" not in d
 
 
+def test_m3_objective_plan_and_rules(server, workspace):
+    from tests.test_mastering import make_project, synth_mix
+
+    make_project(workspace / "m3", synth_mix(dur=3.0))
+    r = server.ok("objective_set", project="m3", spec="comfort:0.6+bass_heavy:0.4")
+    assert r["set"] == "project" and [b["id"] for b in r["objective"]["blend"]] == ["comfort", "bass_heavy"]
+    payload, is_error = server.call("objective_validate", path_or_json={"blend": [{"id": "comfort", "weight": 1},
+                                                                                  {"id": "nope", "weight": 1}]})
+    assert is_error and payload["error"] == "validation_error"
+
+    prop = server.ok("plan_propose", project="m3", profile="spotify", max_iter=1)
+    assert prop["proposal_id"].startswith("mpl_") and prop["proposal_path"].startswith("cache/proposals/")
+    assert prop["breakdown"] and prop["gate"]["status"] in ("pass", "fail", "incomplete")
+    assert "proposal" not in prop                                     # summary by default
+    applied = server.ok("plan_apply", project="m3", proposal=prop["proposal_id"])
+    assert applied["applied"] is True and applied["evaluation_stored"] is True
+    payload, is_error = server.call("plan_reject", project="m3", proposal_id=prop["proposal_id"], reason="too dark")
+    assert is_error and "already applied" in payload["message"]
+    ev = server.ok("project_get", project="m3", pointer="/variants/0/evaluation/score")
+    assert ev["value"] == applied["score"]
+
+    rule = server.ok("knowledge_lookup", id="R-14")
+    assert rule["count"] == 1 and rule["entries"][0]["kind"] == "rule" and "S-01" in rule["entries"][0]["data"]["related"]
+
+
 # ---------------------------------------------------------------------------
 # workspace restriction
 # ---------------------------------------------------------------------------
@@ -410,7 +438,7 @@ def test_future_api_function_becomes_a_tool(monkeypatch, tmp_path):
     tb = Toolbox(ws)
     tool = tb.tools["plan_propose"]
     props = tool.input_schema["properties"]
-    assert set(props) == {"project", "stage", "objective", "detail"}
+    assert set(props) - {"async"} == {"project", "stage", "objective", "detail"}   # plan_propose is a long tool
     assert tool.input_schema["required"] == ["stage"] and tool.mutates
     (tmp_path / "proj").mkdir()
     payload, is_error = tb.call("plan_propose", {"project": "proj", "stage": "master"})

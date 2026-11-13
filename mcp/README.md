@@ -53,7 +53,7 @@ python -m mankomix.mcp --root <作業フォルダ>
 | `doctor` | `doctor` | `doctor` | 依存、FFmpeg のビルド構成、符号化器、GPU、モデル |
 | `project_init` | `init_project` | `init` | プロジェクトの作成 |
 | `project_open` | `status` | `status` | プロジェクトの要約 |
-| `project_get` | （代替実装） | — | project.json 全体、または JSON pointer の位置の値 |
+| `project_get` | `project_get` | `get` | project.json 全体、または JSON pointer の位置の値 |
 | `project_set` | `set_value` | `set` | JSON pointer で 1 値を変更 |
 | `project_patch` | `patch` | `patch` | RFC 6902 パッチ |
 | `project_validate` | `validate_project` | `validate` | 正本の検証 |
@@ -62,14 +62,19 @@ python -m mankomix.mcp --root <作業フォルダ>
 | `measure_audio` | `measure_audio` | `measure` | 任意の音声の測定 |
 | `compare_audio` | `compare_audio` | `compare` | レベルマッチ比較 |
 | `objective_list` / `objective_get` | `objective_list` / `objective_show` | `objective list` / `show` | 目的関数 |
+| `objective_set` / `objective_validate` | `objective_set` / `objective_validate` | `objective set` / `validate` | 目的関数の指定（混合、強度、公開パラメータ、主役）と、定義ファイルや指定の検証（制約の緩和は不可） |
+| `reference_add` / `reference_list` / `reference_remove` | `reference_add` / `reference_list` / `reference_remove` | `reference add` / `list` / `remove` | リファレンス曲。測定ベクトルだけを保存し、音声はプロジェクトに含めない（ジョブ可） |
+| `plan_propose` / `plan_apply` / `plan_reject` | `plan_propose` / `plan_apply` / `plan_reject` | `plan propose` / `apply` / `reject` | 段の計画の提案（`cache/proposals/<id>.json`、ジョブ可）、承認して適用、却下して別案（R-31。却下は履歴に記録） |
+| `plan_run` | `planner_run` | `plan run` | プランナーのループ（測定 → プレビュー → 評価 → 反復）。`apply: true` で適用（ジョブ可） |
+| `gate_check` | `gate_check` | `gate` | トランスレーション・ゲート（OF-5）。`incomplete` は合格扱いにしない |
 | `profile_list` / `profile_get` | `profile_list` / `profile_show` | `profile list` / `show` | 媒体プロファイルと納品形式 |
 | `history_list` / `history_undo` / `history_checkout` | `history` / `undo` / `checkout` | `history` / `undo` / `checkout` | 操作履歴 |
-| `knowledge_lookup` | （代替実装） | — | `knowledge/*.json` の検索（知覚語彙、帯域、ジャンル prior、閾値）。id、ラベル、注記の自由語検索 |
+| `knowledge_lookup` | `knowledge_lookup` | `knowledge` | `knowledge/*.json` の検索（判断規則 R-01〜R-33、知覚語彙、帯域、ジャンル prior、閾値）。id、ラベル、注記の自由語検索 |
 | `job_status` / `job_result` / `job_list` | — | — | ジョブの問い合わせ（サーバー側の機能） |
 
-後続マイルストーンのツール（`plan_propose` / `plan_apply` / `plan_reject`、`clean_*` / `mix_*` / `master_*`、`render_preview`、`render_spectrogram`、`export_run`、`verify_run`、`report_get`、`separate_run`、`model_*`、`stems_*`、`objective_set`、`reference_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。
+後続マイルストーンのツール（`clean_*` / `mix_*` / `master_*`、`render_preview`、`render_spectrogram`、`export_run`、`verify_run`、`report_get`、`separate_run`、`model_*`、`stems_*`、`pipeline_run`）は `tools.py` の表に登録済みで、対応する関数が `core/api.py` に入ると自動で公開される。
 
-「代替実装」の 2 つ（`project_get`、`knowledge_lookup`）は、コア API に対応する関数（`api.project_get`、`api.knowledge_lookup`）がまだないため MCP 側に置いている。API に関数が入れば、表の定義はそのままで API 側が優先される。判断規則の索引（R-01〜R-33）はまだデータになっていないため、`knowledge_lookup` の対象外。
+`project_get` と `knowledge_lookup` もコア API（`api.project_get`、`api.knowledge_lookup`、実体は `core/knowledge.py`）を包む。判断規則の索引（R-01〜R-33）は `knowledge/rules.json` のデータで、`knowledge_lookup` の `kind: "rule"` として引ける。
 
 ## ツールの追加
 
@@ -87,4 +92,4 @@ ToolSpec("verify_run", ("verify_run", "verify"), "Run verification of the render
 | `tools.py` | ツール表、API シグネチャからのスキーマ生成、要約 |
 | `jobs.py` | バックグラウンドジョブ（プロジェクトごとに 1 つ） |
 | `workspace.py` | 作業フォルダの制限と結果の絶対パス除去 |
-| `knowledge.py` | `knowledge_lookup` の代替実装 |
+| `knowledge.py` | 旧い import 経路の互換（実体は `core/knowledge.py`） |

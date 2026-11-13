@@ -300,7 +300,15 @@ def test_report_ja_en(mastered):
     man = json.loads((mastered["root"] / "renders/var_spotify/spotify__hires_native.manifest.json")
                      .read_text(encoding="utf-8"))
     assert rep["reproducibility"]["project_hash"] == man["project_hash"]
-    assert rep["objective_breakdown"]["status"] == "not_evaluated"
+    # M3: per-metric breakdown computed on the rendered master (no planner evaluation stored)
+    ob = rep["objective_breakdown"]
+    assert ob["status"] == "evaluated" and ob["source"] == "rendered_master"
+    measured = [t for t in ob["terms"] if t["status"] == "measured"]
+    assert measured and all({"value", "target", "penalty", "contribution", "value_before"} <= set(t) for t in measured)
+    assert ob["score"] == pytest.approx(sum(t["contribution"] for t in measured))
+    assert rep["translation_gate"]["status"] in ("fail", "incomplete") and rep["translation_gate"]["meaning"]
+    assert "P-01" in md_en.split("## 5. ")[1].split("## 6. ")[0]
+    assert "OF-5" in md_ja.split("## 6. ")[1]
     en = report.build_report(proj, "var_spotify", lang="en")
     assert isinstance(en["summary"]["route"]["reason"], str)
 

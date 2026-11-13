@@ -215,23 +215,41 @@ def _keep(r: dict) -> dict:
     return r
 
 
-# ---------------------------------------------------------------------------
-# stand-ins for functions the core API does not offer yet
-# ---------------------------------------------------------------------------
-
-@api._face_safe
-def _project_get(project_path: str, pointer: str = "") -> dict:
-    """Read project.json (or the value at a JSON pointer). Stand-in for api.project_get."""
-    from mankomix.core import jsonpatch
-    data = api._open(project_path).data
-    return {"pointer": pointer, "value": jsonpatch.resolve(data, pointer) if pointer else data}
+def _sum_plan(r: dict) -> dict:
+    """Stage proposal: ids, chain, per-metric breakdown, constraints, gate (the core's own summary)."""
+    if not isinstance(r.get("summary"), dict) or "proposal_id" not in r:
+        return default_summary(r)
+    return {"proposal_id": r["proposal_id"], "proposal_path": r.get("proposal_path"), "applied": r.get("applied"),
+            **compact(r["summary"], depth=5, max_items=40)}
 
 
-def _knowledge_lookup(query: str | None = None, *, id: str | None = None, kind: str | None = None,
-                      source: str | None = None, limit: int = 20, detail: bool = False) -> dict:
-    """Stand-in for api.knowledge_lookup."""
-    from .knowledge import knowledge_lookup
-    return knowledge_lookup(query, id=id, kind=kind, source=source, limit=limit, detail=detail)
+def _sum_plan_run(r: dict) -> dict:
+    if "proposal_id" not in r:
+        return default_summary(r)
+    s = r.get("summary") or {}
+    return {k: r.get(k) for k in ("proposal_id", "proposal_path", "applied", "score_start", "score_final",
+                                  "converged", "reason")} | {
+        "iterations": [{"i": it.get("i"), "score": it.get("score"), "improvement": it.get("improvement"),
+                        "move": {k: (it.get("move") or {}).get(k) for k in ("kind", "band", "delta_db")}
+                        if it.get("move") else None} for it in r.get("iterations") or []],
+        "breakdown": compact(s.get("breakdown"), depth=3, max_items=40),
+        "gate": s.get("gate"), "constraints": s.get("constraints"),
+        "unresolved": sorted({u.get("code") for u in r.get("unresolved") or [] if isinstance(u, dict)}),
+    }
+
+
+def _sum_objective_set(r: dict) -> dict:
+    res = r.get("resolved") or {}
+    return {"set": r.get("set"), "objective": r.get("objective"), "warnings": r.get("warnings") or [],
+            "resolved": {k: res.get(k) for k in ("blend", "intensity", "lead", "genre", "reference", "notes")},
+            "terms": len(res.get("terms") or []), "hint": "detail='full' adds the resolved terms and targets"}
+
+
+def _sum_gate(r: dict) -> dict:
+    return {k: r.get(k) for k in ("variant", "source", "file", "profile", "status", "pass", "status_meaning")} | {
+        "checks": [{"id": c.get("id"), "status": c.get("status"), "required": c.get("required"),
+                    "reason": c.get("reason")} for c in r.get("checks") or []],
+        "corrective_suggestions": r.get("corrective_suggestions") or [], "notes": r.get("notes") or []}
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +295,7 @@ SPECS: list[ToolSpec] = [
              "checks, analysis cache state, last journal entry.", summary=_sum_status),
     ToolSpec("project_get", ("project_get",), "Read project.json, or the value at a JSON pointer.",
              schema={"pointer": {"description": "RFC 6901 pointer, e.g. /tracks/0 ('' = whole document)"}},
-             summary=_sum_project_get, fallback=_project_get),
+             summary=_sum_project_get),
     ToolSpec("project_set", ("set_value",), "Set one value by JSON pointer (schema-validated, journaled).",
              rename={"value_json": "value"}, kinds={"value_json": "json_text"},
              schema={"value": {"description": "new value (any JSON type)"},
@@ -305,13 +323,45 @@ SPECS: list[ToolSpec] = [
     # intent and outlets
     ToolSpec("objective_list", ("objective_list",), "List objective functions.", summary=_keep),
     ToolSpec("objective_get", ("objective_show",), "Show one objective function."),
-    ToolSpec("objective_set", ("objective_set",), "Set the project objective blend."),
-    ToolSpec("objective_validate", ("objective_validate",), "Validate an objective specification."),
+    ToolSpec("objective_set", ("objective_set",), "Set the project objective (or a variant's override): "
+             "blend of objectives with weights, intensity 0-1, declared overrides, lead stem. Safety "
+             "invariants (S-nn) are never relaxed.",
+             schema={"spec": {"description": "objective spec {blend:[{id,weight}], intensity, overrides, lead_stem} "
+                                              "or the short form 'comfort:0.6+bass_heavy:0.4' / 'bass_heavy:0.7'"},
+                     "variant": {"description": "variant id to set an override for (default: the project objective)"}},
+             summary=_sum_objective_set),
+    ToolSpec("objective_validate", ("objective_validate",), "Validate an objective definition (unknown metric "
+             "ids, weight sums, declared params, attempts to relax S-nn) or an objective spec.",
+             kinds={"path_or_json": "path_or_json"},
+             schema={"path_or_json": {"description": "definition or catalog object, JSON text, a .json file "
+                                                      "relative to the workspace, or a spec"}}),
     ToolSpec("profile_list", ("profile_list",), "List media profiles and delivery formats.", summary=_keep),
     ToolSpec("profile_get", ("profile_show",), "Show one media profile or delivery format."),
-    ToolSpec("reference_add", ("reference_add",), "Add a reference track."),
-    ToolSpec("reference_list", ("reference_list",), "List reference tracks."),
-    ToolSpec("reference_remove", ("reference_remove",), "Remove a reference track."),
+    ToolSpec("reference_add", ("reference_add",), "Register a reference track: only its level-matched "
+             "measurement vector is stored, never the audio (targets then come from the references).",
+             long=True, schema={"audio_path": {"description": "audio file relative to the workspace"}}),
+    ToolSpec("reference_list", ("reference_list",), "List registered references and the target source."),
+    ToolSpec("reference_remove", ("reference_remove",), "Remove a reference and its stored vector."),
+    # stage plans (R-31): propose -> approve and apply / reject and request an alternative
+    ToolSpec("plan_propose", ("plan_propose",), "Propose a stage plan (master): the deterministic planner "
+             "refines the chain against the objective on level-matched previews. Returns the proposal id, chain, "
+             "per-metric breakdown, constraints and the translation gate; nothing is applied.",
+             long=True, mutates=True, summary=_sum_plan,
+             schema={"stage": {"enum": ["master", "mix", "clean"]},
+                     "objective": {"description": "objective for this plan (spec object or 'comfort:0.6+bass_heavy:0.4'); "
+                                                  "default: the project's"},
+                     "max_iter": {"description": "planner iteration cap (default 6)"}}),
+    ToolSpec("plan_apply", ("plan_apply",), "Approve and apply a proposal (by proposal_id); the variant stores "
+             "the chain, the objective evaluation and the decisions.",
+             rename={"proposal_or_id": "proposal"},
+             schema={"proposal": {"description": "proposal_id from plan_propose (or the proposal object)"}}),
+    ToolSpec("plan_reject", ("plan_reject",), "Reject a proposal with a reason (journaled) and get hints for "
+             "requesting an alternative."),
+    ToolSpec("plan_run", ("planner_run",), "Run the planner loop for the master stage (measure, preview, "
+             "evaluate, iterate up to max_iter); saves the proposal and applies it only with apply=true.",
+             long=True, summary=_sum_plan_run),
+    ToolSpec("gate_check", ("gate_check",), "Translation gate OF-5 on a variant's master: pass / fail / "
+             "incomplete with per-check reasons (incomplete is never a pass).", summary=_sum_gate),
     # history
     ToolSpec("history_list", ("history",), "List journal entries (detail='full' adds the patches).",
              schema={"limit": {"description": "most recent N entries"}}, summary=_keep),
@@ -319,13 +369,14 @@ SPECS: list[ToolSpec] = [
     ToolSpec("history_checkout", ("checkout",), "Restore the project to a journal sequence number.",
              summary=_keep),
     # knowledge
-    ToolSpec("knowledge_lookup", ("knowledge_lookup",), "Look up knowledge data: perceptual vocabulary terms "
-             "and bands, genre priors, thresholds. Free-text match on ids, labels and notes.",
+    ToolSpec("knowledge_lookup", ("knowledge_lookup",), "Look up knowledge data: decision rules R-01..R-33, "
+             "perceptual vocabulary terms and bands, genre priors, thresholds. Free-text match on ids, labels "
+             "and notes.",
              schema={"query": {"description": "free text, all words must match (e.g. 'muddy', 'limiter')"},
-                     "id": {"description": "exact entry id (returns its data)"},
-                     "kind": {"description": "term, band, genre, section, table, ..."},
-                     "source": {"description": "knowledge file name without .json"}},
-             summary=_keep, fallback=_knowledge_lookup),
+                     "id": {"description": "exact entry id, e.g. R-14 or komori (returns its data)"},
+                     "kind": {"description": "rule, term, band, genre, section, table, ..."},
+                     "source": {"description": "knowledge file name without .json, e.g. rules"}},
+             summary=_keep),
     # later milestones: appear automatically once the API function exists
     ToolSpec("stems_list", ("stems_list", "stem_list"), "List stems (remix view)."),
     ToolSpec("stems_add", ("stems_add", "stem_add"), "Add a stem."),
@@ -340,9 +391,6 @@ SPECS: list[ToolSpec] = [
     ToolSpec("model_register", ("model_register",), "Register a local model (BYOW)."),
     ToolSpec("model_verify", ("model_verify",), "Verify model files against the registry."),
     ToolSpec("model_remove", ("model_remove",), "Remove a model from the registry."),
-    ToolSpec("plan_propose", ("plan_propose",), "Propose a plan for a stage (clean, mix, master)."),
-    ToolSpec("plan_apply", ("plan_apply",), "Approve and apply a proposed plan."),
-    ToolSpec("plan_reject", ("plan_reject",), "Reject a proposed plan and ask for an alternative."),
     ToolSpec("clean_plan", ("clean_plan",), "Propose a cleanup plan."),
     ToolSpec("clean_apply", ("clean_apply",), "Apply a cleanup plan."),
     ToolSpec("clean_delta", ("clean_delta",), "Write the removed (delta) audio of the cleanup.", long=True),
@@ -411,7 +459,7 @@ def _jsonable_default(v: Any) -> bool:
 class Param:
     api: str            # API parameter name
     arg: str | None     # tool argument name (None: injected)
-    kind: str           # project | path | paths | actor | detail | json_text | plain
+    kind: str           # project | path | paths | actor | detail | json_text | path_or_json | plain
     required: bool
     default: Any = inspect.Parameter.empty
 
@@ -484,6 +532,12 @@ class Tool:
                 kw[p.api] = [str(ws.resolve(x, what=p.arg)) for x in v]
             elif p.kind == "json_text":
                 kw[p.api] = json.dumps(v, ensure_ascii=False)
+            elif p.kind == "path_or_json":
+                # a .json file name is a workspace path; objects, JSON text and specs pass through
+                if isinstance(v, str) and v.strip().lower().endswith(".json") and v.strip()[:1] not in "{[":
+                    kw[p.api] = str(ws.resolve(v.strip(), what=p.arg))
+                else:
+                    kw[p.api] = v
             else:
                 kw[p.api] = v
         if self.spec.derive is not None:
@@ -527,7 +581,7 @@ def bind_spec(spec: ToolSpec) -> Tool | None:
         elif kind == "path":
             schema = {"type": "string", "description": "path relative to the workspace"}
             req = not has_default
-        elif kind == "json_text":
+        elif kind in ("json_text", "path_or_json"):
             schema = {}
             req = not has_default
         else:

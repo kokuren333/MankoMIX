@@ -1,7 +1,10 @@
 """Mix Report (SPEC 6.8, R-24, R-25, D-044).
 
 ``report.json`` is canonical; Markdown is rendered from it in Japanese and
-English. Text fields are bilingual objects ``{"ja": ..., "en": ...}`` in the
+English. Section 5 is the per-metric objective breakdown (never only a total
+score): taken from the evaluation stored with the applied proposal, or
+computed on the rendered master; section 6 adds the S-nn statuses of that
+evaluation and the translation gate (OF-5). Text fields are bilingual objects ``{"ja": ..., "en": ...}`` in the
 canonical file; ``build_report(..., lang="ja"|"en")`` resolves them to one
 language. Nothing is fabricated: sections a route or milestone cannot fill
 say so explicitly.
@@ -18,10 +21,11 @@ import mankomix
 from . import audio_io, config
 from . import master_analysis as ma
 from .errors import InputError
-from .mastering import find_variant, objective_ids
+from .hashing import canonical_hash
+from .mastering import find_variant, limiter_ceiling, objective_ids
 from .measure import loudness as ld
 from .render import ARCHIVE_DELIVERY, load_manifest, output_ext, variant_dir, variant_route
-from .routes import load_master_input
+from .routes import load_master_input, resample
 
 LANGS = ("ja", "en")
 
@@ -103,44 +107,285 @@ def _vocab_band(band_id: str) -> dict | None:
     return None
 
 
-def _decisions(plan: dict) -> dict:
-    out = {k: [] for k in ("balance", "panning", "frequency", "depth", "dynamics", "interest")}
+ELEMENTS = ("balance", "panning", "frequency", "depth", "dynamics", "interest")
+_STAGE_ELEMENT["planner_loop"] = "frequency"
+
+
+def _move_words(moves: list) -> list[dict]:
+    """Perceptual vocabulary for EQ moves (plan_master moves carry gain_db, planner moves delta_db)."""
+    words = []
+    for m in moves or []:
+        if not isinstance(m, dict) or not m.get("band"):
+            continue
+        if m.get("kind") not in (None, "eq"):
+            continue
+        g = m.get("gain_db", m.get("delta_db"))
+        if not isinstance(g, (int, float)):
+            continue
+        vb = _vocab_band(m["band"])
+        direction = "too_much" if g < 0 else "too_little"
+        ja = (vb or {}).get(direction, {}).get("ja") if vb else None
+        words.append({"band": m["band"], "gain_db": float(g),
+                      "vocabulary": T(ja or m["band"], _BAND_WORDS_EN.get(m["band"], m["band"]))})
+    return words
+
+
+def _decisions(plan: dict, stored: dict | None = None, n_refs: int = 0) -> dict:
+    """Decision log by the six elements (SPEC 6.8 section 4).
+
+    ``plan.rationale`` gives the stage decisions of the chain; ``stored`` (the
+    applied proposal's planner decisions, ``variants[].decisions``) adds the
+    planner's moves and its notes for balance / depth / interest.
+    """
+    out = {k: [] for k in ELEMENTS}
     for r in plan.get("rationale", []) or []:
         el = _STAGE_ELEMENT.get(r.get("stage"), "dynamics")
         d = {"stage": r.get("stage"), "measured": r.get("measured"), "rule": r.get("rule"),
              "action": r.get("action"), "alternatives": r.get("alternatives", []), "result": r.get("expected")}
-        if r.get("moves"):
-            words = []
-            for m in r["moves"]:
-                vb = _vocab_band(m.get("band", ""))
-                direction = "too_much" if m.get("gain_db", 0) < 0 else "too_little"
-                ja = (vb or {}).get(direction, {}).get("ja") if vb else None
-                words.append({"band": m.get("band"), "gain_db": m.get("gain_db"),
-                              "vocabulary": T(ja or m.get("band", ""), _BAND_WORDS_EN.get(m.get("band"), m.get("band", "")))})
+        words = _move_words(r.get("moves"))
+        if words:
             d["vocabulary"] = words
         out[el].append(d)
+    for el in ELEMENTS:
+        for d in (stored or {}).get(el) or []:
+            if isinstance(d, dict):
+                out[el].append(d)
     na_mix = T("フルミックス経路のマスタリングでは扱わない（ミックス段は M4）",
                "Not handled by full-mix mastering (the mix stage arrives in M4)")
     for el in ("balance", "depth"):
         if not out[el]:
             out[el].append({"measured": None, "rule": None, "action": na_mix, "alternatives": [], "result": None,
                             "status": "not_evaluated"})
-    out["interest"].append({"measured": None, "rule": "R-26",
-                            "action": T("「仕掛け」は自動化が最も難しい軸で、人間の指示とリファレンスに依存する。このマイルストーンでは評価しない",
-                                        "Interest is the hardest axis to automate and depends on human direction and references; not evaluated in this milestone"),
-                            "alternatives": [], "result": None, "status": "not_evaluated"})
+    refs = (T(f"登録済みのリファレンス {n_refs} 曲は目標範囲の物差しとして使った（スペクトルの写し取りはしない）",
+              f"The {n_refs} registered reference(s) were used as a yardstick for target ranges (no spectrum copying)")
+            if n_refs else
+            T("リファレンスは登録されていない", "No references are registered"))
+    if not any(d.get("status") == "depends_on_humans_and_references" for d in out["interest"]):
+        out["interest"].append({"measured": None, "rule": "R-26",
+                                "action": T("「仕掛け」は自動化が最も難しい軸で、人間の指示とリファレンスに依存する。プランナーは展開のコントラストを平坦にしないことだけを監視する",
+                                            "Interest is the hardest axis to automate and depends on human direction and references; the planner only watches that section contrast is not flattened"),
+                                "alternatives": [], "result": None, "status": "depends_on_humans_and_references"})
+    for d in out["interest"]:
+        if d.get("status") == "depends_on_humans_and_references":
+            d["references"] = refs
     if not out["panning"]:
         out["panning"].append({"measured": None, "rule": "R-09", "action": T("ステレオ処理なし", "No stereo processing"),
                                "alternatives": [], "result": None})
     return out
 
 
-def _measurements(project, variant, x_in, sr_in, archive_path: Path | None) -> dict:
+# --------------------------------------------------------------------------
+# objective evaluation (sections 3, 5, 6)
+
+
+_ROW_KEYS = ("objective", "metric", "variant", "key", "sense", "weight", "effective_weight", "value", "target",
+             "target_source", "penalty", "contribution", "status", "reason", "unit")
+
+
+def _rows(terms: list) -> list[dict]:
+    return [{k: t.get(k) for k in _ROW_KEYS if k in t} for t in terms or [] if isinstance(t, dict)]
+
+
+def _by_objective(rows: list[dict]) -> dict:
+    out: dict = {}
+    for r in rows:
+        if r.get("status") == "measured" and isinstance(r.get("contribution"), (int, float)):
+            out[r["objective"]] = out.get(r["objective"], 0.0) + float(r["contribution"])
+    return out
+
+
+def _evaluate_signal(O, x, sr, resolved, *, before=None, profile=None, ceiling=None, limiter=None,
+                     chain=None, gate=False) -> dict:
+    meas = O.measure_for_objective(x, sr, resolved, before=before, profile=profile, ceiling_dbtp=ceiling,
+                                   limiter=limiter, chain=chain, gate=gate)
+    return O.evaluate(meas, resolved)
+
+
+def _objective_evaluation(project, variant: dict, x_in, sr_in, archive_path: Path | None) -> dict:
+    """Before / after objective evaluation of a variant (level matched, R-01).
+
+    "after" is the evaluation stored with the applied proposal when it belongs to
+    the current chain (``variants[].evaluation``), else it is computed on the
+    rendered archive master. "before" is the unprocessed master input against the
+    same resolved objective (preservation metrics compare the input with itself).
+    """
+    from . import objectives as O
+    vid = variant.get("id")
+    master = variant.get("master") or {}
+    chain = master.get("chain") or []
+    plan = master.get("plan") or {}
+    try:
+        resolved = O.resolve_objective(project, variant=vid)
+    except Exception as exc:  # an invalid stored objective must not break the report
+        return {"status": "not_evaluated", "reason": f"objective could not be resolved: {exc}"}
+    outputs = variant.get("outputs") or []
+    profile = None
+    if outputs and outputs[0].get("profile"):
+        try:
+            profile = config.get_profile(outputs[0]["profile"])
+        except Exception:
+            profile = None
+    out: dict = {"status": "not_evaluated", "resolved": O.summarize_resolved(resolved),
+                 "resolved_notes": resolved.get("notes") or [], "before": None, "after": None, "source": None}
+    stored = variant.get("evaluation")
+    if isinstance(stored, dict) and stored.get("chain_hash") == canonical_hash(chain):
+        out["after"] = {"score": stored.get("score"), "terms": _rows(stored.get("terms")),
+                        "constraints": stored.get("constraints") or {}, "constraint_details": None,
+                        "gate": stored.get("gate"), "redistribution": stored.get("redistribution") or [],
+                        "scope": stored.get("scope"), "proposal_id": stored.get("proposal_id")}
+        out["source"] = "stored_proposal"
+        if (stored.get("objective") or {}).get("reference"):
+            out["resolved"]["reference"] = stored["objective"]["reference"]
+    elif isinstance(stored, dict):
+        out["stale_stored"] = True
+    try:
+        if out["after"] is None and archive_path is not None and archive_path.is_file():
+            y, sr = audio_io.read(archive_path)
+            if int(sr) != int(sr_in):
+                y, sr = resample(y, sr, sr_in), sr_in
+            n = min(y.shape[0], x_in.shape[0])
+            ev = _evaluate_signal(O, y, sr, resolved, before=x_in[:n] if n else None, profile=profile,
+                                  ceiling=limiter_ceiling(chain) if chain else None,
+                                  limiter=(plan.get("expected") or {}).get("limiter_gr"), chain=chain or None,
+                                  gate=True)
+            out["after"] = {"score": ev.get("score"), "score_unconstrained": ev.get("score_unconstrained"),
+                            "terms": _rows(ev.get("terms")), "constraints": ev.get("constraints") or {},
+                            "constraint_details": ev.get("constraint_details"), "gate": ev.get("gate"),
+                            "redistribution": ev.get("redistribution") or [], "scope": "full_length",
+                            "notes": ev.get("notes") or []}
+            out["source"] = "rendered_master"
+        evb = _evaluate_signal(O, x_in, sr_in, resolved, before=x_in, profile=profile)
+        out["before"] = {"score": evb.get("score_unconstrained"), "terms": _rows(evb.get("terms")),
+                         "scope": "full_length", "note": T(
+                             "処理前（マスター入力）。保存系の指標（トランジェント、展開のコントラスト）は入力どうしの比較なので理想値になる",
+                             "Before = the unprocessed master input; preservation metrics (transients, section contrast) compare the input with itself and are ideal")}
+    except Exception as exc:  # informative section: report the reason instead of failing
+        out["error"] = str(exc)
+    if out["after"] is not None:
+        out["status"] = "evaluated"
+    elif "error" not in out:
+        out["reason"] = "render the variant (or apply a planner proposal) to evaluate the objective"
+    return out
+
+
+def _fmt_num(v, nd: int = 2) -> str:
+    if v is None:
+        return "-"
+    if isinstance(v, bool):
+        return str(v)
+    if isinstance(v, (int, float)):
+        return f"{v:.{nd}f}" if math.isfinite(float(v)) else "-"
+    if isinstance(v, list) and len(v) == 2 and all(isinstance(a, (int, float)) or a is None for a in v):
+        return f"[{_fmt_num(v[0], nd)}, {_fmt_num(v[1], nd)}]"
+    text = json.dumps(v, ensure_ascii=False, sort_keys=True)
+    return text if len(text) <= 60 else text[:59] + "…"
+
+
+def _breakdown(oe: dict, obj: dict) -> dict:
+    """Section 5: per-metric achievement (never only a total score)."""
+    after = oe.get("after")
+    if after is None:
+        return {"status": oe.get("status", "not_evaluated"), "reason": oe.get("reason") or oe.get("error"),
+                "terms": [{"objective": oid, "status": "not_evaluated"} for oid in objective_ids(obj)],
+                "note": T("目的関数の達成度は、レンダリング後（またはプランナーの提案を適用した後）に指標別に評価する。合計 score だけは出さない",
+                          "The objective is evaluated per metric after rendering (or after applying a planner proposal); a total score alone is never shown")}
+    before = {t.get("key") + "|" + str(t.get("objective")): t for t in (oe.get("before") or {}).get("terms") or []}
+    rows = []
+    for t in after.get("terms") or []:
+        b = before.get(str(t.get("key")) + "|" + str(t.get("objective"))) or {}
+        rows.append({**t, "value_before": b.get("value"), "penalty_before": b.get("penalty"),
+                     "status_before": b.get("status")})
+    res = oe.get("resolved") or {}
+    provisional = [b for b in (res.get("blend") or []) if b.get("id") in _provisional_ids()]
+    out = {
+        "status": "evaluated",
+        "source": oe.get("source"),
+        "source_label": {"stored_proposal": T("適用した提案の評価（プランナーの全尺評価）", "evaluation stored with the applied proposal (planner, full length)"),
+                         "rendered_master": T("レンダリングしたマスターを評価", "evaluated on the rendered master")}.get(oe.get("source")),
+        "proposal_id": after.get("proposal_id"),
+        "scope": after.get("scope"),
+        "objective": {"blend": res.get("blend"), "intensity": res.get("intensity"), "lead": res.get("lead"),
+                      "genre": res.get("genre"), "reference": res.get("reference")},
+        "score": after.get("score"),
+        "score_before": (oe.get("before") or {}).get("score"),
+        "score_by_objective": _by_objective(after.get("terms") or []),
+        "terms": rows,
+        "redistribution": after.get("redistribution") or [],
+        "level_matched": True,
+        "rule": "R-01",
+        "note": T("各項の penalty は目標範囲内なら 0、外れるほど 1 に近づく。score は実効重み × penalty の合計で、0 が理想。測定できない項の重みは同じ目的関数の測定できた項へ比例配分し、記録する",
+                  "Each penalty is 0 inside the target range and approaches 1 the further it is outside. The score is the sum of effective weight x penalty; 0 is ideal. Weights of terms that cannot be measured are redistributed proportionally to the measured terms of the same objective and recorded"),
+    }
+    if provisional:
+        out["weak_evidence"] = [{"objective": b.get("id"), "text": T(
+            f"「{b.get('id')}」は暫定の目的関数。聴覚疲労を定量した査読研究は弱く、この評価は弱証拠に基づく（SPEC 4.4）",
+            f"'{b.get('id')}' is a provisional objective: peer-reviewed evidence quantifying listening fatigue is weak, so this evaluation rests on weak evidence (SPEC 4.4)")}
+            for b in provisional]
+    if oe.get("stale_stored"):
+        out["stale_note"] = T("保存されていた評価は現在のチェーンと一致しないため使わず、レンダリング結果で評価し直した",
+                              "The stored evaluation does not match the current chain; re-evaluated on the render")
+    return out
+
+
+def _provisional_ids() -> set:
+    try:
+        return {o["id"] for o in config.load_objectives()["objectives"] if o.get("provisional")}
+    except Exception:
+        return set()
+
+
+_GATE_MEANING = {
+    "pass": T("必須の検査がすべて合格した", "Every required check passed"),
+    "fail": T("必須の検査に落第がある。score の良し悪しに関わらず是正の対象（SPEC 4.1）",
+              "A required check failed: the master is a correction target regardless of its score (SPEC 4.1)"),
+    "incomplete": T("評価できなかった必須の検査がある（各検査の理由を参照）。incomplete は合格扱いにしない。2mix だけの場合、主役に関する検査（帯域制限、小音量）はステムがないと評価できない",
+                    "Some required checks could not be evaluated (see each reason); incomplete is never a pass. With a 2mix only, the lead checks (band-limited, low level) cannot be evaluated without stems"),
+    "not_evaluated": T("ゲートは評価されていない（レンダリング後に評価する）", "The gate was not evaluated (it is evaluated after rendering)"),
+}
+
+
+def _gate_section(oe: dict) -> dict:
+    after = oe.get("after") or {}
+    g = after.get("gate") or {}
+    status = g.get("status") or "not_evaluated"
+    return {"spec_id": "OF-5", "status": status, "pass": bool(g.get("pass")), "meaning": _GATE_MEANING.get(status),
+            "profile": g.get("profile"),
+            "checks": [{k: c.get(k) for k in ("id", "status", "required", "reason", "values") if k in c}
+                       for c in g.get("checks") or []],
+            "corrective_suggestions": g.get("corrective_suggestions") or [],
+            "notes": g.get("notes") or []}
+
+
+def _objective_constraints(oe: dict) -> dict:
+    after = oe.get("after") or {}
+    st = after.get("constraints") or {}
+    det = after.get("constraint_details") or {}
+    return {"statuses": st, "details": {k: v for k, v in det.items() if st.get(k) != "not_evaluated"},
+            "rejected": any(v == "fail" for v in st.values()),
+            "note": T("目的関数の評価時の安全不変条件。混合や強度で緩和されない（SPEC 4.3）。出口ごとの最終判定は上の検証結果",
+                      "Safety invariants at objective evaluation; never relaxed by blend or intensity (SPEC 4.3). The per-output verdicts above are final")}
+
+
+def _objective_metrics(oe: dict) -> list[dict]:
+    before = {(t.get("objective"), t.get("key")): t for t in (oe.get("before") or {}).get("terms") or []}
+    out = []
+    for t in (oe.get("after") or {}).get("terms") or []:
+        b = before.get((t.get("objective"), t.get("key"))) or {}
+        out.append({"objective": t.get("objective"), "metric": t.get("key"), "unit": t.get("unit"),
+                    "before": b.get("value"), "after": t.get("value"), "status": t.get("status")})
+    return out
+
+
+def _measurements(project, variant, x_in, sr_in, archive_path: Path | None, oe: dict | None = None) -> dict:
     before = ld.loudness_summary(x_in, sr_in)
     res = {"level_matched": False, "before": {k: ma.finite_or_none(v) for k, v in before.items()},
            "after": None, "comparison": None,
            "assumed_playback": T("比較はレベルマッチ後の信号で行う（R-01）。幅と定位の値はスピーカー（±30°）とモノ合算を前提にする",
                                  "Comparisons use level-matched signals (R-01). Width/localisation values assume speakers (+/-30 deg) and a mono fold")}
+    if oe and oe.get("after"):
+        res["objective_metrics"] = _objective_metrics(oe)
+        res["objective_metrics_note"] = T("目的関数の代理指標の処理前後。レベルマッチ後に測定した値（R-01）",
+                                          "Objective proxy metrics before and after, measured on level-matched signals (R-01)")
     if archive_path is None or not archive_path.is_file():
         return res
     y, sr = audio_io.read(archive_path)
@@ -205,18 +450,24 @@ def _listening_checks(x, sr, plan: dict, verify: dict) -> list[dict]:
     return out
 
 
-def _constraints(verify: dict) -> list[dict]:
+def _constraints(verify: dict, gate: dict | None = None) -> list[dict]:
     out = []
     for o in verify.get("outputs", []) or []:
+        checks = dict(o.get("checks") or {})
+        of5 = checks.get("OF-5")
+        if gate and gate.get("status") not in (None, "not_evaluated") and isinstance(of5, dict)                 and of5.get("status") == "not_evaluated":
+            # verify does not run the gate; show the objective evaluation's result instead of a stale note
+            checks["OF-5"] = {"status": gate["status"], "rule": "OF-5",
+                              "reason": "see 'translation_gate' (objective evaluation of this master)"}
         out.append({"profile": o.get("profile"), "delivery": o.get("delivery"), "overall": o.get("overall"),
-                    "checks": o.get("checks")})
+                    "checks": checks})
     if verify.get("archive"):
         out.append({"profile": None, "delivery": ARCHIVE_DELIVERY, "overall": verify["archive"].get("overall"),
                     "checks": verify["archive"].get("checks")})
     return out
 
 
-def _notes(project, obj: dict) -> list[dict]:
+def _notes(project, obj: dict, oe: dict | None = None) -> list[dict]:
     data = project.data
     notes = []
     genre = data.get("genre")
@@ -230,16 +481,27 @@ def _notes(project, obj: dict) -> list[dict]:
         except Exception:
             label = {"ja": genre, "en": genre}
         notes.append({"code": "genre_prior", "rule": "R-33",
-                      "text": T(f"ジャンル「{label.get('ja', genre)}」の prior は初期値にだけ使う（[慣行]）。M2 のマスタリング計画は帯域の判定に汎用 prior だけを使っている",
-                                f"The genre prior '{label.get('en', genre)}' only sets initial values (practice level). The M2 mastering planner uses only the generic prior for band checks")})
-    if not data.get("references"):
+                      "text": T(f"ジャンル「{label.get('ja', genre)}」の prior は、目的関数の重みと目標範囲の初期値にだけ使う（[慣行]）。リファレンスの実測とユーザーの指定が常に優先する",
+                                f"The genre prior '{label.get('en', genre)}' only sets the initial weights and target ranges of the objective (practice level); measured references and user settings always take precedence")})
+    refs = [r for r in data.get("references") or [] if isinstance(r, dict)]
+    used = ((oe or {}).get("resolved") or {}).get("reference") or {}
+    if not refs:
         notes.append({"code": "generic_prior", "rule": "R-17",
-                      "text": T("リファレンスが登録されていないため、汎用の目安に対する評価であり、ジャンルに合わせた評価ではない",
-                                "No references are registered: this is an evaluation against a generic prior, not a genre-specific one")})
+                      "text": T("リファレンスが登録されていないため、汎用の目安に対する評価であり、ジャンルに合わせた評価ではない。v1 は市販曲から得た統計を同梱しない（D-039）。手元の曲を reference add で登録すると、その測定ベクトルの分布が目標範囲になる",
+                                "No references are registered: this is an evaluation against a generic prior, not a genre-specific one. v1 ships no statistics taken from commercial tracks (D-039); registering your own tracks with reference add makes their measured distribution the target ranges")})
+    elif used.get("source") == "generic_prior":
+        notes.append({"code": "references_not_in_evaluation", "rule": "R-17",
+                      "text": T(f"リファレンスは {len(refs)} 曲登録されているが、この評価はその登録より前の提案で行われ、汎用の目安に対する評価になっている。plan propose で提案し直すと反映される",
+                                f"{len(refs)} reference(s) are registered, but this evaluation comes from a proposal made before they were registered and uses the generic prior; propose again with plan propose to use them")})
     else:
-        notes.append({"code": "references_unused", "rule": "R-17",
-                      "text": T("登録済みのリファレンスは、このマイルストーンのマスタリング計画ではまだ使っていない",
-                                "Registered references are not yet used by the mastering planner in this milestone")})
+        notes.append({"code": "references_used", "rule": "R-17",
+                      "text": T(f"目標範囲は、ユーザーが登録したリファレンス {len(refs)} 曲の実測分布（中央値と四分位範囲、レベルマッチ後）から取った。リファレンスの音声はプロジェクトに含めず、測定ベクトルだけを保存している（SPEC 4.6、D-039）。スペクトルをそのまま写す EQ マッチはしない",
+                                f"Target ranges come from the measured distribution (median and IQR, level matched) of the {len(refs)} reference(s) registered by the user. Reference audio is never stored in the project, only measurement vectors (SPEC 4.6, D-039). No spectrum-copying EQ match is done")})
+    for oid in objective_ids(obj):
+        if oid in _provisional_ids():
+            notes.append({"code": "weak_evidence_objective", "objective": oid, "rule": "SPEC 4.4",
+                          "text": T(f"「{oid}」は暫定の目的関数で、聴覚疲労を定量した査読研究は弱い。Mix Report の評価は弱証拠に基づく",
+                                    f"'{oid}' is a provisional objective; peer-reviewed evidence quantifying listening fatigue is weak, so its evaluation rests on weak evidence")})
     for oid in objective_ids(obj):
         try:
             od = config.get_objective(oid)
@@ -252,7 +514,8 @@ def _notes(project, obj: dict) -> list[dict]:
     return notes
 
 
-def _tradeoffs(plan: dict, verify: dict, notes: list[dict]) -> list[dict]:
+def _tradeoffs(plan: dict, verify: dict, notes: list[dict], breakdown: dict | None = None,
+               gate: dict | None = None) -> list[dict]:
     out = []
     sb = plan.get("send_back")
     if sb:
@@ -268,8 +531,23 @@ def _tradeoffs(plan: dict, verify: dict, notes: list[dict]) -> list[dict]:
     out.append({"kind": "weak_evidence", "rule": None,
                 "text": T("閾値（リミッター依存度、モノ損失、低域の逆相の持続）は [慣行] の初期値で、較正の対象である",
                           "Thresholds (limiter dependency, mono loss, low-band anti-phase persistence) are practice-level initial values subject to calibration")})
+    for t in (breakdown or {}).get("terms") or []:
+        if t.get("status") == "measured" and (t.get("penalty") or 0.0) > 0.25:
+            out.append({"kind": "off_target", "rule": t.get("metric"), "text": T(
+                f"{t.get('objective')} / {t.get('key')}: 目標 {_fmt_num(t.get('target'))} に対して {_fmt_num(t.get('value'))}（penalty {_fmt_num(t.get('penalty'))}）。達成できていない",
+                f"{t.get('objective')} / {t.get('key')}: {_fmt_num(t.get('value'))} against the target {_fmt_num(t.get('target'))} (penalty {_fmt_num(t.get('penalty'))}); not achieved")})
+    nm = [t for t in (breakdown or {}).get("terms") or [] if t.get("status") not in (None, "measured")]
+    if nm:
+        keys = ", ".join(sorted({str(t.get("key")) for t in nm}))
+        out.append({"kind": "not_measured", "rule": None, "text": T(
+            f"測定できなかった項（{keys}）の重みは、同じ目的関数の測定できた項へ比例配分した。ステムや整音段がないと測れない指標がある",
+            f"Terms that could not be measured ({keys}) had their weight redistributed to the measured terms of the same objective; some metrics need stems or the cleanup stage")})
+    if gate and gate.get("status") in ("fail", "incomplete"):
+        out.append({"kind": "gate_" + gate["status"], "rule": "OF-5", "text": gate.get("meaning")})
+    for w in (breakdown or {}).get("weak_evidence") or []:
+        out.append({"kind": "weak_evidence", "rule": "SPEC 4.4", "text": w.get("text")})
     for n in notes:
-        if n["code"] in ("generic_prior", "normalization_tradeoff"):
+        if n["code"] in ("generic_prior", "normalization_tradeoff", "references_not_in_evaluation"):
             out.append({"kind": "note", "rule": n.get("rule"), "text": n["text"]})
     return out
 
@@ -327,7 +605,10 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
     ad = config.get_delivery(ARCHIVE_DELIVERY)
     apath = variant_dir(project, variant_id) / f"master__{ARCHIVE_DELIVERY}.{output_ext(ad)}"
     outputs = variant.get("outputs") or []
-    notes = _notes(project, obj)
+    oe = _objective_evaluation(project, variant, x, sr, apath)
+    notes = _notes(project, obj, oe)
+    breakdown = _breakdown(oe, obj)
+    gate = _gate_section(oe)
 
     result = verify.get("overall", "incomplete")
     if result == "pass" and (plan.get("send_back") or plan.get("warnings")):
@@ -351,6 +632,9 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
             "route": {"route": route, "reason": plan.get("route_reason"), "rule": "R-21"},
             "result": result,
             "send_back": plan.get("send_back"),
+            "objective_score": breakdown.get("score"),
+            "objective_score_before": breakdown.get("score_before"),
+            "translation_gate": gate.get("status"),
         },
         "inputs": {
             "assets": [{k: a.get(k) for k in ("id", "path", "sha256", "role", "origin", "sample_rate", "channels",
@@ -361,19 +645,17 @@ def build_report(project, variant_id: str, *, lang: str = "ja") -> dict:
             "stem_sum_note": T("ステム合算の整合は解析段（analyze）の結果を参照。このレポートでは再評価しない",
                                "Stem-sum consistency comes from the analysis stage; not re-evaluated in this report"),
         },
-        "measurements": _measurements(project, variant, x, sr, apath),
-        "decisions": _decisions(plan),
-        "objective_breakdown": {
-            "status": "not_evaluated", "milestone": "M3",
-            "terms": [{"objective": oid, "status": "not_evaluated"} for oid in objective_ids(obj)],
-            "note": T("目的関数の指標別スコアは M3 で実装する。合計 score は出さない",
-                      "Per-metric objective scores arrive in M3; no total score is shown"),
-        },
-        "constraints": _constraints(verify),
+        "measurements": _measurements(project, variant, x, sr, apath, oe),
+        "decisions": _decisions(plan, variant.get("decisions") if oe.get("source") == "stored_proposal" else None,
+                                len(data.get("references") or [])),
+        "objective_breakdown": breakdown,
+        "constraints": _constraints(verify, gate),
+        "objective_constraints": _objective_constraints(oe),
+        "translation_gate": gate,
         "cleanup": {"status": "not_evaluated", "milestone": "M5",
                     "note": T("整音は M5 で実装する。このマスターには整音を適用していない",
                               "Cleanup arrives in M5; no cleanup was applied to this master")},
-        "tradeoffs": _tradeoffs(plan, verify, notes),
+        "tradeoffs": _tradeoffs(plan, verify, notes, breakdown, gate),
         "listening_checks": _listening_checks(x, sr, plan, verify),
         "reproducibility": _reproducibility(project, variant_id, outputs),
         "notes": notes,
@@ -428,6 +710,11 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
     L.append(f"- {t(T('目的関数', 'Objective'))}: {blend} / intensity {(s.get('objective') or {}).get('intensity')}")
     for o in s.get("outputs", []):
         L.append(f"- {t(T('出口', 'Output'))}: {o.get('profile')} × {o.get('delivery')} → {o.get('result')} (`{o.get('file')}`)")
+    if s.get("objective_score") is not None:
+        L.append(f"- {t(T('目的関数の score（0 が理想、内訳は 5 章）', 'Objective score (0 is ideal; breakdown in section 5)'))}: "
+                 f"{_fmt_num(s.get('objective_score_before'), 3)} → **{_fmt_num(s.get('objective_score'), 3)}**")
+    if s.get("translation_gate"):
+        L.append(f"- {t(T('トランスレーション・ゲート（OF-5）', 'Translation gate (OF-5)'))}: {s.get('translation_gate')}")
     if s.get("send_back"):
         L.append(f"- **{t(T('差し戻し', 'Send back'))} ({s['send_back'].get('rule')})**: {t(s['send_back'].get('reason'))}")
     for n in r.get("notes", []):
@@ -471,17 +758,30 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
                 L.append(f"  - {k}: {_fmt_db(d['delta'], lang)}")
             else:
                 L.append(f"  - {k}: {d['delta']:+.2f} {d.get('unit', '')}")
+    if m.get("objective_metrics"):
+        L.append("")
+        L.append(f"_{t(m.get('objective_metrics_note'))}_")
+        L.append("")
+        L.append(f"| {t(T('目的関数', 'Objective'))} | {t(T('指標', 'Metric'))} | {t(T('処理前', 'Before'))} | {t(T('処理後', 'After'))} | {t(T('単位', 'Unit'))} |")
+        L.append("|---|---|---|---|---|")
+        for om in m["objective_metrics"]:
+            L.append(f"| {om.get('objective')} | {om.get('metric')} | {_fmt_num(om.get('before'))} | "
+                     f"{_fmt_num(om.get('after'))} | {om.get('unit') or ''} |")
     L.append("")
 
     L.append("## " + t(_SEC[4]))
     for el, items in (r.get("decisions") or {}).items():
         L.append(f"### {t(_EL.get(el, T(el, el)))}")
         for d in items:
-            L.append(f"- {t(T('行動', 'Action'))}: {t(d.get('action'))}" + (f" [{d.get('rule')}]" if d.get("rule") else ""))
+            L.append(f"- {t(T('行動', 'Action'))}: {t(d.get('action'))}" + (f" [{d.get('rule')}]" if d.get("rule") else "")
+                     + (f" ({d.get('status')})" if d.get("status") else ""))
+            if d.get("references"):
+                L.append(f"  - {t(T('リファレンス', 'References'))}: {t(d.get('references'))}")
             if d.get("measured"):
                 L.append(f"  - {t(T('測定', 'Measured'))}: `{_j(d.get('measured'))}`")
             for v in d.get("vocabulary", []) or []:
-                L.append(f"  - {v.get('band')}: {v.get('gain_db'):+.1f} dB — {t(v.get('vocabulary'))}")
+                g = v.get("gain_db")
+                L.append(f"  - {v.get('band')}: {_fmt_db(g, lang) if isinstance(g, (int, float)) else '-'} — {t(v.get('vocabulary'))}")
             if d.get("alternatives"):
                 L.append(f"  - {t(T('代替案', 'Alternatives'))}: " + "; ".join(t(x) for x in d["alternatives"]))
             if d.get("result"):
@@ -490,7 +790,47 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
 
     L.append("## " + t(_SEC[5]))
     ob = r.get("objective_breakdown") or {}
-    L.append(f"- {t(ob.get('note'))} ({ob.get('status')}, {ob.get('milestone')})")
+    if ob.get("status") != "evaluated":
+        L.append(f"- {t(ob.get('note'))} ({ob.get('status')})")
+        if ob.get("reason"):
+            L.append(f"- {ob.get('reason')}")
+    else:
+        o = ob.get("objective") or {}
+        blend = ", ".join(f"{b.get('id')}×{_fmt_num(b.get('weight'), 2)}" for b in o.get("blend") or [])
+        ref = o.get("reference") or {}
+        ref_txt = (t(T(f"リファレンス {ref.get('n')} 曲の実測分布", f"measured distribution of {ref.get('n')} reference(s)"))
+                   if ref.get("source") == "references" else t(T("汎用 prior（ジャンルに合わせた評価ではない）", "generic prior (not genre-specific)")))
+        L.append(f"- {t(T('目的関数', 'Objective'))}: {blend} / intensity {o.get('intensity')} / "
+                 f"{t(T('目標の出どころ', 'targets from'))}: {ref_txt}")
+        lead = o.get("lead") or {}
+        if lead.get("stem"):
+            L.append(f"- {t(T('主役', 'Lead'))}: {lead.get('stem')}" + (f" ({t(T('推定', 'estimated'))})" if lead.get("estimated") else ""))
+        L.append(f"- {t(T('評価の出どころ', 'Evaluated from'))}: {t(ob.get('source_label'))} ({ob.get('scope')})"
+                 + (f", proposal `{ob.get('proposal_id')}`" if ob.get("proposal_id") else ""))
+        L.append(f"- score: {t(T('処理前', 'before'))} {_fmt_num(ob.get('score_before'), 3)} → "
+                 f"{t(T('処理後', 'after'))} **{_fmt_num(ob.get('score'), 3)}** "
+                 + "(" + ", ".join(f"{k} {_fmt_num(v, 3)}" for k, v in (ob.get("score_by_objective") or {}).items()) + ")")
+        L.append("")
+        L.append(f"| {t(T('目的関数', 'Objective'))} | {t(T('指標', 'Metric'))} | {t(T('状態', 'Status'))} | "
+                 f"{t(T('値（前 → 後）', 'Value (before → after)'))} | {t(T('目標', 'Target'))} | "
+                 f"{t(T('penalty（前 → 後）', 'Penalty (before → after)'))} | {t(T('実効重み', 'Eff. weight'))} | {t(T('寄与', 'Contribution'))} |")
+        L.append("|---|---|---|---|---|---|---|---|")
+        for row in ob.get("terms") or []:
+            st = row.get("status")
+            if st != "measured" and row.get("reason"):
+                st = f"{st}: {row.get('reason')}"
+            L.append(f"| {row.get('objective')} | {row.get('key')} | {st} | "
+                     f"{_fmt_num(row.get('value_before'))} → {_fmt_num(row.get('value'))} {row.get('unit') or ''} | "
+                     f"{_fmt_num(row.get('target'))} | {_fmt_num(row.get('penalty_before'), 3)} → {_fmt_num(row.get('penalty'), 3)} | "
+                     f"{_fmt_num(row.get('effective_weight'), 3)} | {_fmt_num(row.get('contribution'), 3)} |")
+        for rd in ob.get("redistribution") or []:
+            L.append(f"- {t(T('重みの再配分', 'Weight redistribution'))} ({rd.get('objective')}): "
+                     f"{', '.join(rd.get('terms') or [])} → {_fmt_num(rd.get('moved_weight'), 3)}")
+        for w in ob.get("weak_evidence") or []:
+            L.append(f"- **{t(T('弱証拠', 'Weak evidence'))}**: {t(w.get('text'))}")
+        if ob.get("stale_note"):
+            L.append(f"- {t(ob.get('stale_note'))}")
+        L.append(f"- {t(ob.get('note'))}")
     L.append("")
 
     L.append("## " + t(_SEC[6]))
@@ -504,6 +844,26 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
                 vals["codecs"] = {cc: {"status": x.get("status"), "tp": x.get("true_peak_dbtp")} for cc, x in v["codecs"].items()}
             extra = v.get("reason") or ""
             L.append(f"| {k} | {v.get('status')} | `{_j(vals)}` {extra} |")
+    oc = r.get("objective_constraints") or {}
+    if oc.get("statuses"):
+        L.append(f"### {t(T('安全不変条件（目的関数の評価時）', 'Safety invariants (at objective evaluation)'))}")
+        L.append(f"_{t(oc.get('note'))}_")
+        L.append("")
+        L.append(" / ".join(f"{k}: {v}" for k, v in oc["statuses"].items()))
+    g = r.get("translation_gate") or {}
+    L.append(f"### {t(T('トランスレーション・ゲート（OF-5）', 'Translation gate (OF-5)'))} — {g.get('status')}")
+    if g.get("meaning"):
+        L.append(f"_{t(g.get('meaning'))}_")
+    if g.get("checks"):
+        L.append("")
+        L.append(f"| {t(T('検査', 'Check'))} | {t(T('必須', 'Required'))} | {t(T('結果', 'Status'))} | {t(T('理由', 'Reason'))} |")
+        L.append("|---|---|---|---|")
+        for c in g["checks"]:
+            L.append(f"| {c.get('id')} | {c.get('required')} | {c.get('status')} | {c.get('reason') or ''} |")
+    for sug in g.get("corrective_suggestions") or []:
+        L.append(f"- {t(T('是正案', 'Correction'))}: {t(sug.get('text') if isinstance(sug, dict) and sug.get('text') else sug)}")
+    for n in g.get("notes") or []:
+        L.append(f"- {t(n)}")
     L.append("")
 
     L.append("## " + t(_SEC[7]))

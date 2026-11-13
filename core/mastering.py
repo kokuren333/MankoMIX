@@ -641,6 +641,42 @@ def find_variant(data: dict, variant_id: str) -> dict | None:
     return None
 
 
+_TERM_KEYS = ("objective", "metric", "variant", "key", "sense", "weight", "effective_weight", "value", "target",
+              "target_source", "penalty", "contribution", "status", "reason", "unit")
+_GATE_CHECK_KEYS = ("id", "status", "required", "reason", "values")
+
+
+def stored_evaluation(proposal: dict, chain: list[dict]) -> dict | None:
+    """Compact copy of a proposal's objective evaluation for ``variants[].evaluation``.
+
+    Keeps the score, the per-metric breakdown, constraints and the gate; ``chain_hash``
+    ties it to the chain it was computed for (the Mix Report ignores a stale one).
+    """
+    ev = proposal.get("objective_evaluation")
+    if not isinstance(ev, dict):
+        return None
+    gate = ev.get("gate") if isinstance(ev.get("gate"), dict) else None
+    if gate is not None:
+        gate = {**{k: gate.get(k) for k in ("status", "pass", "profile", "playback_assumptions", "lead", "notes",
+                                            "corrective_suggestions") if k in gate},
+                "checks": [{k: c.get(k) for k in _GATE_CHECK_KEYS if k in c} for c in gate.get("checks") or []]}
+    resolved = proposal.get("objective_resolved") or {}
+    return copy.deepcopy({
+        "proposal_id": proposal.get("proposal_id"),
+        "chain_hash": canonical_hash(chain),
+        "scope": ev.get("scope"),
+        "score": ev.get("score"),
+        "terms": [{k: t.get(k) for k in _TERM_KEYS if k in t} for t in ev.get("terms") or []],
+        "constraints": ev.get("constraints") or {},
+        "gate": gate,
+        "redistribution": ev.get("redistribution") or [],
+        "objective": {k: resolved.get(k) for k in ("blend", "intensity", "lead", "genre", "reference", "notes")
+                      if k in resolved},
+        "level_matched": True,
+        "rule": "R-01",
+    })
+
+
 def apply_master_plan(project, proposal: dict, *, actor: str = "planner") -> None:
     """Write the proposal's chain into its variant and save (op master_apply)."""
     if proposal.get("stage") != "master":
@@ -672,6 +708,17 @@ def apply_master_plan(project, proposal: dict, *, actor: str = "planner") -> Non
             "definitions": proposal.get("definitions"),
         },
     }
+    # objective evaluation and decisions travel with the chain they describe (Mix Report 4-6);
+    # a proposal without them (plain plan_master) drops stale ones from an earlier proposal
+    ev = stored_evaluation(proposal, chain)
+    if ev is not None:
+        variant["evaluation"] = ev
+    else:
+        variant.pop("evaluation", None)
+    if isinstance(proposal.get("decisions"), dict):
+        variant["decisions"] = copy.deepcopy(proposal["decisions"])
+    else:
+        variant.pop("decisions", None)
     obj = proposal.get("objective")
     if obj is not None and obj != data.get("objective"):
         variant["objective"] = obj

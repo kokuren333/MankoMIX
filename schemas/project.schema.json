@@ -18,6 +18,7 @@
     "provenance": { "$ref": "#/$defs/provenance" },
     "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
     "fullmix_asset": { "type": ["string", "null"] },
+    "fullmix_cleanup": { "$ref": "#/$defs/cleanup" },
     "ingest": { "$ref": "#/$defs/ingest" },
     "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
     "buses": { "type": "array", "items": { "$ref": "#/$defs/bus" } },
@@ -160,6 +161,43 @@
       }
     },
 
+    "cleanup": {
+      "description": "Cleanup stage settings of a track or of the full mix (SPEC 6.4, core/cleanstage.py). 'plan' is 'auto' or 'custom' (the plan itself is re-derived from the asset and 'overrides'); 'applied' records what was applied per asset (asset sha256 + plan hash) so cached cleaned audio can be validated and regenerated.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "plan": { "type": ["string", "object", "null"] },
+        "overrides": { "type": "object" },
+        "applied": {
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "properties": {
+            "version": { "type": "integer", "minimum": 1 },
+            "proposal_id": { "type": ["string", "null"] },
+            "plan_hash": { "$ref": "#/$defs/sha256" },
+            "assets": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["plan_hash", "skipped"],
+                "additionalProperties": true,
+                "properties": {
+                  "asset_sha256": { "$ref": "#/$defs/sha256" },
+                  "plan_hash": { "$ref": "#/$defs/sha256" },
+                  "plan_version": { "type": ["integer", "null"] },
+                  "overrides": { "type": "object" },
+                  "skipped": { "type": "boolean" },
+                  "steps": { "type": "object", "additionalProperties": { "enum": ["run", "light", "skip"] } },
+                  "s07_pass": { "type": ["boolean", "null"] },
+                  "record_path": { "$ref": "#/$defs/relpath" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "importance": {
       "type": "object",
       "required": ["value", "source"],
@@ -215,15 +253,7 @@
         "is_lead": { "type": "boolean" },
         "importance": { "$ref": "#/$defs/importance" },
         "clips": { "type": "array", "items": { "$ref": "#/$defs/clip" } },
-        "cleanup": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "enabled": { "type": "boolean" },
-            "plan": { "type": ["string", "object", "null"] },
-            "overrides": { "type": "object" }
-          }
-        },
+        "cleanup": { "$ref": "#/$defs/cleanup" },
         "chain": { "$ref": "#/$defs/chain" },
         "gain_db": { "type": "number" },
         "pan": {

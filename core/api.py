@@ -45,6 +45,9 @@ __all__ = [
     "measure_audio", "compare_audio", "history", "undo", "checkout", "set_value", "patch",
     "profile_list", "profile_show", "objective_list", "objective_show",
     "route", "master_plan", "master_apply", "render", "export", "verify", "report",
+    "objective_set", "objective_validate", "reference_add", "reference_list", "reference_remove",
+    "plan_propose", "plan_apply", "plan_reject", "planner_run", "gate_check", "project_get",
+    "knowledge_lookup",
 ]
 
 
@@ -510,7 +513,13 @@ def doctor(strict_lgpl: bool | None = None) -> dict:
 # ---------------------------------------------------------------------------
 
 @_face_safe
-def init_project(path: str | Path, *, title: str, genre: str | None = None) -> dict:
+def init_project(path: str | Path, *, title: str, genre: str | None = None, project_id: str | None = None,
+                 actor: str = "human") -> dict:
+    """Create a project. ``project_id`` fixes the id (``prj_`` is prefixed when missing).
+
+    The creation entry of the journal is written by ``Project.create`` (recorded as
+    the engine); ``actor`` is used when the project has to be saved here.
+    """
     p = Path(path)
     if (p / "project.json").exists():
         raise InputError(f"a project already exists here: {p.name}")
@@ -518,9 +527,12 @@ def init_project(path: str | Path, *, title: str, genre: str | None = None) -> d
         raise InputError(f"not a folder: {p.name}")
     if not title or not str(title).strip():
         raise InputError("title must not be empty")
-    proj = _mod("project").Project.create(p, title=title, genre=genre)
+    if project_id is not None and (not isinstance(project_id, str) or not project_id.strip()):
+        raise InputError("project_id must be a non-empty string")
+    _mod("journal").check_actor(actor)
+    proj = _mod("project").Project.create(p, title=title, genre=genre, project_id=project_id)
     if not (Path(proj.root) / "project.json").is_file():
-        proj.save(actor="human", op="init", reason="create project")
+        proj.save(actor=actor, op="init", reason="create project")
     data = proj.data
     return {"created": True, "project": Path(proj.root).name, "id": data.get("id"), "title": data.get("title"),
             "genre": data.get("genre"), "schema_version": data.get("schema_version")}
@@ -1115,3 +1127,395 @@ def report(project_path: str | Path, variant: str | None = None, lang: str = "bo
     if lang in ("ja", "en"):
         result["markdown"] = rep_mod.render_markdown(result["report"], lang)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Objectives, references, stage plans, gate, knowledge (M3: SPEC 4.6, 4.7, 4.8,
+# 7.2, 7.3, 10.2, 10.3, R-31)
+# ---------------------------------------------------------------------------
+
+_OBJECTIVE_CLI_RE = re.compile(r"^\s*[A-Za-z_][A-Za-z0-9_]*(\s*:\s*[0-9.]+)?(\s*\+\s*[A-Za-z_][A-Za-z0-9_]*(\s*:\s*[0-9.]+)?)*\s*$")
+_PROPOSAL_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
+
+
+def _objective_arg(spec: Any) -> Any:
+    """Objective spec from a dict, JSON text or the CLI form ('comfort:0.6+bass_heavy:0.4')."""
+    if spec is None or isinstance(spec, dict):
+        return spec
+    if isinstance(spec, str):
+        s = spec.strip()
+        if not s:
+            raise InputError("objective must not be empty")
+        if s[:1] in "{[":
+            return _parse_json_value(s, "objective")
+        if not _OBJECTIVE_CLI_RE.match(s):
+            raise InputError(f"objective '{s}' must look like 'id', 'id:intensity' or 'id:w+id:w'")
+        return s
+    raise InputError("objective must be an object, JSON text or 'id[:weight][+id:weight...]'")
+
+
+@_face_safe
+def objective_set(project_path: str | Path, spec: Any, *, variant: str | None = None,
+                  actor: str = "human") -> dict:
+    """Set the project objective (or a variant's override): blend, intensity, overrides, lead (SPEC 4.7).
+
+    ``spec``: {"blend": [...], "intensity", "overrides", "lead_stem"}, JSON text, or the
+    CLI form 'comfort:0.6+bass_heavy:0.4' / 'bass_heavy:0.7'. Constraints are never relaxed.
+    """
+    if spec is None:
+        raise InputError("an objective is required, e.g. 'comfort' or 'comfort:0.6+bass_heavy:0.4'")
+    proj = _open(project_path)
+    return _mod("objectives").set_objective(proj, _objective_arg(spec), variant_id=variant, actor=actor)
+
+
+def _definition_arg(path_or_json: Any) -> tuple[Any, str]:
+    """-> (object to validate, source label). Files must be .json; other strings are specs."""
+    if isinstance(path_or_json, (dict, list)):
+        return path_or_json, "inline"
+    if isinstance(path_or_json, Path):
+        path_or_json = str(path_or_json)
+    if not isinstance(path_or_json, str) or not path_or_json.strip():
+        raise InputError("pass an objective definition: a .json file, inline JSON or an objective spec")
+    s = path_or_json.strip()
+    if s[:1] in "{[":
+        return _parse_json_value(s, "objective definition"), "inline"
+    if s.lower().endswith(".json"):
+        p = Path(s)
+        if not p.is_file():
+            raise InputError(f"objective definition file not found: {p.name}")
+        try:
+            return json.loads(p.read_text(encoding="utf-8")), p.name
+        except (OSError, ValueError) as e:
+            raise InputError(f"cannot read {p.name} as JSON: {e}") from None
+    if _OBJECTIVE_CLI_RE.match(s):
+        return s, "inline"
+    raise InputError(f"not a .json file, JSON text or objective spec: {Path(s).name}")
+
+
+@_face_safe
+def objective_validate(path_or_json: Any) -> dict:
+    """Validate an objective definition (SPEC 4.8) or an objective spec (4.7).
+
+    Accepts a definition / catalog ({"objectives": [...]}) as a .json file or inline
+    JSON, or a spec ({"blend": ...} or 'comfort:0.6+bass_heavy:0.4'). Checks unknown
+    metric ids, unknown variants, weight sums, declared params and any attempt to
+    relax a safety invariant. Raises ValidationError when there are errors.
+    """
+    O = _mod("objectives")
+    obj, source = _definition_arg(path_or_json)
+    if isinstance(obj, str) or (isinstance(obj, dict) and "blend" in obj and "terms" not in obj
+                                and "objectives" not in obj):
+        kind = "spec"
+        spec = O.normalize_spec(obj)
+        issues = O.validate_objective_spec(spec)
+        ids = [b.get("id") for b in spec.get("blend") or [] if isinstance(b, dict)]
+    else:
+        kind = "catalog" if isinstance(obj, dict) and isinstance(obj.get("objectives"), list) else "definition"
+        issues = O.validate_objective_definition(obj)
+        if kind == "catalog":
+            ids = [o.get("id") for o in obj["objectives"] if isinstance(o, dict)]
+        else:
+            ids = [obj.get("id")] if isinstance(obj, dict) else []
+    counts = _count_levels(issues)
+    out = {"valid": not counts.get("error"), "kind": kind, "source": source, "ids": ids,
+           "counts": counts, "issues": issues}
+    if counts.get("error"):
+        raise ValidationError(f"objective {kind} has {counts['error']} error(s)", details=out)
+    return out
+
+
+@_face_safe
+def reference_add(project_path: str | Path, audio_path: str | Path, *, label: str | None = None,
+                  actor: str = "human") -> dict:
+    """Register a reference track: only its measurement vector is stored, never the audio (4.6, D-039)."""
+    p = _check_audio_path(audio_path)
+    proj = _open(project_path)
+    res = _mod("reference").reference_add(proj, p, label=label, actor=actor)
+    res["target_source"] = "references"
+    return res
+
+
+@_face_safe
+def reference_list(project_path: str | Path) -> dict:
+    """Registered references (vectors) and where objective targets come from."""
+    return _mod("reference").reference_list(_open(project_path))
+
+
+@_face_safe
+def reference_remove(project_path: str | Path, ref_id: str, *, actor: str = "human") -> dict:
+    """Remove a reference and its stored vector."""
+    if not isinstance(ref_id, str) or not ref_id.strip():
+        raise InputError("reference id must be a non-empty string")
+    proj = _open(project_path)
+    res = _mod("reference").reference_remove(proj, ref_id.strip(), actor=actor)
+    res["remaining"] = len(proj.data.get("references") or [])
+    return res
+
+
+# -- stage proposals (R-31: approve and apply / reject and request an alternative) --
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _proposal_file(proj, proposal_id: str) -> Path:
+    if not isinstance(proposal_id, str) or not _PROPOSAL_ID_RE.match(proposal_id):
+        raise InputError(f"not a proposal id: {proposal_id!r}")
+    return Path(proj.root) / PROPOSAL_DIR / f"{proposal_id}.json"
+
+
+def _save_proposal(proj, proposal: dict) -> str:
+    path = _proposal_file(proj, proposal["proposal_id"])
+    _write_json(path, _jsonable(proposal))
+    return proj.rel(path)
+
+
+def _load_stage_proposal(proj, proposal_or_id: Any) -> tuple[dict, Path | None]:
+    """A proposal given as a dict, JSON text, an id under cache/proposals/, or a path inside the project."""
+    if isinstance(proposal_or_id, dict):
+        pid = proposal_or_id.get("proposal_id")
+        f = _proposal_file(proj, pid) if isinstance(pid, str) and _PROPOSAL_ID_RE.match(pid) else None
+        return proposal_or_id, (f if f is not None and f.is_file() else None)
+    if not isinstance(proposal_or_id, (str, Path)) or not str(proposal_or_id).strip():
+        raise InputError("proposal must be an object, JSON text, a proposal id or a project-relative file")
+    text = str(proposal_or_id).strip()
+    if text.startswith("{"):
+        prop = _parse_json_value(text, "proposal")
+        if not isinstance(prop, dict):
+            raise InputError("proposal must be a JSON object")
+        return _load_stage_proposal(proj, prop)
+    root = Path(proj.root).resolve()
+    if _PROPOSAL_ID_RE.match(text) and not text.lower().endswith(".json"):
+        cand = _proposal_file(proj, text)
+    else:
+        p = Path(text)
+        cand = (p if p.is_absolute() else root / p).resolve()
+        if cand != root and not cand.is_relative_to(root):
+            raise InputError(f"proposal files must be inside the project: {p.name}",
+                             details={"hint": "pass the proposal id, or the JSON itself (CLI: '@file')"})
+    if not cand.is_file():
+        raise InputError(f"proposal not found: {Path(text).name}",
+                         details={"hint": f"pass a proposal id from {PROPOSAL_DIR}/, or the proposal JSON"})
+    try:
+        with open(cand, encoding="utf-8") as fh:
+            prop = json.load(fh)
+    except (OSError, ValueError) as e:
+        raise InputError(f"cannot read proposal {cand.name}: {e}") from None
+    if not isinstance(prop, dict):
+        raise InputError(f"proposal {cand.name} is not a JSON object")
+    return prop, cand
+
+
+def _mark_proposal(path: Path | None, proposal: dict, **fields) -> None:
+    if path is None:
+        return
+    stored = dict(proposal)
+    stored.update(fields)
+    _write_json(path, _jsonable(stored))
+
+
+def _r4(x: Any) -> Any:
+    return round(x, 4) if isinstance(x, float) and math.isfinite(x) else x
+
+
+def proposal_summary(prop: dict) -> dict:
+    """Token-cheap view of a stage proposal: chain, score breakdown, constraints, gate, open issues."""
+    ev = prop.get("objective_evaluation") or {}
+    gate = ev.get("gate") or {}
+    planner = prop.get("planner") or {}
+    return {
+        "proposal_id": prop.get("proposal_id"), "stage": prop.get("stage"), "status": prop.get("status"),
+        "variant": prop.get("variant"), "profile": prop.get("profile"), "delivery": prop.get("delivery"),
+        "chain": [{"id": p.get("id"), "type": p.get("type"), "params": p.get("params")} for p in prop.get("chain") or []],
+        "score": _r4(ev.get("score")), "scope": ev.get("scope"),
+        "breakdown": [{"objective": t.get("objective"), "metric": t.get("key"), "status": t.get("status"),
+                       "value": _r4(t.get("value")), "penalty": _r4(t.get("penalty")),
+                       "weight": _r4(t.get("effective_weight")), "contribution": _r4(t.get("contribution"))}
+                      for t in ev.get("terms") or []],
+        "constraints": ev.get("constraints"),
+        "gate": {"status": gate.get("status"),
+                 "checks": [{"id": c.get("id"), "status": c.get("status"), "reason": c.get("reason")}
+                            for c in gate.get("checks") or []]} if gate else None,
+        "converged": planner.get("converged"), "reason": planner.get("reason"),
+        "iterations": max(0, len(planner.get("iterations") or []) - 1),
+        "unresolved": sorted({u.get("code") for u in planner.get("unresolved") or [] if u.get("code")}),
+        "send_back": prop.get("send_back"),
+        "warnings": [w.get("code") for w in prop.get("warnings") or []],
+        "operations": prop.get("operations"),
+    }
+
+
+@_face_safe
+def plan_propose(project_path: str | Path, stage: str = "master", *, variant: str | None = None,
+                 profile: str | None = None, delivery: str | None = None, objective: Any = None,
+                 max_iter: int | None = None) -> dict:
+    """Propose a stage plan (R-31): the deterministic planner refines the stage plan against the
+    objective (level-matched previews, small moves) and returns parameters, rationale with rule ids,
+    alternatives and the per-metric evaluation. Saved under cache/proposals/<id>.json; nothing is applied.
+    """
+    proj = _open(project_path)
+    if max_iter is not None and (isinstance(max_iter, bool) or int(max_iter) < 0):
+        raise InputError("max_iter must be >= 0")
+    prop = _mod("planner").propose(proj, stage, variant_id=variant, profile_id=profile, delivery_id=delivery,
+                                   max_iter=None if max_iter is None else int(max_iter),
+                                   objective=_objective_arg(objective))
+    prop["status"] = "proposed"
+    prop["proposed_at"] = _now_iso()
+    rel = _save_proposal(proj, prop)
+    return {"proposal_id": prop["proposal_id"], "proposal_path": rel, "stage": prop.get("stage"),
+            "applied": False, "summary": proposal_summary(prop), "proposal": prop}
+
+
+@_face_safe
+def plan_apply(project_path: str | Path, proposal_or_id: Any, *, actor: str = "human") -> dict:
+    """Approve and apply a stage proposal (R-31). The variant stores the chain, the objective
+    evaluation (score + per-metric breakdown, constraints, gate) and the decisions."""
+    proj = _open(project_path)
+    prop, path = _load_stage_proposal(proj, proposal_or_id)
+    if prop.get("status") == "rejected":
+        raise InputError(f"proposal {prop.get('proposal_id')} was rejected; propose again to get a new plan",
+                         details={"rejection": prop.get("rejection")})
+    res = _mod("planner").apply(proj, prop, actor=actor)
+    entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
+    _mark_proposal(path, prop, status="applied",
+                   applied={"actor": actor, "at": _now_iso(), "journal_seq": entries[-1].get("seq")})
+    variant = _mod("mastering").find_variant(proj.data, prop.get("variant")) or {}
+    return {**res, "evaluation_stored": bool(variant.get("evaluation")),
+            "decisions_stored": bool(variant.get("decisions")),
+            "score": (variant.get("evaluation") or {}).get("score"),
+            "send_back": prop.get("send_back"), "project": _project_summary(proj)}
+
+
+@_face_safe
+def plan_reject(project_path: str | Path, proposal_id: str, reason: str, *, actor: str = "human") -> dict:
+    """Reject a proposal and ask for an alternative (R-31). The rejection is journaled (op
+    'plan_reject', no change to the project) and recorded in the proposal file."""
+    if not isinstance(reason, str) or not reason.strip():
+        raise InputError("a reason is required to reject a proposal")
+    proj = _open(project_path)
+    prop, path = _load_stage_proposal(proj, proposal_id)
+    pid = prop.get("proposal_id") or str(proposal_id)
+    if prop.get("status") == "applied":
+        raise InputError(f"proposal {pid} is already applied; use undo to revert it")
+
+    def compute(latest, _raw_hash):
+        if latest is None:
+            raise InputError("project.json has disappeared from the project folder")
+        return latest
+
+    entry = proj._commit(compute, actor=actor, op="plan_reject", reason=f"reject {pid}: {reason.strip()}",
+                         patch=[], extra={"proposal_id": pid, "stage": prop.get("stage")}, force=True) or {}
+    rejection = {"reason": reason.strip(), "actor": actor, "at": entry.get("ts") or _now_iso(),
+                 "journal_seq": entry.get("seq")}
+    _mark_proposal(path, prop, status="rejected", rejection=rejection)
+    return {"rejected": True, "proposal_id": pid, "stage": prop.get("stage"), "rejection": rejection,
+            "alternatives": prop.get("alternatives") or [],
+            "next": {"ja": "目的関数、強度、プロファイル、反復回数などを変えて plan propose で別案を求める",
+                     "en": "request an alternative with plan propose (change the objective, intensity, profile or iterations)"}}
+
+
+@_face_safe
+def planner_run(project_path: str | Path, *, variant: str | None = None, profile: str | None = None,
+                delivery: str | None = None, objective: Any = None, max_iter: int = 6, apply: bool = False,
+                actor: str = "planner") -> dict:
+    """Run the planner loop (SPEC 7.2): measure -> propose -> preview -> evaluate, up to ``max_iter``
+    iterations; the result is saved as a proposal and applied only with ``apply=True``."""
+    proj = _open(project_path)
+    _mod("journal").check_actor(actor)
+    if max_iter is None or isinstance(max_iter, bool) or int(max_iter) < 0:
+        raise InputError("max_iter must be >= 0")
+    planner = _mod("planner")
+    prop = planner.propose(proj, "master", variant_id=variant, profile_id=profile, delivery_id=delivery,
+                           max_iter=int(max_iter), objective=_objective_arg(objective))
+    prop["status"] = "proposed"
+    prop["proposed_at"] = _now_iso()
+    rel = _save_proposal(proj, prop)
+    its = (prop.get("planner") or {}).get("iterations") or []
+    out = {"proposal_id": prop["proposal_id"], "proposal_path": rel, "applied": False,
+           "iterations": [{"i": it.get("i"), "score": _r4(it.get("score")),
+                           "improvement": _r4(it.get("improvement")), "move": it.get("move")} for it in its],
+           "score_start": _r4(its[0].get("score")) if its else None,
+           "score_final": _r4((prop.get("objective_evaluation") or {}).get("score")),
+           "converged": (prop.get("planner") or {}).get("converged"),
+           "reason": (prop.get("planner") or {}).get("reason"),
+           "unresolved": (prop.get("planner") or {}).get("unresolved"),
+           "summary": proposal_summary(prop)}
+    if apply:
+        planner.apply(proj, prop, actor=actor)
+        entries = _mod("journal").list_entries(proj.root, limit=1) or [{}]
+        prop["status"] = "applied"
+        prop["applied"] = {"actor": actor, "at": _now_iso(), "journal_seq": entries[-1].get("seq")}
+        _write_json(Path(proj.root) / rel, _jsonable(prop))
+        out["applied"] = True
+        out["summary"]["status"] = "applied"
+        out["project"] = _project_summary(proj)
+    return out
+
+
+@_face_safe
+def gate_check(project_path: str | Path, variant: str | None = None) -> dict:
+    """Translation gate OF-5 (SPEC 4.5) on a variant's rendered master (or an in-memory render of its
+    chain, or the unprocessed input when the project has no variant). ``exit_code`` is 0 only for 'pass';
+    'incomplete' (checks that cannot be evaluated, e.g. lead checks without stems) is never a pass."""
+    proj = _open(project_path)
+    data = proj.data
+    variants = [v.get("id") for v in data.get("variants", []) or [] if isinstance(v, dict)]
+    vid = None if (variant is None and not variants) else _variant_or_default(proj, variant)
+    mastering, render_mod, routes = _mod("mastering"), _mod("render"), _mod("routes")
+    O, cfg = _mod("objectives"), _mod("config")
+    v = mastering.find_variant(data, vid) if vid else None
+    outputs = (v or {}).get("outputs") or []
+    profile = outputs[0].get("profile") if outputs else None
+    source, file_rel = "input", None
+    archive = None
+    if v is not None:
+        ad = cfg.get_delivery(render_mod.ARCHIVE_DELIVERY)
+        archive = render_mod.variant_dir(proj, vid) / f"master__{render_mod.ARCHIVE_DELIVERY}.{render_mod.output_ext(ad)}"
+    if archive is not None and archive.is_file():
+        x, sr = _mod("audio_io").read(archive)
+        source, file_rel = "render", proj.rel(archive)
+    else:
+        route = render_mod.variant_route(proj, v) if v is not None else routes.select_route(proj)["route"]
+        x, sr = routes.load_master_input(proj, route)
+        chain = ((v or {}).get("master") or {}).get("chain")
+        if chain:
+            x = mastering._render(x, sr, chain).audio
+            source = "in_memory_render"
+    resolved = O.resolve_objective(proj, variant=vid)
+    g = _mod("gate").evaluate_gate(x, sr, stems=None, meta=resolved.get("stems_meta"), profile=profile,
+                                   lead=(resolved.get("lead") or {}).get("stem"),
+                                   strict_mono=bool((resolved.get("gate") or {}).get("strict_mono_fold")))
+    notes = list(g.get("notes") or [])
+    if resolved.get("stems"):
+        notes.append("stem signals are not passed at the master stage; lead checks need the mix stage (M4)")
+    g["notes"] = notes
+    explain = {"pass": "every required check passed",
+               "fail": "a required check failed: the candidate is a correction target regardless of its score (SPEC 4.1)",
+               "incomplete": "some required checks could not be evaluated (see each check's reason); incomplete is never a pass"}
+    return {"variant": vid, "source": source, "file": file_rel, **g,
+            "status_meaning": explain.get(g.get("status")), "exit_code": 0 if g.get("pass") else 1}
+
+
+@_face_safe
+def project_get(project_path: str | Path, pointer: str | None = None) -> dict:
+    """project.json, or the sub-tree at an RFC 6901 JSON pointer ('' or None = whole document)."""
+    ptr = pointer or ""
+    if ptr and not ptr.startswith("/"):
+        raise InputError(f"not a JSON pointer: {ptr!r} (must start with '/')")
+    data = _open(project_path).data
+    if not ptr:
+        return {"pointer": "", "value": data}
+    try:
+        value = _mod("jsonpatch").resolve(data, ptr)
+    except ValidationError as e:
+        raise InputError(e.message) from None
+    return {"pointer": ptr, "value": value}
+
+
+@_face_safe
+def knowledge_lookup(query: str | None = None, *, id: str | None = None, kind: str | None = None,
+                     source: str | None = None, limit: int = 20, detail: bool = False) -> dict:
+    """Look up knowledge data (SPEC 7.3, 10.3): rules R-01..R-33, perceptual vocabulary and bands,
+    genre priors, thresholds, objective metric tables. Free text matches ids, labels and notes."""
+    return _mod("knowledge").knowledge_lookup(query, id=id, kind=kind, source=source, limit=limit, detail=detail)

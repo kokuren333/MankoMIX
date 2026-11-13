@@ -182,7 +182,7 @@ def test_doctor_strict_from_env(monkeypatch):
 # ---------------------------------------------------------------------------
 
 STUBS = {"stem": "M4", "separate": "M6", "clean": "M5", "mix": "M4", "run": "M4", "model": "M6",
-         "reference": "M3", "serve": "M8"}
+         "serve": "M8"}
 
 
 @pytest.mark.parametrize("group", sorted(STUBS))
@@ -268,8 +268,8 @@ def test_profile_and_objective_commands(cli):
     code, r = cli("objective", "show", "comfort")
     assert code == EXIT_OK and r["objective"]["id"] == "comfort"
     assert cli("objective", "show", "nope")[0] == EXIT_INPUT_ERROR
-    code, r = cli("objective", "set", "comfort")
-    assert code == EXIT_INPUT_ERROR and "M3" in r["message"]
+    code, r = cli("objective", "set", "comfort")          # implemented in M3: needs a project
+    assert code == EXIT_INPUT_ERROR and "no project" in r["message"]
 
 
 # ---------------------------------------------------------------------------
