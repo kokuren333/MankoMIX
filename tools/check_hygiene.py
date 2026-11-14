@@ -42,7 +42,7 @@ PATTERNS = {
     ),
 }
 
-BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".flac", ".opus", ".wav", ".pdf", ".woff", ".woff2"}
+BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".flac", ".mp3", ".opus", ".wav", ".pdf", ".woff", ".woff2"}
 
 
 def candidate_files(root: Path) -> list[str]:

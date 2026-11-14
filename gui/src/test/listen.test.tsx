@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { Player, ListenScreen } from "../screens/ListenScreen";
+import { Player } from "../screens/ListenScreen";
 import { dbToGain, sourceGains } from "../audio/gains";
 import type { AudioSet } from "../types";
 import { FakeEngine, renderWithApp } from "./helpers";
@@ -66,7 +66,13 @@ describe("Listen", () => {
 
   it("handles a dataset without audio gracefully", async () => {
     const engine = new FakeEngine();
-    renderWithApp(<ListenScreen />, { engineFactory: () => engine });
+    const noAudio: AudioSet = {
+      variant: "v01",
+      files: { before: null, after: null, delta: null },
+      match_gain_db: -2.5,
+      match_target: "before",
+    };
+    renderWithApp(<Player set={noAudio} />, { engineFactory: () => engine });
     expect(await screen.findByTestId("no-audio")).toBeTruthy();
     expect(engine.loaded.length).toBe(0);
     // Level match is still on and reflects the precomputed match gain.

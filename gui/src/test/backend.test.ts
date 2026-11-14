@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BackendError, UnsupportedError } from "../backend/Backend";
@@ -85,12 +85,20 @@ describe("MockBackend", () => {
     }
   });
 
-  it("lists exactly the sample set variants", async () => {
-    const set = JSON.parse(readFileSync(join(REPO_ROOT, "samples/sample_set.json"), "utf8"));
-    const idx = await demoBackend().index();
-    expect(idx.variants.map((v) => [v.n, v.objective, v.profile])).toEqual(
-      set.variants.map((v: { n: number; objective: string; profile: string }) => [v.n, v.objective, v.profile]),
-    );
+  it("commits a generated (non-synthetic) dataset whose referenced audio files exist", async () => {
+    // The committed demo is a real dataset built by tools/build_demo_data.py (gui/DEMO_DATA.md);
+    // the sample-set placeholder it replaced is covered by regenerating it locally.
+    const b = demoBackend();
+    const idx = await b.index();
+    expect(idx.synthetic).toBe(false);
+    for (const v of idx.variants.filter((x) => x.available)) {
+      const audio = await b.listAudio(v.id);
+      for (const url of Object.values(audio.files)) {
+        if (!url) continue;
+        expect(url.startsWith("demo/")).toBe(true);
+        expect(existsSync(join(DEMO_DIR, url.slice("demo/".length))), url).toBe(true);
+      }
+    }
   });
 });
 

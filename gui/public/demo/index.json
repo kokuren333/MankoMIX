@@ -1,179 +1,91 @@
 {
- "schema_version": 1,
- "synthetic": true,
+ "audio": {
+  "encoder": {
+   "bitrate_kbps": 320,
+   "build": "gpl",
+   "codec": "libmp3lame",
+   "license": "GPL-3.0-or-later",
+   "mode": "CBR",
+   "options": [
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    "320k",
+    "-map_metadata",
+    "-1",
+    "-id3v2_version",
+    "0",
+    "-write_id3v1",
+    "0",
+    "-fflags",
+    "+bitexact",
+    "-flags:a",
+    "+bitexact"
+   ],
+   "tool": "ffmpeg",
+   "version": "9.0.2-essentials_build-www.gyan.dev"
+  },
+  "files": [
+   "audio/before.mp3",
+   "audio/delta.mp3",
+   "audio/fullmix_reference.mp3",
+   "variants/v01/after.mp3",
+   "variants/v01/after_level_matched.mp3"
+  ],
+  "format": "mp3",
+  "included": true,
+  "listening_copies": true,
+  "masters": false
+ },
+ "definitions": {
+  "deliveries": "definitions/delivery_formats.json",
+  "models": "definitions/models.json",
+  "objectives": "definitions/objectives.json",
+  "profiles": "definitions/media_profiles.json"
+ },
  "generator": {
-  "name": "gui/scripts/make-placeholder-demo.mjs",
-  "version": "0",
-  "note": "Synthetic placeholder. Replace with the dataset built from the core."
+  "name": "tools/build_demo_data.py",
+  "note": "Built from the core (core/api.py); not hand-written (SPEC 11.4).",
+  "version": "0.1.0"
  },
- "title": {
-  "en": "Synthetic placeholder dataset",
-  "ja": "合成のプレースホルダーデータ"
- },
+ "history": "history.json",
+ "intensity": 0.5,
  "notice": {
-  "en": "All values are invented for GUI development. No audio is included.",
-  "ja": "全ての値は GUI 開発用に作った架空の値です。音声は含みません。"
+  "en": "Precomputed results. Audio files are MP3 listening copies, not masters.",
+  "ja": "事前に計算した結果です。音声は試聴用の MP3 で、マスターではありません。"
  },
  "project": "project.json",
- "history": "history.json",
- "definitions": {
-  "objectives": "definitions/objectives.json",
-  "profiles": "definitions/media_profiles.json",
-  "deliveries": "definitions/delivery_formats.json",
-  "models": "definitions/models.json"
+ "schema_version": 1,
+ "source": {
+  "content_hash": "f515c5267638e6fd9b769d55cca3f3e68f8c440539c787a3ce44335ccedc4b49",
+  "project_id": "prj_sample_v01",
+  "sample_set": null
  },
- "intensity": 0.5,
+ "synthetic": false,
+ "title": {
+  "en": "マンコ主義",
+  "ja": "マンコ主義"
+ },
  "variants": [
   {
-   "id": "v01",
-   "n": 1,
-   "objective": "comfort",
-   "profile": "streaming_universal",
-   "role": "main",
+   "available": true,
    "deliveries": [
     "hires_native",
     "distributor_44k16"
    ],
+   "dir": "variants/v01/",
+   "id": "v01",
    "intensity": 0.5,
-   "available": true,
-   "dir": "variants/v01/"
-  },
-  {
-   "id": "v02",
-   "n": 2,
-   "objective": "bass_heavy",
-   "profile": "streaming_universal",
-   "role": "objective_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": true,
-   "dir": "variants/v02/"
-  },
-  {
-   "id": "v03",
-   "n": 3,
-   "objective": "vocal_forward",
-   "profile": "streaming_universal",
-   "role": "objective_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v03/"
-  },
-  {
-   "id": "v04",
-   "n": 4,
-   "objective": "clarity",
-   "profile": "streaming_universal",
-   "role": "objective_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v04/"
-  },
-  {
-   "id": "v05",
-   "n": 5,
-   "objective": "low_fatigue",
-   "profile": "streaming_universal",
-   "role": "objective_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v05/"
-  },
-  {
-   "id": "v06",
-   "n": 6,
+   "label": {
+    "en": "Listening comfort × Streaming (universal safe default)",
+    "ja": "聞き心地 × ストリーミング共通（安全既定）"
+   },
+   "n": 1,
    "objective": "comfort",
-   "profile": "apple_music",
-   "role": "media_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v06/"
-  },
-  {
-   "id": "v07",
-   "n": 7,
-   "objective": "comfort",
-   "profile": "sns_hot",
-   "role": "media_axis",
-   "deliveries": [
-    "hires_native"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v07/"
-  },
-  {
-   "id": "v08",
-   "n": 8,
-   "objective": "comfort",
-   "profile": "cd",
-   "role": "media_axis",
-   "deliveries": [
-    "cd_redbook"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v08/"
-  },
-  {
-   "id": "v09",
-   "n": 9,
-   "objective": "comfort",
-   "profile": "club",
-   "role": "media_axis",
-   "deliveries": [
-    "dj_wav"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v09/"
-  },
-  {
-   "id": "v10",
-   "n": 10,
-   "objective": "club_impact",
-   "profile": "club",
-   "role": "composite",
-   "deliveries": [
-    "dj_wav"
-   ],
-   "intensity": 0.5,
-   "available": true,
-   "dir": "variants/v10/"
-  },
-  {
-   "id": "v11",
-   "n": 11,
-   "objective": "bass_heavy",
-   "profile": "club",
-   "role": "composite",
-   "deliveries": [
-    "dj_wav"
-   ],
-   "intensity": 0.5,
-   "available": false,
-   "dir": "variants/v11/"
+   "profile": "streaming_universal",
+   "project_variant": "var_streaming_universal",
+   "role": "main"
   }
  ],
- "verification_only_profiles": [
-  "spotify",
-  "youtube",
-  "amazon_music",
-  "tidal",
-  "sns_safe"
- ]
+ "verification_only_profiles": []
 }

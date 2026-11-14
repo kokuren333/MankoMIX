@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
+import { MockBackend } from "../backend/MockBackend";
 import { ReportView, REPORT_SECTIONS } from "../screens/ReportScreen";
 import { STRINGS } from "../i18n/strings";
 import { classifyWidth, useBreakpoint } from "../hooks/useBreakpoint";
-import type { Report } from "../types";
-import { FakeEngine, FullCapsBackend, demoBackend, renderWithApp, setWidth } from "./helpers";
+import type { Proposal, Report } from "../types";
+import { FakeEngine, FullCapsBackend, demoBackend, fsFetch, renderWithApp, setWidth } from "./helpers";
 
 function go(route: string) {
   window.location.hash = `#/${route}`;
@@ -15,6 +16,26 @@ beforeEach(() => {
   setWidth(1280);
   go("listen");
 });
+
+/** The committed demo dataset holds only applied proposals, so the pending-agent-proposal
+ * case (decision buttons + the agent-link explanation) is exercised with a stub backend. */
+class PendingAgentBackend extends MockBackend {
+  constructor() {
+    super({ baseUrl: "demo/", fetchFn: fsFetch });
+  }
+  async listProposals(): Promise<Proposal[]> {
+    return [
+      {
+        id: "mxp_pending_agent",
+        stage: "mix",
+        variant: null,
+        author: "agent",
+        status: "pending",
+        steps: [{ target: "vocals", processor: { id: "prc_gain", type: "gain", params: { gain_db: 1 }, reason: "R-01" } }],
+      },
+    ];
+  }
+}
 
 describe("capabilities in mock mode", () => {
   it("shows the demo banner explaining what is unavailable", async () => {
@@ -37,7 +58,7 @@ describe("capabilities in mock mode", () => {
     unmount();
 
     go("plan");
-    const r2 = renderWithApp(<App />);
+    const r2 = renderWithApp(<App />, { backend: new PendingAgentBackend() });
     const approve = (await screen.findAllByTestId("plan-approve")) as HTMLButtonElement[];
     expect(approve.length).toBeGreaterThan(0);
     expect(approve.every((b) => b.disabled)).toBe(true);
@@ -82,9 +103,13 @@ describe("Mix Report renderer", () => {
 
   it("renders listening checks with time stamps", async () => {
     const report = await demoBackend().getReport("v01", "en");
+    const checks = report.listening_checks ?? [];
+    expect(checks.length).toBeGreaterThan(0);
+    const t0 = checks[0].time_s ?? 0;
+    const stamp = `${Math.floor(t0 / 60)}:${String(Math.floor(t0 % 60)).padStart(2, "0")}`;
     renderWithApp(<ReportView report={report} reportLang="en" onLang={() => {}} variantId="v01" />);
     const section = (await screen.findByText(STRINGS.en["report.s9"])).closest("section")!;
-    expect(within(section).getByText("0:42")).toBeTruthy();
+    expect(within(section).getAllByText(stamp).length).toBeGreaterThan(0);
   });
 });
 

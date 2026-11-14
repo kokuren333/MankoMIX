@@ -1,27 +1,40 @@
 {
- "variant": "v01",
- "synthetic": true,
+ "before_kind": "stem_sum",
  "files": {
-  "before": null,
-  "after": null,
-  "delta": null,
+  "after": "variants/v01/after.mp3",
+  "after_level_matched": "variants/v01/after_level_matched.mp3",
+  "before": "audio/before.mp3",
   "before_level_matched": null,
-  "fullmix_reference": null
+  "delta": "audio/delta.mp3",
+  "fullmix_reference": "audio/fullmix_reference.mp3"
  },
- "match_gain_db": -2.5,
- "match_target": "before",
+ "listening_copies": {
+  "bitrate_kbps": 320,
+  "format": "mp3",
+  "masters": false
+ },
+ "match_gain_db": -1.02,
+ "match_target": "after",
  "measurements": {
-  "before": {
-   "lufs_i": -11.5,
-   "true_peak_dbtp": 0.8
-  },
   "after": {
-   "lufs_i": -14,
-   "true_peak_dbtp": -1.2
+   "lufs_i": -14.01,
+   "true_peak_dbtp": -1.01
+  },
+  "before": {
+   "lufs_i": -15.03,
+   "true_peak_dbtp": -0.59
   }
  },
  "note": {
-  "en": "Placeholder dataset: no audio files.",
-  "ja": "プレースホルダーのため音声はありません。"
- }
+  "en": "level match: the louder side is lowered to equal integrated loudness (R-01)",
+  "ja": "レベルマッチ: 大きい方を下げて統合ラウドネスを揃える（R-01）"
+ },
+ "project_variant": "var_streaming_universal",
+ "source_files": {
+  "after": "renders/var_streaming_universal/master__archive_f32.wav",
+  "before": "cache/listen/before_stem_sum_188ce11a3ae09293.wav",
+  "delta": "renders/delta/stem_sum_delta.wav",
+  "fullmix_reference": "assets/fullmix_conformed.wav"
+ },
+ "variant": "v01"
 }

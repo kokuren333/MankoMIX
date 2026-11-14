@@ -2,7 +2,7 @@
 
 GitHub Pages デモ（SPEC §11.4）の `MockBackend`（`src/backend/MockBackend.ts`）が読む、事前計算データの配置。
 
-**本番のデータは、本体のコアで生成するビルド手順（`tools/build_demo_data.py`）が書き出す。手書きしない。** 今リポジトリにある `public/demo/` は、GUI の開発とテストのための**合成のプレースホルダー**（`scripts/make-placeholder-demo.mjs` が生成。全ファイルに `"synthetic": true`、音声なし）であり、実際の処理結果ではない。GUI は `synthetic` のデータに注意書きを表示する。
+**本番のデータは、本体のコアで生成するビルド手順（`tools/build_demo_data.py`）が書き出す。手書きしない。** 現在リポジトリにコミットされている `public/demo/` は、指揮書実例 p3「空間音響と複雑なパンニング」（楽曲「マンコ主義」）を `tools/build_demo_data.py --project-variants --mp3` でビルドした実データである（単一バリアント v01 = プロジェクトの `var_streaming_universal`、試聴用 MP3 付き。2026-11-14 にオーナーが D-061 を承認して差し替えた）。GUI 開発用の**合成のプレースホルダー**（`scripts/make-placeholder-demo.mjs` が生成。全ファイルに `"synthetic": true`、音声なし）は `npm run demo:placeholder` で再生成できる。GUI は `synthetic` のデータに注意書きを表示する。
 
 The real dataset is written by `tools/build_demo_data.py` from a project, only through `core/api.py` (the same calls the local server makes), using exactly this layout; it replaces the placeholder. All paths inside the files are **relative to the demo root**; absolute paths and URLs to other hosts are rejected by the mock (the demo only fetches same-origin static files).
 
@@ -102,7 +102,7 @@ python -I tools/build_demo_data.py --project <song.mmx> [--out tmp/demo_data] [-
 - `--mp3` encodes the listening copies with an external ffmpeg (libmp3lame, 320 kbps CBR, no tags, bit-exact) and records the encoder in `index.json`. Without it the dataset is JSON only.
 - The default `--out` is `tmp/demo_data/` (gitignored). An existing `--out` must be empty or hold a previous dataset; only the builder's own entries are replaced.
 - Output is deterministic: JSON with sorted keys, stable file names; two builds of the same project are byte-identical. The build refuses to write if any file would contain an absolute path, a local folder or an e-mail address; project asset paths outside the project become `linked/<name>`.
-- **Audio is not committed** (D-061): MP3 files under `public/demo/` stay uncommitted (`*.mp3` is gitignored) until the owner approves the M9 public audit; until then only the JSON may replace the placeholder. Audio is regenerated with the command above at any time.
+- **Audio is not committed** (D-061): MP3 files under `public/demo/` stay uncommitted (`*.mp3` is gitignored) until the owner approves the M9 public audit; until then only the JSON may replace the placeholder. Audio is regenerated with the command above at any time. **Exception (owner approval, 2026-11-14):** the listening copies of the p3 direction example — the dataset committed at that date — are committed (force-added past the `*.mp3` gitignore rule). Any other audio still needs its own approval, and further replacements happen only at release milestones (SPEC 15.3).
 - Check a generated dataset with the GUI tests: `MANKOMIX_DEMO_DIR=<dataset folder> npm test` runs `src/test/demo-dataset.test.tsx` (loads every file through `MockBackend` and renders every screen); without the variable that suite is skipped.
 
 ## Regenerating the placeholder
