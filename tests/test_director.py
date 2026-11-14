@@ -226,3 +226,87 @@ def test_query_sections_and_unsupported_targets():
     assert Q.observe(x, SR, {"primitive": "crest", "target": "trk_bass"})["status"] == "unsupported"
     with pytest.raises(Q.QueryError):
         Q.observe(x, SR, {"primitive": "crest", "section": "nope"}, sections=secs)
+
+
+# ---------------------------------------------------------------------------
+# calibration inside the declared ranges (director.calibrate)
+# ---------------------------------------------------------------------------
+
+from mankomix.director import calibrate as C  # noqa: E402
+
+
+def test_resolve_params_takes_calibrated_values_only_inside_the_range():
+    m = {"id": "m", "select": {"a": "mid"}}
+    out, _ = D.resolve_params(m, {"a": [1.0, 3.0], "d": 5}, sel={"m.a": 2.75})
+    assert out == {"a": 2.75, "d": 5}
+    out, _ = D.resolve_params(m, {"a": [1.0, 3.0]}, sel={"other.a": 1.0})
+    assert out == {"a": 2.0}
+    with pytest.raises(D.DirectionError):
+        D.resolve_params(m, {"a": [1.0, 3.0]}, sel={"m.a": 3.5})
+
+
+def test_strong_end_follows_the_no_op_value():
+    assert C.strong_end("chain_add", "eq", "gain_db", -3.0, -1.5, {}) == -3.0
+    assert C.strong_end("chain_add", "eq", "gain_db", 2.5, 4.5, {}) == 4.5
+    assert C.strong_end("gain", None, "delta_db", -1.5, -0.5, {}) == -1.5
+    assert C.strong_end("pan", None, "width", 1.2, 1.4, {}) == 1.4
+    assert C.strong_end("pan", None, "width", 0.6, 0.9, {}) == 0.6
+    assert C.strong_end("pan", None, "position", -0.5, -0.35, {}) == -0.5
+    assert C.strong_end("send", None, "level_db", -18.0, -14.0, {}) == -14.0
+    assert C.strong_end("chain_param", "filter", "freq_hz", 105.0, 125.0, {"kind": "hpf"}) == 125.0
+    assert C.strong_end("chain_param", "filter", "freq_hz", 8000.0, 12000.0, {"kind": "lpf"}) == 8000.0
+    assert C.strong_end("chain_add", "eq", "freq_hz", 250.0, 450.0, {"shape": "peak"}) is None
+    assert C.strong_end("chain_add", "delay", "time_ms", 9.0, 14.0, {}) is None
+    assert C.strong_end("chain_add", "eq", "gain_db", -2.0, 2.0, {}) is None
+
+
+def test_knobs_list_every_range_with_its_select_value(tmp_path):
+    b = _block()
+    b["moves"].append({"id": "m02", "aim": "a1", "op": "bus_add", "target": "bus_far",
+                       "params": {"chain": [{"processor": "reverb", "params": {"mix": [0.2, 0.6]}}]},
+                       "basis": "x", "origin": "new"})
+    doc = D.parse_document(_doc(tmp_path, b))
+    ks = {k["id"]: k for k in C.knobs(doc)}
+    assert set(ks) == {"m01.gain_db", "m02.chain0.mix"}
+    assert ks["m01.gain_db"]["start"] == 3.0 and ks["m01.gain_db"]["strong"] == 3.0
+    assert ks["m01.gain_db"]["weak"] == 1.5
+    assert ks["m02.chain0.mix"]["start"] == 0.4 and ks["m02.chain0.mix"]["strong"] == 0.6
+
+
+def test_slack_and_the_no_worse_rule():
+    up = {"direction": "up", "min_delta": 2.5}
+    nw = {"direction": "not_worse", "tolerance": 1.0}
+    side = {"direction": "not_worse", "tolerance": 1.0, "worse": "up"}
+    assert C._slack(up, 2.383) == pytest.approx(-0.117)
+    assert C._slack(nw, -1.5) == pytest.approx(-0.5)
+    assert C._slack(side, -1.5) == pytest.approx(2.5)
+    assert C._slack(up, None) is None
+    items = [{"key": "a", "q": up}, {"key": "b", "q": nw}]
+    # a met item that falls below the margin, or an unmet item that moves away, is "worse"
+    assert C._feasible(items, {"a": 0.5, "b": -0.2}, {"a": 0.01, "b": -0.2}) == ["a"]
+    assert C._feasible(items, {"a": 0.5, "b": -0.2}, {"a": 0.6, "b": -0.25}) == ["b"]
+    assert C._feasible(items, {"a": -0.1, "b": 0.3}, {"a": -0.05, "b": 0.3}) == []
+
+
+def test_blend_stays_inside_the_ranges():
+    ks = [{"id": "x", "range": [-3.0, -1.5]}, {"id": "y", "range": [1.2, 1.4]}]
+    out = C._blend(ks, {"x": -2.25, "y": 1.3}, {"x": -3.0, "y": 1.4}, 0.5)
+    assert out == {"x": -2.625, "y": 1.35}
+    assert C._blend(ks, {"x": -2.25, "y": 1.3}, {"x": -3.5, "y": 1.6}, 1.0) == {"x": -3.0, "y": 1.4}
+
+
+def test_data_with_changes_matches_the_mix_apply_shape():
+    data = {"tracks": [{"id": "t1", "gain_db": 0.0, "chain": [{"id": "old", "type": "eq", "owner": "mixplan"},
+                                                               {"id": "user", "type": "eq"}], "sends": []}],
+            "buses": [{"id": "bus_rev", "owner": "mixplan", "chain": []}, {"id": "bus_mix", "chain": []}]}
+    ch = {"mix_bus": "bus_mix", "tracks": {"t1": {"gain_db": -1.0, "pan": {"position": 0.3},
+                                                  "chain": [{"id": "new", "type": "eq", "owner": "director"}]}},
+          "buses": [{"id": "bus_far", "owner": "director", "chain": []}],
+          "mix_chain": [{"id": "glue", "type": "compressor"}]}
+    out = C.data_with_changes(data, ch)
+    t = out["tracks"][0]
+    assert t["gain_db"] == -1.0 and t["pan"] == {"position": 0.3}
+    assert [x["id"] for x in t["chain"]] == ["new"]
+    assert [b["id"] for b in out["buses"]] == ["bus_far", "bus_mix"]
+    assert out["buses"][-1]["chain"] == [{"id": "glue", "type": "compressor"}]
+    assert data["tracks"][0]["gain_db"] == 0.0   # the input is not changed

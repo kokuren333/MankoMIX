@@ -8,7 +8,7 @@
 |---|---|
 | `mankomix direction dossier --project <p> --song <slug> --out <md>` | 曲資料（決定論・読み取りのみ） |
 | `mankomix direction validate [--project <p>] <direction.md>` | 形式・op・プロセッサ宣言範囲（範囲の両端）・不変領域・量の参照・評価段 E1〜E3。誤りがあれば終了コード 1 |
-| `mankomix direction apply --project <p> <direction.md>` | 床（適用済みミックス）に手を重ねる。`cleanup_override` → `clean plan --apply`、ミックスの手 → 1 本の `mxp_` 提案 → `plan apply`。`directions/` に凍結コピーと適用記録 `dir_<id>.apply.json`。マスター目標を返す |
+| `mankomix direction apply --project <p> [--calibrate] <direction.md>` | 床（適用済みミックス）に手を重ねる（`--calibrate`: 範囲内の量を主張の予測で選ぶ。§5）。`cleanup_override` → `clean plan --apply`、ミックスの手 → 1 本の `mxp_` 提案 → `plan apply`。`directions/` に凍結コピーと適用記録 `dir_<id>.apply.json`。マスター目標を返す |
 | `mankomix direction check --project <p> --floor <floor> <direction.md>` | 描画結果を床とレベルマッチして比べる（主張・期待・ガード、`move_ref` の網羅、ゲート定義ハッシュの前後一致、床との同一収束）→ `directions/dir_<id>.outcome.json` |
 | `mankomix direction query [--project <p>] <audio> <spec>` | 観察量（v2 の `analyze query` の最小版。既存の `analyze` の挙動を変えないため `direction` の下に置く） |
 | `mankomix kb index／kb lint` | 蓄積庫 `kb/` の索引と検査 |
@@ -122,6 +122,7 @@
 ## 5. v1 実装の注記（validate／apply／check が実際にすること）
 
 - **範囲と select**: 範囲 `[下限, 上限]` は両端とも宣言範囲内であることを validate が確かめる。apply は `mid`／`min`／`max` で値を選ぶ。`sweep:<量>` は v1 では未実装で、範囲の中央を使い、適用記録の `notes` に残す
+- **範囲内の較正（`direction apply --calibrate`）**: `select` の値を出発点に、範囲の内側だけで値を選び直す（範囲の無い数値は変えない）。床の写しに手を載せたミックスバスをメモリ上で描画し、床のミックスと LUFS-I を合わせて観察量（`target: master`）の差を予測する。候補は「未達の主張を expect に挙げる手を強い端へ」「全手を強い端へ」「自分の safeguard が不成立の手を無作用側へ」（強い端＝ゲイン 0 dB・幅 1・位置 0 から遠い側、大きいセンド・drive・mix・feedback、高い HPF／低い LPF。中心周波数・遅延時間など順序の無い量は動かさない）。測れる主張と safeguard のうち met のものは met のまま（余裕 0.02）、未達のものは目標から遠ざからない候補だけを受理し、主たる主張の met 数 → 主張の met 数 → safeguard の met 数 → 主たる主張の不足の小ささで選んで、得点が下がらない範囲で `select` からの段を縮める。主たる主張どうしを引き換えにはしない。全予測と選択は適用記録の `calibration` に、予測とマスター実測の対照は outcome の `calibration.prediction_vs_master` に残る。`cleanup_override` を含む指揮書は較正しない。ゲート・プロファイル・マスター連鎖には触れない
 - **床への重ね方**: 床のミックス提案（`mix.applied.proposal_id`）の `changes` を出発点に、手が触れたトラックのチェーン・センドを丸ごと書いた `mxp_` 提案を作り、既存の `plan apply` で適用する。足した処理・センド・バスには `owner: director` と `move_ref: dir_<id>/<move>` が付く。量を変えた床の処理（`chain_param`）にも `move_ref` が付く。外した処理（`chain_remove`）とトラックのゲイン・パンは適用記録に残る。既に指揮書の手が入っているプロジェクトには適用しない（床の新しい写しに適用する）
 - **区間ゲイン**: `gain` に `section` を付けると、区間の前後 20 ms のランプを持つゲインのオートメーションになる。同じトラックの区間が重なる・接する場合と、既にオートメーションがある場合は拒否する
 - **バスのパン**: 新バス・既存バスへの `pan` は、バスのチェーン末尾に `pan`（position）と `stereo`（width）の処理を足す

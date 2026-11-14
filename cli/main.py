@@ -461,7 +461,7 @@ def cmd_direction_validate(a):
 
 def cmd_direction_apply(a):
     from mankomix.director import direction as D
-    res = _direction_errors(D.apply, _project(a), a.file)
+    res = _direction_errors(D.apply, _project(a), a.file, calibrate=bool(getattr(a, "calibrate", False)))
     if not res.get("applied"):
         res["exit_code"] = 1
     return res
@@ -906,6 +906,9 @@ def build_parser() -> argparse.ArgumentParser:
              "apply a direction's moves on top of the floor mix of --project (a copy): cleanup overrides via clean "
              "plan, the mix moves as one mxp_ proposal via plan apply; prints the master target to use", gsub)
     sp.add_argument("file", help="direction Markdown file")
+    sp.add_argument("--calibrate", action="store_true",
+                    help="choose range values inside the declared ranges by predicting the claims at the mix stage "
+                         "(renders the mix in memory; the choice is kept in the apply record)")
     sp = add("check", cmd_direction_check,
              "compare the rendered result of --project with the floor (level matched): claims, expectations, "
              "safeguards, move_ref coverage, gate definition hash, convergence -> directions/dir_*.outcome.json", gsub)

@@ -207,12 +207,23 @@ def _select_of(move: dict, key: str) -> str:
     return "mid"
 
 
-def resolve_params(move: dict, params: dict | None) -> tuple[dict, list[str]]:
-    """Ranges [lo, hi] -> one value by ``select`` (mid / min / max; sweep:* falls back to mid in v0)."""
+def resolve_params(move: dict, params: dict | None, sel: dict | None = None,
+                   prefix: str | None = None) -> tuple[dict, list[str]]:
+    """Ranges [lo, hi] -> one value by ``select`` (mid / min / max; sweep:* falls back to mid in v0).
+
+    ``sel``: values chosen by calibration, keyed ``<prefix>.<param>`` (prefix: the move id, or
+    ``<move id>.chain<i>`` for a bus_add chain item); a chosen value must lie inside the range."""
     out, notes = {}, []
     for k, v in (params or {}).items():
         if _is_range(v):
             lo, hi = float(min(v)), float(max(v))
+            kid = f"{prefix or move.get('id')}.{k}"
+            if sel is not None and kid in sel:
+                val = float(sel[kid])
+                if not lo - 1e-9 <= val <= hi + 1e-9:
+                    raise DirectionError(f"{kid}: chosen value {val} is outside the declared range [{lo}, {hi}]")
+                out[k] = round(val, 4)
+                continue
             s = _select_of(move, k)
             if s.startswith("sweep:"):
                 notes.append(f"{move.get('id')}.{k}: '{s}' is not implemented in v0; the middle of the range is used")
@@ -561,8 +572,11 @@ def _automation(rate: int, segs: list[tuple[float, float, float]], base: list | 
     return pts
 
 
-def build_proposal(proj: _Project, doc: dict) -> tuple[dict, dict, list[str]]:
-    """(mix proposal or None, record, notes). The record lists, per move, what it wrote."""
+def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[dict, dict, list[str]]:
+    """(mix proposal or None, record, notes). The record lists, per move, what it wrote.
+
+    ``sel``: range values chosen by calibration (``director.calibrate``); without it every range
+    resolves to its ``select``."""
     if proj.floor_mxp is None:
         raise DirectionError("the project has no applied floor mix proposal (mix.applied.proposal_id)")
     b = doc["block"]
@@ -617,11 +631,11 @@ def build_proposal(proj: _Project, doc: dict) -> tuple[dict, dict, list[str]]:
     for m in b.get("moves") or []:
         if m.get("op") != "bus_add":
             continue
-        params, n = resolve_params(m, m.get("params") or {})
+        params, n = resolve_params(m, m.get("params") or {}, sel)
         notes += n
         chain = []
         for i, c in enumerate(params.get("chain") or []):
-            cp, cn = resolve_params(m, c.get("params") or {})
+            cp, cn = resolve_params(m, c.get("params") or {}, sel, f"{m['id']}.chain{i}")
             notes += cn
             ptype = c.get("type") or c.get("processor")
             chain.append(_item(dir_id, m, ptype, P.validate_params(ptype, cp), m["target"], f".{i + 1}"))
@@ -632,7 +646,7 @@ def build_proposal(proj: _Project, doc: dict) -> tuple[dict, dict, list[str]]:
         record["moves"][m["id"]] = {"op": "bus_add", "bus": m["target"], "items": [c["id"] for c in chain]}
     for m in b.get("moves") or []:
         op, mid, target = m.get("op"), m.get("id"), m.get("target")
-        params, n = resolve_params(m, m.get("params") or {})
+        params, n = resolve_params(m, m.get("params") or {}, sel)
         notes += n
         if op == "bus_add":
             continue
@@ -754,8 +768,13 @@ def _director_items(data: dict) -> list[dict]:
     return out
 
 
-def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", validate_first: bool = True) -> dict:
-    """Apply a direction to a project that holds the floor mix (a copy; the floor itself is never touched)."""
+def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", validate_first: bool = True,
+          calibrate: bool = False) -> dict:
+    """Apply a direction to a project that holds the floor mix (a copy; the floor itself is never touched).
+
+    ``calibrate``: choose the range values inside the declared ranges by predicting the claims at the
+    mix stage (``director.calibrate``) instead of taking every ``select`` blindly; the choice and every
+    prediction are kept in the apply record (``calibration``)."""
     from mankomix.core import api
     from mankomix.core import mixplan
     root = Path(project)
@@ -772,14 +791,20 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
     rec_path = ddir / f"{doc['id']}.apply.json"
     if rec_path.is_file():
         raise DirectionError(f"{doc['id']} was already applied to this project")
+    cal = None
+    if calibrate:
+        from . import calibrate as C
+        cal = C.calibrate(root, doc)
     # frozen copies of the director's documents
     shutil.copyfile(doc["path"], ddir / f"{doc['id']}.md")
     apath = Path(doc["path"]).parent / "analysis.md"
     if apath.is_file():
         shutil.copyfile(apath, ddir / f"{doc['id']}.analysis.md")
-    prop, record, notes = build_proposal(proj, doc)
+    prop, record, notes = build_proposal(proj, doc, sel=(cal or {}).get("selection"))
     out: dict = {"kind": "direction_apply", "id": doc["id"], "applied": True, "notes": notes,
                  "gate_definitions": gate_definitions_hash(), "floor_mix_proposal": proj.floor_mxp_id}
+    if cal is not None:
+        out["calibration"] = cal
     if record["cleanup"]:
         cl = []
         for c in record["cleanup"]:
@@ -927,6 +952,17 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
         j.update({"id": c.get("id"), "primary": bool(c.get("primary"))})
         claims.append(j)
     out["claims"] = claims
+    cal = (rec or {}).get("calibration")
+    if isinstance(cal, dict) and cal.get("evaluations"):
+        ce = next((e for e in cal["evaluations"] if e.get("label") == cal.get("chosen")), None) or {}
+        pred = ce.get("deltas") or {}
+        out["calibration"] = {
+            "chosen": cal.get("chosen"), "changed": cal.get("changed"),
+            "prediction_vs_master": {oid: {"predicted": v, "measured": (lambda r, f: None if r is None or f is None
+                                                                        else round(r - f, 4))(
+                (obs_vals.get(oid, {}).get("result") or {}).get("value"),
+                (obs_vals.get(oid, {}).get("floor") or {}).get("value"))} for oid, v in pred.items()},
+            "unreached_in_ranges": cal.get("unreached_in_ranges")}
     mv = []
     for m in b.get("moves") or []:
         for kind in ("expect", "safeguard"):
