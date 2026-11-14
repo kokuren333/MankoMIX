@@ -1,0 +1,397 @@
+{
+  "kind": "direction_outcome",
+  "schema_version": 1,
+  "direction": "dir_2a6c9969107a",
+  "song": "manko-shugi",
+  "pattern": "p2",
+  "request": "超重低音強化しつつも聞ける",
+  "variant": "var_streaming_universal",
+  "files": {
+    "result": "streaming_universal__hires_native.wav",
+    "floor": "streaming_universal__hires_native.wav"
+  },
+  "loudness": {
+    "result_lufs_i": -14.006,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": -0.001
+  },
+  "observations": {
+    "o1": {
+      "floor": {
+        "status": "ok",
+        "value": -68.9906,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -66.6078,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": -0.0011
+      }
+    },
+    "o2": {
+      "floor": {
+        "status": "ok",
+        "value": -8.852,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -7.237,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": -0.0011
+      }
+    },
+    "o3": {
+      "floor": {
+        "status": "unsupported",
+        "reason": "target 'trk_bass': only 'master' is supported in v0"
+      },
+      "result": {
+        "status": "unsupported",
+        "reason": "target 'trk_bass': only 'master' is supported in v0"
+      }
+    },
+    "o4": {
+      "floor": {
+        "status": "ok",
+        "value": 17.3521,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": 17.1497,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": -0.0011
+      }
+    },
+    "o5": {
+      "floor": {
+        "status": "unsupported",
+        "reason": "target 'trk_vocals': only 'master' is supported in v0"
+      },
+      "result": {
+        "status": "unsupported",
+        "reason": "target 'trk_vocals': only 'master' is supported in v0"
+      }
+    },
+    "o6": {
+      "floor": {
+        "status": "unsupported",
+        "reason": "target 'trk_guitar': only 'master' is supported in v0"
+      },
+      "result": {
+        "status": "unsupported",
+        "reason": "target 'trk_guitar': only 'master' is supported in v0"
+      }
+    },
+    "o7": {
+      "floor": {
+        "status": "unsupported",
+        "reason": "target 'trk_keyboard': only 'master' is supported in v0"
+      },
+      "result": {
+        "status": "unsupported",
+        "reason": "target 'trk_keyboard': only 'master' is supported in v0"
+      }
+    }
+  },
+  "claims": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -68.9906,
+      "result": -66.6078,
+      "delta": 2.3828,
+      "verdict": "not_met",
+      "id": "c1",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "up",
+      "floor": -8.852,
+      "result": -7.237,
+      "delta": 1.615,
+      "verdict": "not_met",
+      "id": "c2",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "up",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c3",
+      "primary": false
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c4",
+      "primary": true
+    },
+    {
+      "quantity": "P-10",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c5",
+      "primary": false
+    },
+    {
+      "quantity": "P-22",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c6",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "not_worse",
+      "floor": 17.3521,
+      "result": 17.1497,
+      "delta": -0.2024,
+      "verdict": "met",
+      "id": "c7",
+      "primary": false
+    }
+  ],
+  "move_checks": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -68.9906,
+      "result": -66.6078,
+      "delta": 2.3828,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "not_worse",
+      "floor": 17.3521,
+      "result": 17.1497,
+      "delta": -0.2024,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -68.9906,
+      "result": -66.6078,
+      "delta": 2.3828,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "up",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m03",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-11",
+      "direction": "not_worse",
+      "floor": 1.0352273121655742,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m04",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-10",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m04",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m04",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o6",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m05",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "up",
+      "floor": -8.852,
+      "result": -7.237,
+      "delta": 1.615,
+      "verdict": "met",
+      "move": "m05",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o7",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m06",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "up",
+      "floor": -8.852,
+      "result": -7.237,
+      "delta": 1.615,
+      "verdict": "met",
+      "move": "m06",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    }
+  ],
+  "move_ref": {
+    "items": 6,
+    "by_move": {
+      "m02": [
+        "dr.trk_bass.m02"
+      ],
+      "m03": [
+        "dr.trk_bass.m03"
+      ],
+      "m01": [
+        "dr.trk_drums.m01"
+      ],
+      "m05": [
+        "mx.trk_guitar.hpf"
+      ],
+      "m06": [
+        "dr.trk_keyboard.m06"
+      ],
+      "m04": [
+        "mx.trk_vocals.hpf"
+      ]
+    },
+    "unknown_refs": [],
+    "moves_without_trace": [],
+    "ok": true
+  },
+  "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+  },
+  "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -9.56,
+    "frames_compared": 4746240,
+    "converged": false
+  },
+  "summary": {
+    "primary_met": 0,
+    "primary": 3,
+    "claims_met": 1,
+    "claims": 7,
+    "safeguards_not_met": []
+  },
+  "status": "checked"
+}

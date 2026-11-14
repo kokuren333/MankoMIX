@@ -774,12 +774,20 @@ CLI_TO_MCP: dict[str, str | None] = {
     "stem split": "stems_edit", "stem range-replace": "stems_edit", "stem role": "stems_edit",
     "stem export": "stems_export",
     "serve": None, "mcp": None,
+    # direction layer (director/, outside the core): planned tool names; not exposed yet (KNOWN_CLI_ONLY)
+    "direction dossier": "direction_dossier", "direction validate": "direction_validate",
+    "direction apply": "direction_apply", "direction check": "direction_check", "direction query": "direction_query",
+    "kb index": "kb_index", "kb lint": "kb_lint",
 }
 # CLI flags that select a different core function (and so a different MCP tool).
 CLI_FLAG_COMMANDS = {"verify --last": ("verify", "--last"), "separate --records": ("separate", "--records")}
 KNOWN_CLI_ONLY = {
     "route": "CLI 'route' (core api.route, mastering route selection R-21) has no MCP tool: mcp/tools.py SPECS has "
              "no entry for api.route, against SPEC 10.1 (no feature on one face only)",
+    **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core; minimal implementation of the "
+          "renovation proposal v2). MCP exposure is deferred until the owner decides v2 (D-085 onward)"
+       for c in ("direction dossier", "direction validate", "direction apply", "direction check", "direction query",
+                 "kb index", "kb lint")},
 }
 SERVER_TOOLS = {"job_status", "job_result", "job_list"}       # server-level, no CLI counterpart (README)
 

@@ -416,6 +416,96 @@ def cmd_report(a):
     return api.report(_project(a), a.variant, lang=a.lang, write=not a.no_write)
 
 
+# -- direction layer (outside the core; the core never imports it) --
+
+def _shown_path(p: Path) -> str:
+    """A path for the JSON output: as given when relative, else only the file name (no absolute paths)."""
+    return p.as_posix() if not p.is_absolute() else p.name
+
+
+def cmd_direction_dossier(a):
+    from mankomix.director import dossier
+    root = _project(a)
+    if not (Path(root) / "project.json").is_file():
+        raise InputError("no project.json in the project folder")
+    try:
+        res = dossier.build_dossier(root, variant=a.variant, song=a.song, kb_root=a.kb_root,
+                                    section_audio=not a.no_section_audio)
+    except KeyError as e:
+        raise InputError(str(e).strip("'\"")) from None
+    if a.out:
+        out = Path(a.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(res["markdown"].encode("utf-8"))
+        res = {k: v for k, v in res.items() if k != "markdown"}
+        res["out"] = _shown_path(out)
+    return res
+
+
+def _direction_errors(fn, *args, **kw):
+    from mankomix.director import direction as D
+    from mankomix.director import query as Q
+    try:
+        return fn(*args, **kw)
+    except (D.DirectionError, Q.QueryError) as e:
+        raise InputError(str(e)) from None
+
+
+def cmd_direction_validate(a):
+    from mankomix.director import direction as D
+    doc = _direction_errors(D.parse_document, a.file)
+    res = D.validate(doc, a.project if a.project else None)
+    res["exit_code"] = 0 if res["ok"] else 1
+    return res
+
+
+def cmd_direction_apply(a):
+    from mankomix.director import direction as D
+    res = _direction_errors(D.apply, _project(a), a.file)
+    if not res.get("applied"):
+        res["exit_code"] = 1
+    return res
+
+
+def cmd_direction_check(a):
+    from mankomix.director import direction as D
+    return _direction_errors(D.check, _project(a), a.floor, a.file, variant=a.variant, delivery=a.delivery)
+
+
+def cmd_direction_query(a):
+    from mankomix.director import query as Q
+    from mankomix.core import audio_io
+    obs = json.loads(Path(a.spec[1:]).read_text(encoding="utf-8")) if a.spec.startswith("@") else json.loads(a.spec)
+    sections = None
+    if a.project:
+        from mankomix.director import direction as D
+        sections = D._Project(_project(a)).sections()
+    x, sr = audio_io.read(a.audio)
+    items = obs if isinstance(obs, list) else [obs]
+    out = []
+    for o in items:
+        out.append({"id": o.get("id"), **_direction_errors(Q.observe, x, sr, o, sections=sections)})
+    return {"kind": "observations", "file": Path(a.audio).name, "observations": out}
+
+
+def cmd_kb_index(a):
+    from mankomix.director import kb
+    root = Path(a.root)
+    if not root.is_dir():
+        raise InputError(f"kb root not found: {_shown_path(root)}")
+    res = kb.write_index(root)
+    res["root"] = _shown_path(root)
+    return res
+
+
+def cmd_kb_lint(a):
+    from mankomix.director import kb
+    res = kb.lint(Path(a.root))
+    res["root"] = _shown_path(Path(a.root))
+    res["exit_code"] = 0 if res["ok"] else 1
+    return res
+
+
 def cmd_serve(a):
     # Serves HTTP until interrupted; prints one JSON line with the address first. Nothing
     # else is printed to stdout, so leave through SystemExit like `mcp`.
@@ -795,6 +885,49 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--lang", choices=("ja", "en", "both"), default="both")
     sp.add_argument("--no-write", dest="no_write", action="store_true", help="do not write files under reports/")
 
+    grp = add("direction", None, "direction layer: song dossier, direction validate / apply / check, observation query")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    sp = add("dossier", cmd_direction_dossier,
+             "write the song dossier (Markdown) from the project files: stems, sections, measurements, "
+             "constraint margins, processors, the floor mix and its result", gsub)
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--out", help="write the Markdown to this file (default: return it in the JSON 'markdown')")
+    sp.add_argument("--song", help="song slug used to name the song (the title is then not printed) and to pick "
+                                   "the song's kb cards")
+    sp.add_argument("--kb-root", dest="kb_root", help="kb folder for the excerpt (default: kb/ of the repository)")
+    sp.add_argument("--no-section-audio", dest="no_section_audio", action="store_true",
+                    help="skip the per-section loudness table (it reads the cleaned stem audio)")
+    sp = add("validate", cmd_direction_validate,
+             "check a direction document: block shape, ops, processor ranges, the invariant area, quantity "
+             "references and the review tier E1-E3 (exit 1 on any error); --project also checks targets", gsub)
+    sp.add_argument("file", help="direction Markdown file")
+    sp = add("apply", cmd_direction_apply,
+             "apply a direction's moves on top of the floor mix of --project (a copy): cleanup overrides via clean "
+             "plan, the mix moves as one mxp_ proposal via plan apply; prints the master target to use", gsub)
+    sp.add_argument("file", help="direction Markdown file")
+    sp = add("check", cmd_direction_check,
+             "compare the rendered result of --project with the floor (level matched): claims, expectations, "
+             "safeguards, move_ref coverage, gate definition hash, convergence -> directions/dir_*.outcome.json", gsub)
+    sp.add_argument("file", help="direction Markdown file")
+    sp.add_argument("--floor", required=True, help="the floor project folder (rendered)")
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--delivery", default="hires_native", help="delivery file to compare (default hires_native)")
+    sp = add("query", cmd_direction_query,
+             "observation quantities on an audio file (band_energy, band_ratio, crest, loudness, side_ratio, "
+             "correlation); --project resolves section ids", gsub)
+    sp.add_argument("audio", help="audio file")
+    sp.add_argument("spec", help="observation JSON (object or list) or @file")
+
+    grp = add("kb", None, "experience store kb/: index and lint")
+    gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
+    gsub.required = True
+    add("index", cmd_kb_index, "regenerate kb/INDEX.md from the front matter of every card", gsub) \
+        .add_argument("--root", default="kb", help="kb folder (default: kb)")
+    add("lint", cmd_kb_lint, "check front matter, backing links, forbidden content, broken links and index "
+                             "freshness (exit 1 on any violation)", gsub) \
+        .add_argument("--root", default="kb", help="kb folder (default: kb)")
+
     sp = add("serve", cmd_serve, "local server for the GUI (HTTP + Server-Sent Events, loopback only by default)")
     sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")
     sp.add_argument("--host", default="127.0.0.1", help="bind address (default 127.0.0.1)")
@@ -862,7 +995,7 @@ def main(argv: list[str] | None = None) -> int:
         _emit(result, fmt, command)
         if command == "doctor" and result.get("status") == "error":
             return EXIT_ENV_ERROR
-        if command in ("verify", "gate", "run") and isinstance(result, dict) and result.get("exit_code"):
+        if command in ("verify", "gate", "run", "kb lint", "direction validate", "direction apply") and isinstance(result, dict) and result.get("exit_code"):
             return int(result["exit_code"])
         return EXIT_OK
     except MankoError as e:

@@ -1,0 +1,689 @@
+{
+  "kind": "direction_outcome",
+  "schema_version": 1,
+  "direction": "dir_b465721f74fb",
+  "song": "manko-shugi",
+  "pattern": "p3",
+  "request": "空間音響と複雑なパンニング",
+  "variant": "var_streaming_universal",
+  "files": {
+    "result": "streaming_universal__hires_native.wav",
+    "floor": "streaming_universal__hires_native.wav"
+  },
+  "loudness": {
+    "result_lufs_i": -14.011,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": 0.003
+  },
+  "observations": {
+    "o1": {
+      "floor": {
+        "status": "ok",
+        "value": -14.9174,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -11.3738,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0034
+      }
+    },
+    "o2": {
+      "floor": {
+        "status": "ok",
+        "value": 0.9547,
+        "unit": "",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": 0.9113,
+        "unit": "",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0034
+      }
+    },
+    "o3": {
+      "floor": {
+        "status": "ok",
+        "value": -23.6675,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -21.828,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0034
+      }
+    },
+    "o4": {
+      "floor": {
+        "status": "ok",
+        "value": -17.0786,
+        "unit": "dB",
+        "range_s": [
+          32.5,
+          36.3
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -11.5003,
+        "unit": "dB",
+        "range_s": [
+          32.5,
+          36.3
+        ],
+        "gain_db": 0.0034
+      }
+    },
+    "o5": {
+      "floor": {
+        "status": "ok",
+        "value": 0.9911,
+        "unit": "",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": 0.9861,
+        "unit": "",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0034
+      }
+    }
+  },
+  "claims": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "not_met",
+      "id": "c1",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "down",
+      "floor": 0.9547,
+      "result": 0.9113,
+      "delta": -0.0434,
+      "verdict": "not_met",
+      "id": "c2",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "id": "c3",
+      "primary": true
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c4",
+      "primary": false
+    },
+    {
+      "quantity": "P-10",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c5",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "id": "c6",
+      "primary": false
+    }
+  ],
+  "move_checks": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m04",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m04",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "move": "m05",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m05",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m07",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m07",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m08",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m08",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m09",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m09",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m10",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m10",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m11",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m11",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m12",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m12",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "move": "m13",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m13",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "move": "m14",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m14",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "move": "m15",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m15",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -17.0786,
+      "result": -11.5003,
+      "delta": 5.5783,
+      "verdict": "met",
+      "move": "m16",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m16",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m17",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m17",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m18",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m18",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m19",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m19",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -14.9174,
+      "result": -11.3738,
+      "delta": 3.5436,
+      "verdict": "met",
+      "move": "m20",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -23.6675,
+      "result": -21.828,
+      "delta": 1.8395,
+      "verdict": "not_met",
+      "move": "m20",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": 0.9911,
+      "result": 0.9861,
+      "delta": -0.005,
+      "verdict": "met",
+      "move": "m20",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    }
+  ],
+  "move_ref": {
+    "items": 18,
+    "by_move": {
+      "m15": [
+        "send:trk_backing_vocals->bus_echo_L"
+      ],
+      "m16": [
+        "send:trk_backing_vocals->bus_echo_R"
+      ],
+      "m12": [
+        "send:trk_fx->bus_space_far"
+      ],
+      "m18": [
+        "send:trk_fx->bus_echo_L"
+      ],
+      "m09": [
+        "send:trk_keyboard->bus_space_far"
+      ],
+      "m19": [
+        "dr.trk_percussion.m19"
+      ],
+      "m10": [
+        "send:trk_synth->bus_space_far"
+      ],
+      "m11": [
+        "send:trk_woodwinds->bus_space_far"
+      ],
+      "m17": [
+        "send:trk_woodwinds->bus_echo_R"
+      ],
+      "m07": [
+        "bus:bus_space_far",
+        "dr.bus_space_far.m07.1"
+      ],
+      "m08": [
+        "dr.bus_space_far.m08.pan",
+        "dr.bus_space_far.m08.width"
+      ],
+      "m13": [
+        "bus:bus_echo_L",
+        "dr.bus_echo_L.m13.1"
+      ],
+      "m14": [
+        "bus:bus_echo_R",
+        "dr.bus_echo_R.m14.1"
+      ],
+      "m20": [
+        "dr.bus_mix.m20"
+      ]
+    },
+    "unknown_refs": [],
+    "moves_without_trace": [],
+    "ok": true
+  },
+  "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+  },
+  "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -20.81,
+    "frames_compared": 4746240,
+    "converged": false
+  },
+  "summary": {
+    "primary_met": 0,
+    "primary": 3,
+    "claims_met": 1,
+    "claims": 6,
+    "safeguards_not_met": [
+      "m01:obs:o3",
+      "m02:obs:o3",
+      "m05:obs:o3",
+      "m08:obs:o3",
+      "m19:obs:o3",
+      "m20:obs:o3"
+    ]
+  },
+  "status": "checked"
+}

@@ -1,0 +1,278 @@
+{
+  "kind": "direction_outcome",
+  "schema_version": 1,
+  "direction": "dir_68e88f393670",
+  "song": "manko-shugi",
+  "pattern": "p1",
+  "request": "聞きごこちを最大追求",
+  "variant": "var_streaming_universal",
+  "files": {
+    "result": "streaming_universal__hires_native.wav",
+    "floor": "streaming_universal__hires_native.wav"
+  },
+  "loudness": {
+    "result_lufs_i": -14.01,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": 0.003
+  },
+  "observations": {
+    "o1": {
+      "floor": {
+        "status": "ok",
+        "value": -6.0246,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -6.3654,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0025
+      }
+    },
+    "o2": {
+      "floor": {
+        "status": "ok",
+        "value": -5.8499,
+        "unit": "dB",
+        "range_s": [
+          84.3,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -6.4013,
+        "unit": "dB",
+        "range_s": [
+          84.3,
+          98.88
+        ],
+        "gain_db": 0.0025
+      }
+    },
+    "o3": {
+      "floor": {
+        "status": "ok",
+        "value": -1.774,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -1.5979,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0025
+      }
+    }
+  },
+  "claims": [
+    {
+      "quantity": "P-10",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c1",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "down",
+      "floor": -6.0246,
+      "result": -6.3654,
+      "delta": -0.3408,
+      "verdict": "not_met",
+      "id": "c2",
+      "primary": true
+    },
+    {
+      "quantity": "P-02",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c3",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "down",
+      "floor": -5.8499,
+      "result": -6.4013,
+      "delta": -0.5514,
+      "verdict": "met",
+      "id": "c4",
+      "primary": false
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c5",
+      "primary": false
+    },
+    {
+      "quantity": "P-22",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c6",
+      "primary": false
+    }
+  ],
+  "move_checks": [
+    {
+      "quantity": "P-10",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02:vs_lead",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "down",
+      "floor": -6.0246,
+      "result": -6.3654,
+      "delta": -0.3408,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-02",
+      "direction": "down",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -1.774,
+      "result": -1.5979,
+      "delta": 0.1761,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "down",
+      "floor": -6.0246,
+      "result": -6.3654,
+      "delta": -0.3408,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "not_worse",
+      "floor": -1.774,
+      "result": -1.5979,
+      "delta": 0.1761,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "down",
+      "floor": -5.8499,
+      "result": -6.4013,
+      "delta": -0.5514,
+      "verdict": "met",
+      "move": "m04",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "P-22",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "move": "m04",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    }
+  ],
+  "move_ref": {
+    "items": 3,
+    "by_move": {
+      "m03": [
+        "dr.trk_keyboard.m03"
+      ],
+      "m02": [
+        "dr.trk_synth.m02"
+      ],
+      "m04": [
+        "automation:trk_synth"
+      ]
+    },
+    "unknown_refs": [],
+    "moves_without_trace": [],
+    "ok": true
+  },
+  "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+  },
+  "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -24.46,
+    "frames_compared": 4746240,
+    "converged": false
+  },
+  "summary": {
+    "primary_met": 0,
+    "primary": 2,
+    "claims_met": 1,
+    "claims": 6,
+    "safeguards_not_met": []
+  },
+  "status": "checked"
+}
