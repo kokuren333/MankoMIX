@@ -289,12 +289,23 @@ export interface ModelRegistry {
 // Variants (objective x profile combinations offered to the GUI)
 // ---------------------------------------------------------------------------
 
+/** A director-layer direction applied on top of a variant's objective × profile
+ * (its floor). Present only when the variant's mix carries director moves. */
+export interface DirectionRef {
+  id: string;
+  pattern?: string;
+  /** The natural-language request the direction answers (source text). */
+  request?: Label;
+  title?: Label;
+}
+
 export interface VariantSummary {
   id: string;
   n?: number;
   label?: Label;
   /** Objective ids in blend order (first = dominant). */
   objectives: string[];
+  direction?: DirectionRef;
   objective?: ObjectiveSpec | null;
   profile: string;
   deliveries: string[];

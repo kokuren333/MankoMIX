@@ -3,6 +3,7 @@ import type {
   AudioSet,
   ChangeEvent,
   DeliveryFormat,
+  DirectionRef,
   HistoryEntry,
   Job,
   Label,
@@ -36,6 +37,7 @@ export interface DemoVariant {
   id: string;
   n?: number;
   label?: Label;
+  direction?: DirectionRef;
   objective: string;
   profile: string;
   role?: string;
@@ -187,6 +189,7 @@ export class MockBackend implements Backend {
       id: v.id,
       n: v.n,
       label: v.label,
+      direction: v.direction,
       objectives: [v.objective],
       objective: { blend: [{ id: v.objective, weight: 1 }], intensity: v.intensity ?? idx.intensity ?? 0.5 },
       profile: v.profile,

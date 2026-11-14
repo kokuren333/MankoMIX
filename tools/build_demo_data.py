@@ -8,6 +8,10 @@ fabricated. Audio is written only with ``--mp3``: MP3 320 kbps listening copies 
 rendered masters, encoded by an external ffmpeg process with libmp3lame. They are listening
 copies, not masters (SPEC 5.3, 15.3).
 
+When a variant's mix carries director-layer moves, the variant is labelled by its direction
+(read from the direction document stored inside the project); the objective x profile stays
+recorded as the floor the direction was applied on top of, never as the headline.
+
 Usage:
     python -I tools/build_demo_data.py --project <song.mmx> [--out tmp/demo_data]
         [--variants-from samples/sample_set.json | --project-variants] [--mp3] [--ffmpeg PATH]
@@ -257,6 +261,65 @@ def plan_entries(sample_set: dict | None, project_variants: list[dict], profiles
 
 
 # ---------------------------------------------------------------------------
+# Direction (director layer) metadata
+# ---------------------------------------------------------------------------
+
+def direction_ids(props: list[dict]) -> list[str]:
+    """Direction ids applied in a proposal list, in first-use order.
+
+    Director-layer steps carry a ``move_ref`` of the form "<direction id>/<move>"
+    (their processor is owned by "director"); template steps never do.
+    """
+    ids: list[str] = []
+    for p in props:
+        for st in p.get("steps") or []:
+            proc = (st or {}).get("processor") or {}
+            ref = proc.get("move_ref") or ""
+            if isinstance(ref, str) and "/" in ref:
+                did = ref.split("/", 1)[0]
+                if did and did not in ids:
+                    ids.append(did)
+    return ids
+
+
+def _frontmatter(text: str) -> dict[str, str]:
+    """The scalar frontmatter block of a Markdown document (direction documents)."""
+    if not text.startswith("---"):
+        return {}
+    out: dict[str, str] = {}
+    for line in text.splitlines()[1:]:
+        if line.strip() == "---":
+            break
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", line)
+        if m:
+            v = m.group(2).strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1]
+            out[m.group(1)] = v
+    return out
+
+
+def _direction_meta(project_root: Path, did: str) -> dict | None:
+    """Frontmatter of the direction document the project itself stores
+    (<project>/directions/<id>.md), or None when it is not there. Only the
+    id / pattern / request / title scalars are taken; the document stays behind."""
+    p = project_root / "directions" / f"{did}.md"
+    if not p.is_file():
+        return None
+    try:
+        fm = _frontmatter(p.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    if fm.get("id") != did:
+        return None
+    meta: dict[str, Any] = {"id": did}
+    for key in ("pattern", "request", "title"):
+        if fm.get(key):
+            meta[key] = fm[key]
+    return meta
+
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 
@@ -378,6 +441,22 @@ class Builder:
             props = [p for p in api.proposal_list(proj)["proposals"]
                      if p.get("variant") == pid or (p.get("variant") is None and p.get("stage") in ("cleanup", "mix"))]
             props.sort(key=_proposal_key)
+            dids = direction_ids(props)
+            if dids:
+                meta = _direction_meta(self.project, dids[0]) or {"id": dids[0]}
+                item["direction"] = meta
+                req = meta.get("request") or meta.get("title")
+                if req:
+                    # The headline is the direction; the objective x profile is its floor.
+                    pat = f" {meta['pattern']}" if meta.get("pattern") else ""
+                    item["label"] = {
+                        "ja": f"指揮書{pat}「{req}」 × "
+                              f"{(prof_labels.get(e['profile']) or {}).get('ja', e['profile'])}"
+                              f"（土台: {(obj_labels.get(e['objective']) or {}).get('ja', e['objective'])}）",
+                        "en": f"Direction{pat} \"{req}\" × "
+                              f"{(prof_labels.get(e['profile']) or {}).get('en', e['profile'])}"
+                              f" (floor: {(obj_labels.get(e['objective']) or {}).get('en', e['objective'])})",
+                    }
             item["available"] = True
             d = item["dir"]
             self.files[d + "analysis.json"] = analysis

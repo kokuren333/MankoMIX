@@ -113,6 +113,7 @@ def test_layout_matches_mock_backend(builds, project):
         assert v["id"] == f"v{v['n']:02d}" and v["dir"] == f"variants/{v['id']}/"
         assert isinstance(v["available"], bool) and set(v["label"]) == {"ja", "en"}
         assert isinstance(v["deliveries"], list) and v["intensity"] == 0.5
+        assert "direction" not in v     # this project carries no director-layer moves
 
     # definitions are verbatim copies of the canonical files
     for src, dst in (("objectives/catalog.json", "definitions/objectives.json"),
@@ -252,6 +253,25 @@ def test_refuses_a_foreign_output_folder(project, tmp_path):
     r = _build(project, out, expect=1)
     assert "not empty" in r.stderr and str(tmp_path) not in r.stderr
     assert (out / "keep.txt").is_file() and not (out / "index.json").exists()
+
+
+def test_direction_detection_and_meta(tmp_path):
+    mod = _tool_module()
+    plain = {"steps": [{"processor": {"id": "mx.x", "owner": "mixplan"}}]}
+    directed = {"steps": [
+        {"processor": {"id": "dr.y.m19", "owner": "director", "move_ref": "dir_abc/m19"}},
+        {"processor": {"id": "dr.y.m07", "owner": "director", "move_ref": "dir_abc/m07"}},
+        {"processor": {"id": "dr.z.m01", "owner": "director", "move_ref": "dir_def/m01"}}]}
+    assert mod.direction_ids([plain, directed]) == ["dir_abc", "dir_def"]
+    assert mod.direction_ids([plain]) == []
+    proj = tmp_path / "song.mmx"
+    (proj / "directions").mkdir(parents=True)
+    (proj / "directions" / "dir_abc.md").write_text(
+        "---\nid: dir_abc\nkind: direction\ntitle: Song × Test title\n"
+        "request: \"a test request\"\npattern: p9\n---\n# body\n", encoding="utf-8")
+    assert mod._direction_meta(proj, "dir_abc") == {
+        "id": "dir_abc", "pattern": "p9", "request": "a test request", "title": "Song × Test title"}
+    assert mod._direction_meta(proj, "dir_missing") is None
 
 
 def test_leak_detection_and_asset_sanitising():

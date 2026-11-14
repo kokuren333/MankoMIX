@@ -34,7 +34,10 @@ const en = {
   "mock.cannot.dsp": "Real DSP processing, rendering and export",
   "mock.cannot.agent": "Agent link (following agent changes, approving/rejecting proposals)",
   "mock.cannot.models": "Model download",
-  "mock.switchHint": "Switch objective × profile with the variant selector (precomputed combinations only).",
+  "mock.switchHint": "Switch examples with the variant selector (precomputed examples only).",
+
+  "direction.short": "Direction",
+  "direction.floorNote": "The objective × profile is the floor and the outlet this direction was applied on top of — not the headline.",
 
   "nav.project": "Project",
   "nav.stems": "Stems",
@@ -297,7 +300,10 @@ const ja: Record<StringKey, string> = {
   "mock.cannot.dsp": "実際の DSP 処理、レンダリング、書き出し",
   "mock.cannot.agent": "エージェント連携（操作の追従、提案の承認と却下）",
   "mock.cannot.models": "モデルの取得",
-  "mock.switchHint": "目的関数 × 媒体プロファイルはバリアント選択で切り替えます（事前に用意した組み合わせのみ）。",
+  "mock.switchHint": "実例はバリアント選択で切り替えます（事前に用意した実例のみ）。",
+
+  "direction.short": "指揮書",
+  "direction.floorNote": "目的関数 × 媒体プロファイルは、この指揮書を載せた土台と出口です（主役は指揮書）。",
 
   "nav.project": "プロジェクト",
   "nav.stems": "ステム",

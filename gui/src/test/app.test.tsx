@@ -49,6 +49,17 @@ describe("capabilities in mock mode", () => {
     expect(banner.textContent).toContain("never sends data");
   });
 
+  it("heads the direction example with its direction, not its floor", async () => {
+    renderWithApp(<App />, { engineFactory: () => new FakeEngine() });
+    const banner = await screen.findByTestId("direction-banner");
+    expect(banner.textContent).toContain("空間音響と複雑なパンニング");
+    expect(banner.textContent).toContain("comfort");
+    const picker = (await screen.findByLabelText(STRINGS.en["app.variant"])) as HTMLSelectElement;
+    const selected = picker.options[picker.selectedIndex]?.textContent ?? "";
+    expect(selected).toContain("空間音響と複雑なパンニング");
+    expect(selected).not.toMatch(/^#1 comfort/);
+  });
+
   it("disables import, plan approval and undo with an explanation", async () => {
     go("project");
     const { unmount } = renderWithApp(<App />);

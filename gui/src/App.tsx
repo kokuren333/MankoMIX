@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { useApp } from "./AppContext";
 import type { StringKey } from "./i18n/strings";
-import type { Lang } from "./types";
+import type { Lang, VariantSummary } from "./types";
 import { ProjectScreen } from "./screens/ProjectScreen";
 import { StemsScreen } from "./screens/StemsScreen";
 import { MixMapScreen } from "./screens/MixMapScreen";
@@ -93,21 +93,45 @@ function ChangeToast() {
 }
 
 function VariantPicker() {
-  const { variants, variantId, setVariantId, t } = useApp();
+  const { variants, variantId, setVariantId, t, label, lang } = useApp();
   if (variants.length === 0) return null;
+  const optionText = (v: VariantSummary) => {
+    // A direction example is headed by its direction; the objective × profile
+    // is the floor it was applied on top of, not the headline.
+    const head = v.direction
+      ? `${t("direction.short")}${v.direction.pattern ? ` ${v.direction.pattern}` : ""} ${lang === "ja" ? "「" : "\""}${label(v.direction.request ?? v.direction.title, v.direction.id)}${lang === "ja" ? "」" : "\""} × ${v.profile}`
+      : `${v.objectives.join("+")} × ${v.profile}`;
+    return `${v.n != null ? `#${v.n} ` : ""}${head}${v.available ? "" : " (—)"}`;
+  };
   return (
     <label className="variant-picker">
       <span className="sr-only">{t("app.variant")}</span>
       <select value={variantId} onChange={(e) => setVariantId(e.target.value)} aria-label={t("app.variant")}>
         {variants.map((v) => (
           <option key={v.id} value={v.id}>
-            {v.n != null ? `#${v.n} ` : ""}
-            {v.objectives.join("+")} × {v.profile}
-            {v.available ? "" : " (—)"}
+            {optionText(v)}
           </option>
         ))}
       </select>
     </label>
+  );
+}
+
+export function DirectionBanner() {
+  const { variant, t, label } = useApp();
+  const d = variant?.direction;
+  if (!variant || !d) return null;
+  return (
+    <aside className="direction-banner" role="note" aria-label={t("direction.short")} data-testid="direction-banner">
+      <strong className="with-icon">
+        <Icon name="agent" />
+        {t("direction.short")}
+        {d.pattern ? ` ${d.pattern}` : ""}: {label(d.request ?? d.title, d.id)}
+      </strong>
+      <p>
+        {t("direction.floorNote")} ({variant.objectives.join("+")} × {variant.profile})
+      </p>
+    </aside>
   );
 }
 
@@ -149,6 +173,7 @@ export function App() {
         </div>
       </header>
       <MockBanner />
+      <DirectionBanner />
       <ChangeToast />
       <div className="body">
         <nav className="nav" aria-label={t("app.nav")}>

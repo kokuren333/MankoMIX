@@ -25,6 +25,18 @@ describe("MockBackend", () => {
     expect((await b.history()).length).toBeGreaterThan(0);
   });
 
+  it("carries the direction metadata of the committed example", async () => {
+    const b = demoBackend();
+    const v = (await b.listVariants()).find((x) => x.available)!;
+    // The committed dataset is the p3 direction example (gui/DEMO_DATA.md):
+    // its headline is the direction, not its comfort × streaming floor.
+    expect(v.direction?.id).toBe("dir_b465721f74fb");
+    expect(v.direction?.pattern).toBe("p3");
+    expect(JSON.stringify(v.direction)).toContain("空間音響と複雑なパンニング");
+    expect(JSON.stringify(v.label)).toContain("空間音響と複雑なパンニング");
+    expect(JSON.stringify(v.label)).toContain("土台");
+  });
+
   it("loads every per-variant file of an available variant", async () => {
     const b = demoBackend();
     const v = (await b.listVariants()).find((x) => x.available)!;

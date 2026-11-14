@@ -74,11 +74,17 @@
     "distributor_44k16"
    ],
    "dir": "variants/v01/",
+   "direction": {
+    "id": "dir_b465721f74fb",
+    "pattern": "p3",
+    "request": "空間音響と複雑なパンニング",
+    "title": "マンコ主義 × 空間音響と複雑なパンニング 全体指揮書"
+   },
    "id": "v01",
    "intensity": 0.5,
    "label": {
-    "en": "Listening comfort × Streaming (universal safe default)",
-    "ja": "聞き心地 × ストリーミング共通（安全既定）"
+    "en": "Direction p3 \"空間音響と複雑なパンニング\" × Streaming (universal safe default) (floor: Listening comfort)",
+    "ja": "指揮書 p3「空間音響と複雑なパンニング」 × ストリーミング共通（安全既定）（土台: 聞き心地）"
    },
    "n": 1,
    "objective": "comfort",
