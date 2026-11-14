@@ -1104,6 +1104,10 @@ def master_plan(project_path: str | Path, *, profile: str, delivery: str | None 
     result = {"proposal": proposal, "proposal_path": proj.rel(path), "applied": False}
     if apply:
         mastering.apply_master_plan(proj, proposal, actor=actor)
+        # Same record as plan_apply / planner_run / mix_plan / clean_plan with apply=True: the saved
+        # proposal says it was applied (and plan_reject refuses it).
+        _mark_proposal(path, proposal, status="applied",
+                       applied={"actor": actor, "at": _now_iso(), "journal_seq": _journal_seq(proj)})
         result["applied"] = True
         result["project"] = _project_summary(proj)
     return result
@@ -2687,6 +2691,22 @@ def _first_measured(check: dict) -> Any:
     return check.get("value")
 
 
+def _s08_worst_delta(check: dict) -> tuple[str | None, Any, Any]:
+    """(key, delta_db, tolerance_db) of the judged S-08 metric with the largest delta - tolerance.
+    s08_check nests the values under ``deltas``; metrics that could not be judged are skipped."""
+    best: tuple[float, str, Any, Any] | None = None
+    for k, d in (check.get("deltas") or {}).items():
+        if not isinstance(d, dict) or d.get("pass") is None:
+            continue
+        try:
+            excess = float(d["delta_db"]) - float(d["tolerance_db"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if best is None or excess > best[0]:
+            best = (excess, k, d.get("delta_db"), d.get("tolerance_db"))
+    return (None, None, None) if best is None else best[1:]
+
+
 def verification_view(report: dict, variant: dict | None = None) -> dict:
     """A verify report (reports/verify_<variant>.json) as constraint, profile, codec and noise rows.
     Checks that could not run stay 'not_run', never 'pass' (SPEC 6.7)."""
@@ -2718,15 +2738,21 @@ def verification_view(report: dict, variant: dict | None = None) -> dict:
                                "note": f"{o.get('profile')} / {o.get('delivery')}"
                                        + (f": {r['reason']}" if r.get("reason") else "")})
         s08 = checks.get("S-08")
-        if isinstance(s08, dict) and noise is None:
-            noise = {"status": _CHECK_STATUS.get(str(s08.get("status")), "not_run"),
-                     "delta_db": s08.get("delta_db"), "tolerance_db": s08.get("tolerance_db"),
-                     "note": s08.get("reason")}
+        if isinstance(s08, dict):
+            st08 = _CHECK_STATUS.get(str(s08.get("status")), "not_run")
+            if noise is None or _STATUS_RANK.get(st08, 1) > _STATUS_RANK.get(noise["status"], 1):
+                key, delta, tol = _s08_worst_delta(s08)
+                noise = {"status": st08, "metric": key, "delta_db": delta, "tolerance_db": tol,
+                         "note": s08.get("reason") or (f"{o.get('profile')} / {o.get('delivery')}"
+                                                       if len(outputs) > 1 else None)}
     constraints = []
     for cid in sorted(worst):
         st, c, o = worst[cid]
         limit = c.get("ceiling_dbtp", c.get("window_lufs_i", c.get("limit")))
-        constraints.append({"id": cid, "status": st, "value": _first_measured(c), "limit": limit,
+        value = _first_measured(c)
+        if cid == "S-08" and value is None and limit is None:
+            _k, value, limit = _s08_worst_delta(c)
+        constraints.append({"id": cid, "status": st, "value": value, "limit": limit,
                             "note": c.get("reason") or (f"{o.get('profile')} / {o.get('delivery')}"
                                                         if len(outputs) > 1 else None)})
     g = ((variant or {}).get("evaluation") or {}).get("gate") or {}

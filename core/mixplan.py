@@ -1893,9 +1893,9 @@ class _Planner:
         step = 7
         if self.variant_id is not None:
             self._decide("dynamics", step, "R-04", {"variant": self.variant_id},
-                         T("バリアントはバスの差分を持てない（track_overrides のみ）", "a variant cannot hold bus differences (track_overrides only)"),
+                         T("ミックス計画器はバリアントのバス差分（variants[].bus_overrides）をまだ書かない（track_overrides のみ）", "the mix planner does not write a variant's bus differences (variants[].bus_overrides) yet (track_overrides only)"),
                          T("ミックスバス処理は見送り", "mix-bus processing skipped"), [], None,
-                         T("変更 0 件（必要なスキーマ: variants[].bus_overrides）", "0 changes (schema needed: variants[].bus_overrides)"),
+                         T("変更 0 件（variants[].bus_overrides はスキーマと描画では対応済み、計画器が未対応）", "0 changes (variants[].bus_overrides is declared and rendered; the planner does not write it yet)"),
                          status="skipped_variant")
             self._end_step(step, "skipped_variant")
             return
@@ -2067,10 +2067,12 @@ class _Planner:
         failed = sorted(k for k, v in final["constraints"].items() if v == "fail")
         if failed:
             self.unresolved.append({"code": "constraint_fail", "failed": failed})
-        schema_needs = [{"field": "mix.decisions / mix.applied", "status": "stored (mix allows additional properties) but not declared in schemas/project.schema.json"},
-                        {"field": "variants[].mix", "status": "stored for variant plans (additional properties) but not declared"}]
+        # mix.decisions / mix.applied / mix.evaluation, variants[].mix and variants[].bus_overrides are all
+        # declared in schemas/project.schema.json; the remaining gap is in the planner, not the schema.
+        schema_needs = []
         if self.variant_id is not None:
-            schema_needs.append({"field": "variants[].bus_overrides", "status": "missing: a variant cannot change buses (mix-bus processing skipped)"})
+            schema_needs.append({"field": "variants[].bus_overrides",
+                                 "status": "declared and rendered, but the mix planner does not write it yet (mix-bus processing skipped)"})
         prop = {
             "stage": STAGE, "variant": self.variant_id, "project_id": self.data.get("id"),
             "lead": self.lead, "genre": self.genre, "profile": self.profile_id,
