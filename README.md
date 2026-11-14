@@ -2,9 +2,9 @@
 
 AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地がよいもの**に、あるいは**目的に沿ったもの**（重低音強化、ボーカル前面など）に仕上げるための、AI エージェント向けミックス／マスタリングツール。
 
-> **状態: 公開プレビュー（v0.1、pre-1.0）。** 取り込み、測定、整音、ミックス、マスタリング、検証、Mix Report、ステム分離、CLI、MCP、ローカル GUI が動く。Apache-2.0 で公開しているが、まだ開発中であり、仕様・挙動は今後変わりうる。進み具合は [docs/SPEC.md](docs/SPEC.md) §17 のマイルストーンに沿う。
+> **状態: 公開プレビュー（v0.1、pre-1.0）。** 取り込み、測定、整音、ミックス、マスタリング、検証、Mix Report、ステム分離、CLI、MCP、ローカル GUI に加え、楽曲ごとの指揮書で方向付けするディレクターレイヤー（後述）が動く。Apache-2.0 で公開しているが、まだ開発中であり、仕様・挙動は今後変わりうる。進み具合は [docs/SPEC.md](docs/SPEC.md) §17 のマイルストーンに沿う。
 
-**▶ デモ（GitHub Pages）: https://kokuren333.github.io/MankoMIX/** — インストール不要、ブラウザ内モックで GUI をそのまま触れる。
+**▶ デモ（GitHub Pages）: https://kokuren333.github.io/MankoMIX/** — インストール不要、ブラウザ内モックで GUI をそのまま触れる。指揮書の実例（空間音響・パンニング）には試聴用 MP3 が入り、ブラウザでそのまま聴ける。
 
 ## 何をするツールか
 
@@ -27,6 +27,8 @@ AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地が
 - **ダウンロードしたままのステムがそのまま入力になる** — Suno Studio のマルチトラック書き出しを展開したフォルダを、変換もリネームもせずに取り込める。原本は変更しない
 - **ステム単位のリミックス** — ステムの差し替え、追加、再配置をプロジェクト形式で扱う
 - **エージェント主軸** — ヘッドレスのコア、JSON 正本のプロジェクト形式、CLI と MCP。人間向けの GUI も同じ正本を共有する
+- **指揮書による方向付け（ディレクターレイヤー）** — 自然文の依頼に対して、その曲の解析（ドシエ）に基づく指揮書を作り、コアの外側から適用する。適用後は目標への到達を測り直し、指揮書で宣言された範囲内なら適用量の自動較正（`direction apply --calibrate`）もできる。使った指揮書・解析・知見は `kb/` に Markdown で蓄積し、再利用する
+- **VST プラグイン化（将来フェーズ）** — DAW の中で直接使える VST プラグイン版を将来実装予定。現行の提供形態は CLI／MCP／ローカル GUI のみで、プラグイン版はまだ無い
 
 自動指標は知覚の代理に過ぎない。最終判定は人の耳であり、Mix Report は必ず「人の耳で確認すべき点」を含む。
 
@@ -71,6 +73,19 @@ mankomix -p my_song.mmx render && mankomix -p my_song.mmx verify && mankomix -p 
 
 提案は全て、適用前に確認・編集・却下できる。正本（`project.json`）の変更は全て履歴に残り、`undo` / `checkout` で戻せる。コマンドの一覧は [cli/README.md](cli/README.md)。
 
+### 指揮書で方向付ける（任意）
+
+目的関数の指定とは別に、自然文の依頼から作る指揮書で、その曲に合わせた方向付けができる。指揮書の形式は [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md)。
+
+```
+mankomix direction dossier --project my_song.mmx --song <slug> --out dossier.md   # 曲の解析ドシエを作る
+mankomix direction validate direction.md                                          # 指揮書の検証
+mankomix direction apply --project my_song.mmx direction.md                       # 適用（--calibrate で宣言範囲内の量を自動較正）
+mankomix direction check --project my_song.mmx --floor <床のプロジェクト> direction.md  # 目標への到達と床からの乖離を測定
+mankomix kb index                                                                 # kb/ の知見蓄積を再構築
+mankomix kb lint                                                                  # kb/ の検査
+```
+
 ### エージェントから（MCP）
 
 ```
@@ -89,7 +104,7 @@ mankomix serve -p my_song.mmx
 
 ## サンプル聴き比べ
 
-> 準備中。公式サンプル楽曲のステムを本ツールで処理し、処理前と処理後を聴き比べられるようにする予定。
+> 準備中。公式サンプル楽曲のステムを本ツールで処理し、処理前と処理後を聴き比べられるようにする予定。先行して、Pages デモには指揮書の実例1件（空間音響・パンニング）の試聴用 MP3 が収録されている。
 
 | 音声 | 内容 | 試聴 |
 |---|---|---|
@@ -103,6 +118,7 @@ mankomix serve -p my_song.mmx
 ## ドキュメント
 
 - [docs/SPEC.md](docs/SPEC.md) — 全体仕様
+- [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) — 指揮書の形式と `direction` コマンド
 - [docs/REQUIREMENTS_NOTES.md](docs/REQUIREMENTS_NOTES.md) — 決定事項の記録
 - [UPSTREAM_REPORT.md](UPSTREAM_REPORT.md) — 上流設計の作業報告
 - [cli/README.md](cli/README.md) / [mcp/README.md](mcp/README.md) / [gui/README.md](gui/README.md) — 各インターフェース
@@ -114,6 +130,7 @@ mankomix serve -p my_song.mmx
 | `docs/` | 仕様と決定記録 |
 | `core/` | ヘッドレスコア |
 | `dsp/` | DSP エンジン |
+| `director/` | 指揮レイヤー（コアの外側で指揮書を適用・検証する） |
 | `cli/` / `mcp/` | CLI と MCP サーバー |
 | `gui/` | Web GUI と GitHub Pages デモ |
 | `schemas/` | JSON Schema |
@@ -121,7 +138,9 @@ mankomix serve -p my_song.mmx
 | `profiles/` | 媒体プロファイルと納品形式の定義 |
 | `registry/` | モデルレジストリ（ウェイト本体は含まない） |
 | `knowledge/` | 判断規則、ジャンル prior、知覚語彙 |
+| `kb/` | 指揮書・解析・知見の蓄積（Markdown、正本） |
 | `samples/` | 公開サンプルの置き場 |
+| `licenses/` | 依存ライセンスの本文 |
 | `tests/` / `tools/` / `third_party/` | テスト、開発用スクリプト、第三者コード |
 
 ## ライセンス
