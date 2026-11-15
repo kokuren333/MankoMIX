@@ -27,7 +27,7 @@ AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地が
 - **ダウンロードしたままのステムがそのまま入力になる** — Suno Studio のマルチトラック書き出しを展開したフォルダを、変換もリネームもせずに取り込める。原本は変更しない
 - **ステム単位のリミックス** — ステムの差し替え、追加、再配置をプロジェクト形式で扱う
 - **エージェント主軸** — ヘッドレスのコア、JSON 正本のプロジェクト形式、CLI と MCP。人間向けの GUI も同じ正本を共有する
-- **指揮書による方向付け（ディレクターレイヤー）** — 自然文の依頼に対して、その曲の解析（ドシエ）に基づく指揮書を作り、コアの外側から適用する。適用後は目標への到達を測り直し、指揮書で宣言された範囲内なら適用量の自動較正（`direction apply --calibrate`）もできる。使った指揮書・解析・知見は `kb/` に Markdown で蓄積し、再利用する
+- **指揮書による方向付け（ディレクターレイヤー）** — 自然文の依頼に対して、その曲の解析（ドシエ）に基づく指揮書を作り、コアの外側から適用する。適用後は目標への到達を測り直し、指揮書で宣言された範囲内なら適用量の自動較正（`direction apply --calibrate`）もできる。使った指揮書・解析・知見は Markdown で蓄積し、再利用する（蓄積先はローカルの `_private/kb/` が既定で、公開リポジトリの `kb/` には既定のカードだけが入る）
 - **VST プラグイン化（将来フェーズ）** — DAW の中で直接使える VST プラグイン版を将来実装予定。現行の提供形態は CLI／MCP／ローカル GUI のみで、プラグイン版はまだ無い
 
 自動指標は知覚の代理に過ぎない。最終判定は人の耳であり、Mix Report は必ず「人の耳で確認すべき点」を含む。
@@ -131,6 +131,7 @@ mankomix serve -p my_song.mmx
 
 - [docs/SPEC.md](docs/SPEC.md) — 全体仕様
 - [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) — 指揮書の形式と `direction` コマンド
+- [docs/RESEARCH_PROTOCOL.md](docs/RESEARCH_PROTOCOL.md) — 調査プロトコル（調査ファーストの既定）
 - [docs/REQUIREMENTS_NOTES.md](docs/REQUIREMENTS_NOTES.md) — 決定事項の記録
 - [UPSTREAM_REPORT.md](UPSTREAM_REPORT.md) — 上流設計の作業報告
 - [cli/README.md](cli/README.md) / [mcp/README.md](mcp/README.md) / [gui/README.md](gui/README.md) — 各インターフェース
@@ -150,7 +151,7 @@ mankomix serve -p my_song.mmx
 | `profiles/` | 媒体プロファイルと納品形式の定義 |
 | `registry/` | モデルレジストリ（ウェイト本体は含まない） |
 | `knowledge/` | 判断規則、ジャンル prior、知覚語彙 |
-| `kb/` | 指揮書・解析・知見の蓄積（Markdown、正本） |
+| `kb/` | 既定の知見カード（Markdown）。案件の蓄積は `_private/kb/`（非公開） |
 | `samples/` | 公開サンプルの置き場 |
 | `licenses/` | 依存ライセンスの本文 |
 | `tests/` / `tools/` / `third_party/` | テスト、開発用スクリプト、第三者コード |

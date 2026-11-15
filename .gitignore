@@ -70,3 +70,16 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# --- 蓄積 kb はローカル資産（D-068 / docs/RESEARCH_PROTOCOL.md §5） ---
+# 蓄積の既定の置き場は _private/kb/（上の /_private/ で除外済み）。
+# 公開 kb（kb/）には既定のカードだけを置くため、新規の蓄積物はここでも止める。
+# 既に追跡されているファイルには効かない。昇格（公開への移行）は git add -f で明示する。
+/kb/songs/*/
+/kb/songs/*/*/
+/kb/lessons/*.md
+/kb/moves/*.md
+/kb/theory/*.md
+/kb/research/
+/kb/curricula/*.md
+/kb/references/
