@@ -10,10 +10,10 @@
 
 | 段 | すること | 使う道具・資料 | 残る場所 |
 |---|---|---|---|
-| 1 分析 | 曲全体とステムを読む | 曲資料（`direction dossier`）、追加の `direction query` | 分析メモの曲の読み（〔測定〕〔推定〕） |
+| 1 分析 | 曲全体とステムを読む | 曲資料（`direction dossier`）、追加の `direction query`、トラック横断の下見 `direction stems observe／relate／purity`（§8.5） | 分析メモの曲の読み（〔測定〕〔推定〕） |
 | 2a 調査・知見の脚 | Fable 5.2 が、依頼内容と段 1 の分析を入力に、5 層（論文／プロユース／アマチュア tips／解説動画／リファレンス作品。国内外問わず）で調査し、この曲の問いに効く知見を引く（調査プロトコル §2・§3） | 曲資料 §10.1 経験・§10.2 理論の棚、`kb search`／`kb show`（lesson／move／research／theory。公開 kb と蓄積 kb の両方）、案件ごとの調査ログ、カリキュラム（`kb show cur_<slug>`、`kb search --curriculum`。§7.5）、棚に無い問いの外部調査 | 分析メモの知見の節（調査→手・主張の対応つき）、調査ログ（蓄積 kb）、`sources.cards` |
 | 2b 調査・リファレンスの脚 | 原液（持ち込まれたリファレンス）を測り、逆算する。ステムが存在しそうな作品は、非公式の配布経路も含めて所在を探す（調査プロトコル §3 層 5） | `direction ref study` → refstudy、`direction ref compare` → refsheet、work／engineer カード、輪郭とガイドの追加節（`ref study --add`／`ref compare --add`。§6.1）、work カードの `sources`・`observed_media`（§7.5） | 分析メモ「リファレンスの読み」（§6.4）、`sources.references` |
-| 3 引き継ぎ書の立案 | 1・2 を受けて手と主張に落とす | 指揮書（散文 10 節＋ `direction` ブロック）。選べる手・観察の中に `edit_trim`／`edit_gate`（下見は `direction edit scan`）、`duck`、観察量の `view`、`check --translation`（§7） | `dir_<id>`、以降は validate 以下の流れ |
+| 3 引き継ぎ書の立案 | 1・2 を受けて手と主張に落とす | 指揮書（散文 10 節＋ `direction` ブロック）。選べる手・観察の中に `edit_trim`／`edit_gate`（下見は `direction edit scan`）、`duck`、観察量の `view`、`check --translation`（§7）、`place`、`scene`、観察量 `image_position`／`masking`／`wet_ratio` とトラック対象（`trk_<stem>`、§8） | `dir_<id>`、以降は validate 以下の流れ |
 
 - **型からの逸脱は指揮者の裁量**で、許可も事前申告も要らない。省略（リファレンス無しの案件は 2b を丸ごと飛ばす。「ボーカルを 1 dB 前へ」のような小さな依頼は 2a も飛ばし、曲資料から直接立案する）、軽量化（同じ曲の再指揮は前回の分析メモと outcome を読み直すだけで 1 を済ませる。2a は棚の題を見て 1 枚引くだけでよい）、順序変更（「この作品風」が依頼の中心なら 2b から入り、原液の問いを持って 1 に戻る）、深掘り（1 つの問いに `direction query` を重ね、他の節は 1 行で済ます）、往復（根拠が足りなければ 1・2 に戻る。check の結果を受けた次の指揮で調査をやり直す）のいずれもよい
 - リファレンス無しの案件では型は「1 → 2a → 3」に縮み、従来と同じに動く。2a の省略・軽量化も不利にならない
@@ -26,6 +26,7 @@
 - **カリキュラムの位置（2026-11-15 追補 2）**: カリキュラム（束カード `cur_<slug>`）は 2a の入力の 1 つで、語彙と判断材料を供給する。読むか、どこまで読むか、どの順で読むかは指揮者の裁量。束の `order`／`level` は学ぶ順と難度で、ミックスの作業順・手の順・確認項目ではなく、指揮書の手の並びに写すものでもない。validate／apply／check／`--calibrate`／`kb lint` は、カリキュラムを読んだか、`sources.cards` に束のカードがあるかを見ない。束から引いたカードは他のカードと同じ重み（§6.6 の「理論カード」または「調査カード」）で、束に入っていることで重みは上がらない
 - **調査と蓄積の置き場（2026-11-15、D-068）**: 調査の既定は調査プロトコル（`docs/RESEARCH_PROTOCOL.md`）。案件の記録（分析メモ・指揮書・outcome・調査ログ・蒸留カード）はローカルの蓄積 kb（`_private/kb/`、非コミット）に貯めるのが既定で、公開 kb（`kb/`）に入るのは既定のカードだけ。蓄積分を公開側へ移すのは、オーナーの判断による昇格（匿名化・一般化された原則のみ）に限る
 - 追補 2 の手・観察・材料（§7）は、上の表の段を増やさず、既存の段の「使う道具・資料」に並ぶだけである。使わなくても不利にならない
+- 追補 3 の手・観察・下見（§8）は段を増やさず、使わなくても不利にならない
 
 ## 0. 道具
 
@@ -44,6 +45,9 @@
 | `mankomix kb search [--kind K]... [--genre G]... [--text T] [--source-type T]... [--curriculum cur_<slug>] [--root <kb>]`／`kb show <id> [--root <kb>]` | カードの検索と表示（理論・作品・既存カード共通。読み取りのみ） |
 | `mankomix direction edit scan --project <p> --track <trk> --op edit_trim\|edit_gate [--params <json\|@file>] [--section <id\|json>]` | 編集 op が切る区間・拒否する区間（EG-1〜EG-5 の判定と測定値）・除くエネルギーを、適用と同じ関数で JSON に返す。何も書かない（§7.1） |
 | `mankomix direction edit revert --project <p> --direction <dir_id> [--move <mid>]` | 編集段で無音化した区間とフェードを台帳 `dir_<id>.edits.json` から戻す（ジャーナル 1 エントリ。§7.1） |
+| `mankomix direction stems observe --project <p> [--variant <v>] <spec>` | トラック対象・文脈の観察量（§8.1・§8.2）をプロジェクトの現状で測り、JSON（`kind: direction_stem_observations`）で返す。`<spec>` は観察量 1 つか配列（JSON か `@file`）。何も書かない（§8.5） |
+| `mankomix direction stems relate --project <p> [--variant <v>] [--section <id\|json>] [--top <n>]` | 全トラック横断の被りの表（P-02 の埋もれ量、帯域別、上位の相手、P-22 の帯域の担当）を JSON（`kind: direction_stem_relate`）で返す。`--top` は既定 3、1〜8。何も書かない（§8.5） |
+| `mankomix direction stems purity --project <p> [--track <trk>]...` | ステムの非純粋性（共有成分・焼き付いた残響・幅・動き・和の整合）を JSON（`kind: direction_stem_purity`）で返す。何も書かない（§8.5） |
 
 `direction dossier` は `--ref <work_id>`（繰り返し可）と `--ref-kb <root>`（既定 `_private/kb`）を受け、曲資料 §10.3 に指定された作品カードの ID・題・refstudy のハッシュだけを載せる（§6.1）。
 
@@ -123,6 +127,7 @@
 | `edit_trim` | edit | ステムの末尾（`side` により先頭・両端）の、内容が終わった後／始まる前を無音化する（追補 2。§7.1） | target, params |
 | `edit_gate` | edit | ステム全体（または `section` の範囲）で、内容の無い区間を無音化する（オフラインのゲート。§7.1） | target, params |
 | `duck` | mix | `params.key` のトラックが鳴る瞬間だけ、`target` のトラックをゲイン・オートメーションで下げる（§7.2） | target, params |
+| `place` | mix | 方位と距離から、パン・フェーダー・高域・センドを同じ規則で導く（追補 3。既存の `pan`／`gain`／`chain_add`／`send` に展開される。§8.4） | target, params |
 
 - `target` はトラック ID（`trk_<stem>`）、既存バス（`bus_reverb`、`bus_mix`）、新バス ID、または `master`
 - `processor` と `params` は製品の抽象プロセッサ（`dsp/processors.py` の登録）とその宣言範囲に従う。範囲外は validate が拒否する
@@ -163,6 +168,26 @@
 - `release_note` と `release_ms` は同時に書けない（`bad_value`）。`release_note` を書いたのに床の提案に `tempo.bpm` が無いときは、`--project` つきの validate と apply が `needs_bpm` で拒否する（`--project` 無しの validate はテンポを知らないので出さない）
 - 範囲外は `param_range`、未知キー・形の誤り（`key_lo_hz` を配列で書く、未知の音価など）は `bad_value`
 
+### `place` のパラメータ（追補 3）
+
+`params` に下表以外のキーがあれば `bad_value`。「範囲可」のものは `[下限, 上限]`＋`select` で書ける（それ以外に範囲を書くと `bad_value`）。導出と注記は §8.4。
+
+| ID | 単位 | 範囲 | 省略時 | 意味 |
+|---|---|---|---|---|
+| `azimuth` | −1..1 | −1〜1（範囲可） | （触らない） | パン位置（`pan.position` と同じ座標。＋が右） |
+| `width` | 倍 | 0〜2（範囲可） | （触らない） | ステレオ素材の側成分倍率 |
+| `distance` | 倍 | 1.0〜8.0（範囲可） | （距離の手がかりを付けない） | 基準（最前）からの相対距離。1.0 は変化なし |
+| `room` | バス ID | 既存のバス、または同じ指揮書の `bus_add` の ID | （センドを作らない） | 残響を返すバス。`distance` が無ければ書けない |
+| `level_db_per_doubling` | dB | 0〜6 | 2.0 | 距離 2 倍ごとに下げるレベル |
+| `air_db_per_doubling` | dB | 0〜3 | 1.0 | 距離 2 倍ごとに下げる高域（ハイシェルフ） |
+| `air_freq_hz` | Hz | 2000〜10000 | 5000 | ハイシェルフの角周波数 |
+| `near_send_db` | dB | −40〜−12 | −24 | 距離 1.0 のときのセンド量 |
+| `send_db_per_doubling` | dB | 0〜6 | 4.0 | 距離 2 倍ごとに上げるセンド量 |
+
+- `target` はトラック ID だけ（`master`・バス・同じ指揮書の `bus_add` の ID は `bad_target`。`--project` つきで無いトラックは `unknown_target`）。`section` は書けない（`section_scope`）
+- `azimuth`／`width`／`distance` が 1 つも無ければ `missing_field`。`room` を `distance` 無しで書くと `missing_field`（`moves.<id>.room`）、`bus_` で始まる文字列でなければ `bad_value`、`--project` つきで既存バスにも同じ指揮書の `bus_add` にも無ければ `unknown_target`
+- 範囲外は `param_range`、数でない値（bool を含む）は `bad_value`（where は `moves.<id>.<キー>`）。同じトラックへの手の衝突は `conflict`（§8.4）
+
 ### observations（観察量。ゲートには入らない）
 
 | primitive | 意味 | 欄 |
@@ -173,12 +198,16 @@
 | `loudness` | 短期／積分ラウドネス（LUFS） | stat: `integrated`／`short_p95` 等 |
 | `side_ratio` | 側成分 S の中央成分 M に対する比（dB）。帯域指定可 | band_hz（任意） |
 | `correlation` | L/R 相関係数 | band_hz（任意） |
+| `image_position` | 左右のエネルギーの比 `(E_R − E_L) / (E_R + E_L)`（−1〜+1、＋が右。追補 3。§8.2） | band_hz（任意） |
+| `masking` | P-02 のモデルによる埋もれ量（dB、0 以上）。対象は `trk_*` か `"all"` だけ（追補 3。§8.2） | against（任意）、band_hz（任意） |
+| `wet_ratio` | センド経由の音とセンド無しの音のエネルギー比（dB、下限 −120.0）。対象は `trk_*` だけ（追補 3。§8.2） | band_hz（任意） |
 
-- `target`: `master`（描画済みマスター）か `trk_<stem>`（ミックス内の当該トラックの寄与。実装が対応しない場合は validate が `unsupported` と返す）
+- `target`: `master`（描画済みマスター）か `trk_<stem>`（ミックス段の当該トラックの信号。追補 3 で対応済み。経路 `path` で測る段を選び、**レベルマッチはしない**。§8.1）。`masking` は `"all"` も受ける。それ以外の値（バス ID など）は validate が従来どおり `unsupported` と警告する（`image_position` はその警告に加えてエラー `bad_target`、`masking`／`wet_ratio` は警告の代わりにエラー `bad_target`）
+- `path`（任意。追補 3）: トラック対象だけに書ける。`dry`（省略時。バスに入る直前の音）／`solo`（そのトラックだけを鳴らしたミックスバス出力）。`master` 対象に書く、未知の値、`masking`／`wet_ratio` に書く、のいずれも `bad_value`（§8.1）
 - `section`: `all` か セクション ID か `{"t0_s","t1_s"}`
 - `level_match`: true なら床と比べる前に積分ラウドネスを揃える（R-01）
 - `view`（任意。追補 2）: 測る前の見方。無し／`stereo` は従来どおり（値も同じ）。`mono` は `(L+R)/2` を両チャンネルに置いてから測る。`mono_band` は `mono` の後に帯域通過（4 次・ゼロ位相）してから測る。帯域は省略時 150〜6000 Hz で、`view_band_hz: [lo, hi]`（lo 80〜400、hi 3000〜10000）で変えられる。小さなモノ再生での残り方を見るための見方で、ゲートには入らない
-- `view` が `mono`／`mono_band` のときの `side_ratio`／`correlation`（モノに側成分は無い）、未知の `view`、`mono_band` 以外と一緒に書いた `view_band_hz`、範囲外・形の悪い `view_band_hz` は、validate（`observations.<id>.view`／`.view_band_hz`）も `direction query` も同じ規則で `bad_value`。`view` を書かない観察量は従来どおりに検査・測定される
+- `view` が `mono`／`mono_band` のときの `side_ratio`／`correlation`／`image_position`（追補 3。モノに側成分・左右差は無い）、`masking`／`wet_ratio` に書いた `view`・`view_band_hz`（追補 3）、未知の `view`、`mono_band` 以外と一緒に書いた `view_band_hz`、範囲外・形の悪い `view_band_hz` は、validate（`observations.<id>.view`／`.view_band_hz`）も `direction query` も同じ規則で `bad_value`。`view` を書かない観察量は従来どおりに検査・測定される
 
 ### 不変領域（validate が機械的に拒否する。v2 f.2）
 
@@ -189,6 +218,7 @@
 - E1: `origin: catalog` で、量が `knowledge/mix_rules.json` 等の既存の範囲内と確認できる手
 - E2: それ以外（`new`、範囲外、`case`）。全長の評価とガード項の前後比較を `direction check` で行う
 - E3: マスター段でプロファイルの既定（R-06、R-15）を超える手、主役（`trk_vocals`）への時間変化する処理。E2 に加え `listen_for` への登録が必須（無ければ validate が警告）
+- `place`（追補 3）は常に E2 以上（`origin: catalog`＋R-nn でも E1 にならない）。静的な手なので、主役への `place` も E2 のまま
 
 ## 5. v1 実装の注記（validate／apply／check が実際にすること）
 
@@ -197,7 +227,7 @@
 - **床への重ね方**: 床のミックス提案（`mix.applied.proposal_id`）の `changes` を出発点に、手が触れたトラックのチェーン・センドを丸ごと書いた `mxp_` 提案を作り、既存の `plan apply` で適用する。足した処理・センド・バスには `owner: director` と `move_ref: dir_<id>/<move>` が付く。量を変えた床の処理（`chain_param`）にも `move_ref` が付く。外した処理（`chain_remove`）とトラックのゲイン・パンは適用記録に残る。既に指揮書の手が入っているプロジェクトには適用しない（床の新しい写しに適用する）
 - **区間ゲイン**: `gain` に `section` を付けると、区間の前後 20 ms のランプを持つゲインのオートメーションになる。同じトラックの区間が重なる・接する場合と、既にオートメーションがある場合は拒否する
 - **バスのパン**: 新バス・既存バスへの `pan` は、バスのチェーン末尾に `pan`（position）と `stereo`（width）の処理を足す
-- **観察量**: `target: master` だけ（`trk_*` は `unsupported`）。`level_match: true`（既定）なら結果の積分ラウドネスを床に揃えてから測る
+- **観察量**: `target: master` は、`level_match: true`（既定）なら結果の積分ラウドネスを床に揃えてから測る。`target: trk_<stem>` と `masking`／`wet_ratio`（追補 3）は、床と結果のプロジェクトからトラックの信号をメモリ上で描画して測り、`level_match` の値に関わらずゲイン 0 で測る（§8.1）。`direction query`（音声ファイル 1 本）は従来どおり `master` だけで、`trk_*` は `unsupported`
 - **主張の判定**: `up` は差 ≥ `min_delta`、`down` は差 ≤ −`min_delta`。`not_worse` は、台帳指標 `P-nn` では変種の評価の罰（目標範囲からの距離）の増分 ≤ `tolerance`、観察量では |差| ≤ `tolerance`（`worse: up|down` を付けると片側）。`P-nn` の値は変種の評価（マスター計画の目的関数の項）から読む。値がない項は `not_measured`
 - **手ごとの期待・ガード**: v1 では手を分離せず、全体の結果で判定する（outcome にその旨を記す）
 - **同一収束**: ミックス状態（トラックのゲイン・パン・チェーン・センド・オートメーションとバス）のハッシュ一致、または床とのレベルマッチ後の差分 RMS が −60 dB 未満なら `converged: true`
@@ -208,6 +238,13 @@
   - 区間ゲインとオートメーション: `duck` のある対象トラックでは、床のオートメーション・同じ指揮書の区間ゲイン・`duck` を合成して 1 本にする（§7.2）。`duck` の無いトラックで区間ゲインが既存のオートメーションに当たったときは、従来どおり拒否する
   - 同一収束: ミックス状態のハッシュにクリップ（`clips`）を含める（編集だけの指揮書が床と同一と判定されないため）。床と写しのクリップが同じ案件の判定は変わらない
   - `move_ref` の網羅: `duck` は合成したオートメーションの `move_ref`（関わった手の ID の配列）で追う。打点 0 件の `duck` は適用記録で追う。編集 op は適用記録と台帳で追う
+- **追補 3 の注記**（§8。新しい手・欄・観察量を含まない指揮書では、以下はどれも働かず、validate・適用記録・ミックス提案・outcome は従来とバイト同一。例外は §8.6 の警告 1 種だけ。どれを使ったか・どの順かは検査しない）:
+  - 較正（`--calibrate`）が読まないもの: トラック対象の観察量、`masking`／`wet_ratio`（主張・safeguard から参照されていても予測しない）、`place` のパラメータ（`select` の値のまま使う）、outcome の `scene` ブロック。`target: master` の `image_position` は他の `master` の観察量と同じに読む
+  - `place` の展開: validate は展開後の各手にも既存の範囲検査を掛ける（範囲で書いた場合は両端）。apply は `place` を `pan` → `gain` → `chain_add`（`eq` のハイシェルフ）→ `send` に展開して既存の経路へ流し、足した処理とセンドの `move_ref` は元の `place` の手の ID になる。適用記録には展開前の `place` が 1 件として残る（§8.4）
+  - check のトラック信号: トラック対象か `masking`／`wet_ratio` の観察量、または `scene` があるときだけ床と結果の両方を描画する（プロジェクトには書かない）。どれも無い指揮書では描画しない
+  - `scene` ブロックは判定外: 主張・期待・ガード・`summary`・`move_ref`・`--calibrate` のどれも読まない（§8.3）
+  - 警告 `unmeasured_quantity`（§8.6）: 主張・期待・安全弁に台帳指標（`P-nn`）の量を書いた指揮書では、`--project` の有無に依らず量ごとに 1 件出る（文は 2 種）。警告であり `ok` と終了コードは変わらない。既存の指揮書でも `P-nn` の量を書いていれば出る
+  - 記録: SPEC §8.2 の表にある「GUI のミックスマップの座標系（§11.3）」の参照は §11.2（画面）を指すのが正しい。SPEC は今回変えない
 
 ## 6. 追補: リファレンス（原液）と理論カード（2026-11-15）
 
@@ -419,3 +456,220 @@ SPEC §4.6 の「EQ マッチで写さない」「一度に比べる問いは 1 
 - **観察記録（work／engineer の `observed_media`、等級 `observed_media`）**: 等級の並びは `replicated > measured > literature > practice > observed_media > tip > hunch`（U-25）。観察は意図推定の材料に限り、確度を上げず、測定の代わりにしない（U-26。§6.4）。カードの等級を動かすのは従来どおり outcome だけ
 - **カリキュラム（kind `curriculum`、`source_type: curriculum`）**: 計画フェーズの表の 2a の入力の 1 つ（冒頭の「カリキュラムの位置」）。`order`／`level` を読むのは `kb search --curriculum` の並びだけで、validate／apply／check／`--calibrate` は読まない
 - **低音の音色カード（KT-0024〜KT-0030）**: 理論カードとして他の理論カードと同じ扱い（§6.3。`basis` に書いても E1 にならず、書かなくても警告なし）
+
+## 8. 追補 3: トラック文脈の観察・配置・純度（2026-11-16）
+
+本節の手・欄・観察量・下見は、どれも指揮者が選べるもので、**使わなくても不利にならない**。validate／apply／check／`--calibrate`／`kb lint` は、これらの使用の有無・順序・回数を検査も採点も警告もしない。見るのは書かれたものの形式・範囲・衝突だけで、使わない指揮書の validate・適用記録・ミックス提案・outcome は従来とバイト同一（例外は §8.6 の警告 1 種）。`schema_version` は 1 のまま、既存の指揮書の `dir_` ID も変わらない。
+
+効き目についての注記: 機構は合成フィクスチャと自前の素材で確かめているだけで、これらの道具で音が良くなること、配置や距離の印象が実際に出ることは実証していない。
+
+### 8.1 トラック対象と経路（`target: trk_<stem>`、`path`）
+
+観察量の `target` に `trk_<stem>` を書くと、そのトラックのミックス段の信号を測る。経路は任意欄 `path` で選ぶ。
+
+| `path` | 測る信号 |
+|---|---|
+| `dry`（省略時） | そのトラックがバスに入る直前の音（整音 → チェーン → フェーダー・オートメーション → パン・幅の後）。ミックス全体を 1 回描画して全トラックを得る |
+| `solo` | そのトラックだけを鳴らしたミックスバス出力（マスター段の前）。センド戻りとバスの処理を通った音 |
+
+- 既存の 6 種と `image_position` は、どちらの経路でも `master` と同じ計算をする。`view`・`section`・`band_hz` の規則も同じ
+- **レベルマッチはしない**: トラックの信号はマスター段の前なので、`level_match` の値に関わらずゲイン 0 で測る。結果に `gain_db: 0.0`、`signal: "mix_stage"`、`path` が載る
+- validate: `path` を `master` 対象に書く・未知の値・`masking`／`wet_ratio` に書くと `bad_value`。`--project` つきで無いトラック（`target`・`against`）は `unknown_target`。トラック対象には従来の `unsupported` 警告を出さない
+- **プロジェクトを書かない**: 描画の前に整音キャッシュの有効性を確かめ、無い・古いときは描画せず、その観察量を `{"status": "error", "reason": "整音の cache が無いか古い。先に clean apply／render する"}` にする。無いトラック（`unknown track '…'`）とミュート中のトラック（他のトラックの solo で聞こえない場合を含む）も `status: error`。描画はメモリ上だけで、結果はプロセスの中に持つ
+- `direction query`（音声ファイル 1 本）は従来どおり `master` だけを測る
+- 読み方: `dry` はフェーダーとパンの後の音なので、`gain` や `place` の距離で下げた分がそのまま値に出る。`solo` の差には、そのトラックの手に加えてバスの処理とセンドの変化が混ざる
+
+### 8.2 観察量 3 種（`image_position`／`masking`／`wet_ratio`）
+
+| primitive | 対象 | 定義 | 単位・範囲 | 欄 |
+|---|---|---|---|---|
+| `image_position` | `master`、`trk_*` | 区間内の `(E_R − E_L) / (E_R + E_L)`（E は二乗和）。`band_hz` があれば 4 次・ゼロ位相の帯域通過の後 | 係数 −1〜+1（＋が右。`pan` の向きと同じ） | band_hz（任意） |
+| `masking` | `trk_*` または `"all"` | `core.analysis.stems.masking_matrix`（P-02）を、その状態の聞こえる全トラックの `dry` 信号に掛けた埋もれ量 | dB、0 以上（モデルの上限まで） | against（任意）、band_hz（任意） |
+| `wet_ratio` | `trk_*` | A = `solo` の音、B = 同じ条件でそのトラックのセンドを空にした音。値 = `10·log10(E(A−B) / E(B))` | dB。下限 −120.0（センドの無いトラックはこの値） | band_hz（任意） |
+
+- `image_position`: `direction query` と `--calibrate` からも使える（`master` 対象）。`view` が `mono`／`mono_band` なら `bad_value`。無音（E_L + E_R < 1e-20）は `status: error`。値は無次元
+- `masking` の引き方:
+  - `target: trk_x`（`against` 無し）→ x の、他の全トラックに対する埋もれ量
+  - `against: "trk_y"` → x が y に埋もれる量（1 対 1）。`band_hz` との併用は `bad_value`。`against` が対象と同じ・トラック ID でないときも `bad_value`
+  - `target: "all"` → 重要度で重みづけた全体の値。`against`・`band_hz` は `bad_value`
+  - `band_hz: [lo, hi]` → 帯域の中心が `[lo, hi)` に入る ERB 帯の値の単純平均（欠測は除く。1 つも無ければ `status: error`）
+  - `section` は全トラックの信号をその時間範囲に切ってから渡す。役割・主役・重要度とジャンルは床の評価と同じ材料から組み立てる。聞こえるトラックが 2 本未満、対象が区間内で無音、モデルが値を返さないときは `status: error`
+  - `path`・`view` は書けない（`bad_value`）。常に `dry` で測る
+- `wet_ratio`: `path`・`view` は書けない。**バスの非線形処理（ミックスバスのコンプ等）は、ソロ時の動作になる。** `band_hz` は A・B の両方に同じ帯域通過を掛ける
+- `masking`／`wet_ratio` は単一の信号では計算できないので `direction query` には書けない（従来どおり未知の primitive のエラー）。指揮書の `observations` に書けば、主張・期待・安全弁から `obs:<id>` で引ける。判定の規則（`up`／`down`／`not_worse`、`worse`）は従来と同じ
+- 新しい 3 種の `band_hz` は `[lo, hi]`（0 ≤ lo < hi、有限）でなければ validate が `bad_value`。対象の種類の誤り（`masking` にトラック・`all` 以外、`wet_ratio` にトラック以外、`image_position` に `master`・トラック以外）は `bad_target`。`against` を `masking` 以外に書くと `bad_value`
+- 読み方の注記:
+  - `image_position` はエネルギーの左右比であって、パン位置そのものではない。モノ素材を等電力則（センター −3 dB）で位置 p に置くと、値は `sin(p·π/2)` になる（p = 0.4 → 0.588、0.7 → 0.891）。ステレオとして取り込んだ素材は左右が同じでもパンが釣り合い則で働くので、0.4 に置くと約 0.415 になる
+  - `masking` は粗い興奮パターンのモデル値で、知覚の真値ではない。被りは 2 つの音の関係で、埋もれ量が下がることは良いミックスと同義でない。意図した重なり・一体感もあるので、値を 0 に近づけること自体を目的にしない
+  - `wet_ratio` はセンドで足した残響の量だけを見る。素材に既に焼き付いた残響は数に入らず（それは §8.5 の `stems purity` で見る）、距離の印象そのものでもない
+  - 側成分比・相関のような幅の量が増えたことを、音源を空間に置けたことと読まない。配置を主張にしたいなら、配置の量（`image_position`、`wet_ratio`、トラックのレベル）で立てられる。どれを主張に選ぶかは指揮者の裁量で、空間の依頼にこれらを必須にはしない
+
+### 8.3 配置の宣言（`scene`）
+
+ブロックの任意欄（トップレベル）。手の前に、各音源をどこに置くつもりかを書く。
+
+```json
+"scene": { "note": "（任意）", "sources": [
+  { "track": "trk_vocals", "azimuth": 0.0, "depth": 1, "note": "（任意）" },
+  { "track": "trk_keyboard", "azimuth": -0.4, "depth": 3 } ] }
+```
+
+- `track` は必須で `trk_<stem>`、重複不可。`azimuth` は −1〜1（`pan.position` と同じ座標）。`depth` は整数 1〜5（1 が最前）。`azimuth` と `depth` のどちらかは必要。`sources` は 1〜32 件
+- validate の検査（形と範囲だけ）:
+
+| 条件 | where | コード |
+|---|---|---|
+| `scene` が object でない／`note`・`sources` 以外のキー | `scene` | `bad_value` |
+| `note` が文字列でない | `scene.note` | `bad_value` |
+| `sources` が無い／list でない | `scene.sources` | `missing_field`／`bad_value` |
+| 件数が 1〜32 でない | `scene.sources` | `param_range` |
+| 音源が object でない／`track`・`azimuth`・`depth`・`note` 以外のキー | `scene.sources[i]` | `bad_value` |
+| `track` が無い／`trk_<stem>` でない | `scene.sources[i].track` | `missing_field`／`bad_value` |
+| `track` の重複（2 本目に付く） | 同上 | `bad_id` |
+| `--project` つきで無いトラック | 同上 | `unknown_target` |
+| `azimuth` が数でない（bool・非有限を含む）／−1〜1 の外 | `scene.sources[i].azimuth` | `bad_value`／`param_range` |
+| `depth` が整数でない（`2.0`・bool を含む）／1〜5 の外 | `scene.sources[i].depth` | `bad_value`／`param_range` |
+| `azimuth` も `depth` も無い | `scene.sources[i]` | `missing_field` |
+| 音源の `note` が文字列でない | `scene.sources[i].note` | `bad_value` |
+
+- **検査しないこと**: 全トラックを載せたか、手が宣言どおりか、宣言と実測が合うか
+- `direction check` は、`scene` があるときだけ outcome に判定外のブロック `scene` を足す（測った値と `expected_image` は小数 3 桁。`azimuth`・`depth` は書かれた値のまま）
+
+```json
+"scene": { "note": "参考値。どの判定にも入らない（主張・期待・ガード・summary・ゲート）。奥行きの知覚は 1 つの量で決まらない。expected_image は sin(azimuth·π/2) の目安（モノ素材の等電力則の値。ステレオで取り込んだ素材は釣り合い則で、これより中央寄りに出る）",
+  "sources": { "trk_keyboard": { "azimuth": -0.4, "expected_image": -0.588,
+      "image_position": { "floor": 0.0, "result": 0.0 }, "depth": 3,
+      "wet_ratio_db": { "floor": 0.0, "result": 0.0 }, "level_lufs": { "floor": 0.0, "result": 0.0 } } },
+  "depth_consistency": { "n": 0, "tau_wet": null, "tau_level": null } }
+```
+
+- 音源は宣言の順。`azimuth`・`expected_image` は `azimuth` を書いた音源だけ、`depth` は書いた音源だけに出る。`image_position` は `path: solo`・全区間・帯域なし、`wet_ratio_db` は §8.2 の定義、`level_lufs` は `dry` の積分ラウドネス。測れない値（無いトラック、ミュート、キャッシュ無し等）は `null` にして音源は残す
+- `depth_consistency`: `depth` を宣言し、結果側の `wet_ratio_db` と `level_lufs` が両方測れた音源の数が `n`。その音源について、結果側の値でケンドールの τ（同順位ありの τ-b）を取る。`tau_wet` は depth と `wet_ratio_db`（深いほど大きいと +1）、`tau_level` は depth と `−level_lufs`（深いほど小さいと +1）。n < 3、または τ が定まらない（depth が全部同じ等）ときは `null`
+- ブロック全体を、主張・期待・ガード・`summary`・`move_ref`・`--calibrate` のどれも読まない（`translation` と同じ扱い）。床のプロジェクトの `mix.declared_depth_order` には書かない。`scene` の無い指揮書の outcome は従来とバイト同一
+- 読み方の注記: 宣言は狙いの記述で、実測とずれても誤りではなく、減点もしない。τ はレベルとセンド量という 2 つの手がかりの並びだけを見ており、奥行きが聞こえるかを言うものではない
+
+### 8.4 配置の手（`place`）
+
+方位と距離を 1 つの手で書き、距離の手がかり（レベル・高域・直接音と残響の比）を同じ規則で導く。パラメータの表と形式の検査は §3。
+
+導出（L = log2(distance)。値は小数 2 桁に丸める）:
+
+| 段 | 展開される手 | 値 | 足さない条件 |
+|---|---|---|---|
+| 1 パン | `pan` | `position = azimuth`、`width`（書かれたものだけ） | `azimuth`・`width` がどちらも無い |
+| 2 フェーダー | `gain` | `delta_db = −level_db_per_doubling × L` | `distance` が無い、または値が 0 |
+| 3 高域 | `chain_add`（チェーン末尾の `eq`） | `shape: high_shelf`、`freq_hz: air_freq_hz`、`gain_db: −air_db_per_doubling × L`、`bw_oct: 1.9`、`phase: minimum` | `distance` が無い、または値が 0 |
+| 4 センド | `send` | `{bus: room, level_db: min(near_send_db + send_db_per_doubling × L, −3.0), pre_fader: false}` | `room` が無い |
+
+- 例（既定の係数）: `distance: 2` → `delta_db` −2.0、シェルフ −1.0 dB @ 5000 Hz、センド −20.0 dB。`distance: 8`、`near_send_db: −12`、`send_db_per_doubling: 6` → センドは −3.0 に張り付き `send_clamped: true`。`distance: 1.0` はゲインも EQ も足さない（`room` があればセンドは `near_send_db`）
+- `distance` は書いた値のまま使われ、2 のべきでなければ導出は端数になる（既定の係数で `1.41` → −0.99 dB／−0.5 dB／センド −22.02 dB、`1.4142` → −1.0／−0.5／−22.0）
+- 実現: 上の既存 op に内部で展開し、既存の適用経路へ流す。足したシェルフとセンドには `owner: director` と元の `place` の手の `move_ref` が付く（シェルフの処理 ID は手書きの `chain_add` と同じ `dr.<trk>.<mid>`）。展開後の各手は既存の範囲検査をそのまま通る（範囲で書いた場合は両端）。範囲で書いたパラメータは `select` で 1 つの値に決まってから導出される
+- 衝突（validate の `conflict`。エラーは `place` の手に付く）: 同じトラックに (a) `place` が 2 本（2 本目に付く）、(b) `azimuth`／`width` を持つ `place` と `pan`、(c) `distance` を持つ `place` と区間なし（`section` が無いか `all`）の `gain`、(d) `room` を持つ `place` と同じバスへの `send`。区間つきの `gain`、別のバスへの `send` は衝突しない
+- 床に同じバスへのセンドが既にあるトラックでは、`place` の `room` のセンドがそれに置き換わる（既存の `send` op と同じで、床の計画器が持つセンドでも残らない）
+- 適用記録: `moves[<mid>] = {op: "place", track, azimuth, width, distance, room, model: {5 つの係数}, derived: {position, width, delta_db, air_gain_db, send_level_db, send_clamped}}`。上の段の `azimuth`／`width`／`distance` は `select` で決まった値（丸めない）。`send_clamped` は導出値が −3.0 を超えたとき true（ちょうど −3.0 は false）。`distance` が無ければ `delta_db`・`air_gain_db` は `null`、`room` が無ければ `send_level_db`・`send_clamped` は `null`
+- `move_ref` の網羅: `place` は適用記録で追う。シェルフかセンドを足した場合は、その `move_ref` が描画結果に現れることも数える
+- 評価段: 常に E2 以上（§4）。`--calibrate` はパラメータを較正しない（`select` の値のまま）
+
+固定の注記:
+
+- **係数は慣行に基づく初期値で、物理の再現ではない。** 直接音の遅延、音源ごとの初期反射、頭部伝達関数は扱わない。距離の印象が実際に出るかは実証していない
+- 部屋のバスは 1 つを共有するほうが一貫しやすいが、強制しない
+- `place` は糖衣で、唯一の経路ではない。同じことを `pan`／`gain`／`chain_add`／`send` で手書きする自由は残る（ミックス状態は同じになる）
+- 読み方: 残響だけで奥行きを作る以外の選択肢として、レベルと高域を同じ規則で動かす手である。残響を使うこと自体は誤りではなく、全体に掛ける広がりは個々の音源の配置の代わりにならない
+- `distance` でレベルを下げたトラックは、そのトラックの `masking`（埋もれる量）が上がりうる。同じトラックの被りを解く手とは打ち消し合いうる。主張・期待は手を分けず全体の結果で判定される
+
+### 8.5 下見 3 種（`direction stems observe／relate／purity`）
+
+手を書く前に、全トラックを横断して量を見るための読み取り専用のコマンド。どれもプロジェクトに何も書かず、整音キャッシュが無い・古いときは描画せずに入力エラー（終了コード 1。先に `clean apply`／`render` する旨）。曲資料（`direction dossier`）には載らない。見るかどうか、どの順で見るかは指揮者の裁量で、手順の固定ではない（`direction edit scan` と同じ扱い）。
+
+**`direction stems observe --project <p> [--variant <v>] <spec>`**: `<spec>` は観察量 1 つか配列（JSON か `@file`）。§8.1・§8.2 の観察量をプロジェクトの現状で測る。区間は床の提案の区間を使う。
+
+```json
+{ "kind": "direction_stem_observations",
+  "observations": [ { "spec": { "…": "書かれたまま" }, "result": { "status": "ok", "value": 0.0, "unit": "dB", "range_s": [0.0, 0.0], "gain_db": 0.0, "signal": "mix_stage", "path": "dry" } } ] }
+```
+
+- トラックから測らない spec（`master` を対象にした単一信号の観察量）は `status: error`（`direction query` を使う旨）。測れない spec も `status: error` で返り、他の spec は測られる
+
+**`direction stems relate --project <p> [--variant <v>] [--section <id|json>] [--top <n>]`**: `--top` は既定 3、1〜8 の整数（範囲外は入力エラー）。`--section` は区間 ID か `{"t0_s", "t1_s"}` の JSON。
+
+```json
+{ "kind": "direction_stem_relate", "signal": "mix_stage_dry", "section": null, "tracks": ["trk_a", "…"],
+  "masking": { "overall_db": 0.0, "lead": "trk_vocals",
+    "per_target": { "trk_a": { "buried_db": 0.0,
+      "by_band": { "sub": null, "bass": 0.0, "lowmid": 0.0, "mid": 0.0, "highmid": 0.0, "air": null },
+      "top_maskers": [ { "track": "trk_b", "buried_db": 0.0 } ] } } },
+  "band_owners": { "sub": [], "bass": ["trk_a"], "lowmid": ["trk_a", "trk_b"], "mid": [], "highmid": [], "air": [] },
+  "note": "P-02 のモデル値（粗い興奮パターン）。0 に近いほど良いわけではない。band_owners は P-22 の担当の規則を満たしたトラックだけで、その帯域で鳴っているトラックの一覧ではない。読みは指揮者の〔推定〕" }
+```
+
+- 聞こえる全トラックの `dry` 信号（区間があれば切ったもの）に `masking_matrix` を掛ける。`by_band` の 6 帯域は P-22 の境目（20／60／250／500／2000／6000／20000 Hz）で、集約は §8.2 の `band_hz` と同じ規則（値の無い帯域は `null`）
+- `top_maskers` は埋もれ量の降順（同値はトラック ID 順）で、値の無い相手を除いた上位 `--top` 件（0 の相手も含む）。`lead` はモデルが決めた主役（決まらなければ `null`）
+- `band_owners` は `core.analysis.stems.band_density` の全体（区間別は出さない）の帯域ごとの担当トラックで、6 帯域すべてがキーに出る（担当の無い帯域は `[]`）。担当に挙がらないトラックもその帯域で鳴っていることがあり、区間別の帯域比から数えた『重なりの多い帯域』とは定義が違うので、両者は食い違って見えうる
+- 数値は小数 3 桁。聞こえるトラックが 2 本未満、未知の区間は入力エラー
+
+**`direction stems purity --project <p> [--track <trk>]...`**: 各トラックの整音後・チェーン前・フェーダー前の音（`duck` のキー信号と同じ段）を測る。`--track` を省くと聞こえる全トラック。指定すればミュート中のトラックも測れ、無いトラックは入力エラー。共有成分の相手は、聞こえる全トラックと指定したトラック。
+
+```json
+{ "kind": "direction_stem_purity", "signal": "post_clean_pre_chain",
+  "tracks": { "trk_a": {
+      "shared": [ { "track": "trk_b", "shared_power_db": -12.0, "louder_in": "trk_b" } ],
+      "baked_reverb": { "dr_db": 0.0, "rt60_mid_s": 0.0 },
+      "baked_width": { "correlation": 0.0, "side_ratio_db": 0.0 },
+      "baked_dynamics": { "peak_dbfs": 0.0, "lufs_integrated": 0.0, "plr_db": 0.0, "crest_db": 0.0 },
+      "flags": { "origin": "…", "r22_baked": false, "floor_restricted": false } } },
+  "mixture": { "residual_db": 0.0, "correlation": 0.0, "residual_after_gain_fit_db": 0.0 },
+  "note": "（下の固定文）" }
+```
+
+| キー | 定義 |
+|---|---|
+| `shared` | 他トラックとの共有成分。両者をモノ和・16 kHz に落とし、二乗コヒーレンス C(f)（ハン窓、2048 点、重なり 1024）を 100〜7000 Hz で取り、`shared_power_db = 10·log10(Σ C·P_self / Σ P_self)`（P_self は自分のパワースペクトル）。−20.0 dB 以上の相手だけを大きい順に最大 5 件。`louder_in` は `Σ C·P` が大きい側のトラック ID（出どころの手がかり。同値はトラック ID 順） |
+| `baked_reverb` | `core.analysis.stems.reverb_metrics` の D/R（`dr_db`）と中域の RT60（`rt60_mid_s`）。推定できない値は `null`、両方とも推定できなければ全体が `null` |
+| `baked_width` | 全帯域の相関と側成分比（`query` の観察量と同じ計算） |
+| `baked_dynamics` | ピーク dBFS、積分ラウドネス、PLR（ピーク − ラウドネス）、クレスト |
+| `flags` | `origin`（アセットの由来。混在なら一覧、不明なら `null`）、`r22_baked`（`knowledge/mix_rules.json` の R-22 の焼き付き検出の条件を読み取りだけで当てた真偽）、`floor_restricted`（床のミックス提案の制限にそのトラックがあるか。床の提案が無ければ false） |
+
+- 対のどちらかが RMS −70 dBFS 未満なら、その対は測らない。共通の長さ（同じ時刻上のクリップの重なり）が 10 秒未満の相手しか無いトラックは `shared: null` と `reason: "too_short"`
+- `mixture` はプロジェクトの取り込み検査 `stem_sum_consistency` の値の写し。無ければ `null`。数値は小数 3 桁
+- `note`（固定文）: 「共有成分は、線形に共通な成分が自分のエネルギーに占める割合の推定で、漏れの量そのものではない。同じ音を重ねて弾く別の楽器はほぼ数に入らず、残響で広がった漏れは低く出る。残響の値は粗い盲推定。読みは指揮者の〔推定〕」
+- 道具は判断しない。「触るな」「制限する」とは出さず、`flags` も情報の真偽値で、どの検査にも効かない（R-22 は判断の出発点で、指揮書には強制しない）
+
+読み方の注記:
+
+- `relate` の値は粗いモデルの値で、0 に近いほど良いわけではない。被りは 2 つの音の関係なので片方だけを見て決めず、譲らせるなら重要度の低い側から、軽い手（位置・レベル・時間で譲る `duck`・狭い EQ）を考える材料にする
+- `purity` の共有成分は漏れの量そのものではない。共有成分の大きい 2 本を別々の場所へ動かすと、漏れも一緒に動いて像が割れうる。同じ帯域・同じレベルの 2 本では `louder_in` がどちらにも転びうるので、出どころの断定には使えない
+- 由来の札（生成元のステム、分離由来など）は純粋さの保証ではない。既に濡れた素材に残響を重ねるか、近くに置くか、触らないかは指揮者の判断で、触らない判断も正当な手である
+- 下見は作業順の固定ではない。土台（レベルの釣り合い・被り・粒立ち・不要部分の掃除）を先に見るのは 1 つの進め方で、測って問題が無いと確かめたなら飛ばしてよい
+
+### 8.6 警告 `unmeasured_quantity`（新しいゲート。警告）
+
+**新しく足したゲートで、警告である（エラーではない）。** 何も判定されない主張・期待・安全弁を、書いた時点で知らせる。
+
+- 仕組み: `direction check` は台帳指標（`P-nn`）を測り直さず、床と結果それぞれの変種の評価項（`project.json` の `variants[].evaluation.terms`）を読む。標準の流れ（`master plan --apply`）では結果の変種に評価項が残らない。だから `P-nn` に立てた主張・期待・安全弁は、標準の流れでは何も判定されない（`not_measured`。安全弁なら何も守らない）
+- 出す条件: 主張・期待・安全弁の `quantity` が台帳指標の形（`P-nn` または `P-nn:<限定子>`）なら、`--project` の有無とプロジェクトの評価の有無に依らず、量ごとに 1 件出す。同じ `quantity` は 1 件にまとめ（n は主張・期待・安全弁を通した出現回数）、最初に出た順に、既存の警告の後ろに並ぶ。文は次の 2 種で、`where`（`quantities.<quantity>`）と `code`（`unmeasured_quantity`）は同じ
+
+| 種 | 当たる条件 | `message` |
+|---|---|---|
+| A | `--project` つきで、床の変種（プロジェクトの最初の変種）に評価項が 1 つ以上あり、その量の項（`check` と同じ読み方: 限定子つき → 無ければ `P-nn`）が無い、または `value` も `penalty` も数値でない | `床の変種の評価項に <quantity> の数値（value／penalty）が無い（該当 n 件）。direction check は not_measured を返す。obs:<id>（masking／wet_ratio／trk 対象の観察量）で測れる` |
+| B | A に当たらない全部（`--project` 無し、未評価のプロジェクト、床に数値の項がある量） | `<quantity> は台帳指標（該当 n 件）。direction check は結果の変種の評価項だけを読み、指揮書の結果を測り直さない。標準の流れ（master plan --apply）では評価項が残らず not_measured になる。obs:<id> の観察量は check が床と結果の両方を測る` |
+
+- 出さない場合: `obs:` の量、形の誤った量（従来どおり `bad_quantity` だけ）
+- B が出ても判定されうる場合: 目的関数つきの計画器でマスターを決めた流れでは結果の変種に評価項が残り、`check` が判定しうる。validate は後段の流れを知りえないので、その場合も B は出る（誤警告ではなく、判定が成り立つ条件の通知）
+- `ok`・エラー・終了コードは変わらない。`apply`・`check`・適用記録・outcome も変わらない（`apply` は validate が `ok` のとき警告を記録に写さない）。しきい値は無い
+- 新しい機能を使わない指揮書で出力が変わる唯一の例外: 主張・期待・安全弁に `P-nn` の量を書いた指揮書では、既存の指揮書でもこの警告が出る。`P-nn` の量を 1 つも書かない指揮書の validate は従来とバイト同一
+- 読み方: 何を主張し何を守るかは自由で、この警告は事実の通知である。そのまま残してもよく、`obs:<id>` の観察量に置き換えてもよい。置き換えは求めない
+
+### 8.7 範囲外（今回やらないこと）
+
+| 項目 | 理由 | 現状で代わりに出来ること |
+|---|---|---|
+| ステム内の成分の再分離、時間周波数マスクでの漏れの除去 | 新しい分離モデル・依存を入れない。人工物が出やすく、聴いて確かめる仕組みなしに採れない | `stems purity` で見て、近くに置く／触らない／`edit_gate` で無内容区間を切る |
+| 区間ごとの処理・パンの切替（トラックを区間で分けて別の扱いにする） | レンダラーに区間切替が無く、トラックの複製はプロジェクト構造・台帳・取り消しに及ぶ | 区間ゲイン、`duck`、`edit_gate` |
+| 時間で動くパン、交互に返るディレイ | DSP の追加が要る | 静的配置、左右別のディレイ |
+| 音源ごとの初期反射、頭部伝達関数、直接音の遅延 | 同上 | トラックのチェーンに短い `reverb` を手で置くことは今も出来る（`place` はしない） |
+| `masking` などを目的関数・較正に入れる | ゲート・目的関数の定義を動かさない | 主張と安全弁で使う |
+| R-22 の制限を指揮書に強制する | R-22 は判断の出発点で不変条件ではなく、動かすかどうかは創作上の選択 | `stems purity` の `flags` を見て指揮者が決める |
+| 曲資料への純度・被りの節の追加 | `DOSSIER_VERSION` と既存の出力を動かさない | 下見コマンド |
+| 耳の評価を集める仕組み（盲検比較など） | 道具でなく運用の話 | 記録に残す |
+| `direction check` で台帳指標（`P-nn`）を指揮書の結果について測り直す | check の所要時間・outcome の形・評価器の呼び方に及ぶ別件 | 警告 `unmeasured_quantity`（§8.6）で書いた時点で知る。`obs:<id>` の観察量は床と結果の両方を測る |

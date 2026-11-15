@@ -87,6 +87,13 @@
 | `kb search [--kind K ...] [--genre G ...] [--text T] [--root ROOT]` / `kb show ID [--root ROOT]` | kb のカードの検索と表示（読み取りのみ。`--root` の既定は `kb`） |
 | `direction edit scan --track TRK --op edit_trim\|edit_gate [--params JSON\|@FILE] [--section ID\|JSON]` | 編集 op が切る区間・拒否する区間（safeguard EG-1〜EG-5）・除くエネルギーを、整音前の原素材で調べて JSON で返す。何も書かない（2026-11-15 追補 2） |
 | `direction edit revert --direction DIR_ID [--move MID]` | 指揮書の編集段で無音化した区間とフェードを、台帳 `directions/dir_<id>.edits.json` から戻す（ジャーナル 1 エントリ。同じトラックに適用中の編集の手が他にあると `--move` は拒否され、指揮書全体か `checkout` で戻す） |
+| `direction stems observe --project P [--variant V] SPEC` | 観察量 1 つまたは配列（JSON 文字列か `@file`）を現在のトラック信号で測り、`direction_stem_observations` の JSON を返す |
+| `direction stems relate --project P [--variant V] [--section ID\|JSON] [--top N]` | 聞こえる全トラックの dry 信号のマスキング、帯域別の値、上位の相手、帯域の担当を `direction_stem_relate` の JSON で返す。区間は ID か `{t0_s, t1_s}`。`--top` は既定 3、整数 1〜8（範囲外は入力エラー） |
+| `direction stems purity --project P [--track TRK]...` | 整音後・チェーン前・フェーダー前の共有成分、残響、幅、ダイナミクス、由来等のフラグと取り込み時の和の整合を `direction_stem_purity` の JSON で返す。`--track` 省略時は聞こえる全トラック |
+
+`direction stems` の 3 コマンドはプロジェクトに何も書かない。適用済みの整音キャッシュが無い・古い場合は描画せず入力エラー（終了コード 1）になり、先に `clean apply`／`render` を実行する旨を返す。整音未適用・無効・スキップのトラックは元の素材を読む。共通の `--project`・`--format json|text` 等は他の direction コマンドと同様に使える。下見の実施や順序は必須ではない。マスキングの値は粗いモデル値で、0 に近いほど良いわけではない。帯域の担当（`band_owners`）は P-22 の担当の規則を満たしたトラックだけで、その帯域で鳴っているトラックの一覧ではない。共有成分は漏れの量そのものではなく、残響も粗い推定である。音が良くなることは実証していない。
+
+`direction validate` は、主張・期待・安全弁に台帳指標（`P-nn`）の量を書くと、`--project` の有無に依らず警告 `unmeasured_quantity` を量ごとに 1 件出す（`direction check` は結果を測り直さず、標準の流れでは `not_measured` になるため。`ok` と終了コードは変わらない。詳しくは [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §8.6）。
 
 追補 2 で既存のコマンドに足したフラグ（どれも付けたときだけ働き、付けないときの出力は従来と同じ。使わなくても不利にならない）: `direction ref study --add transient`（refstudy にトランジェント輪郭の節）、`direction ref compare --add transient|guide`（refsheet に輪郭の対照・汎用ガイドからの形の偏差の節）、`direction check --translation`（outcome に判定外の `translation` ブロック）、`kb search --source-type T ... --curriculum CUR_ID`。詳しくは [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §6.1・§7。
 

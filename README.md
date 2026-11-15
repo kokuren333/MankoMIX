@@ -90,7 +90,11 @@ mankomix kb lint                                                                
 
 指揮書で選べる手には、ステムの内容の無い区間を無音化する編集 op（`edit_trim`／`edit_gate`）と、あるトラックが鳴る瞬間だけ別のトラックを下げる `duck` もある。観察量の `view`（モノ・帯域制限の見方）、`direction check --translation`、`direction ref study|compare --add` も選べる。どれも任意で、使わなくても指揮書は従来どおり動き、不利にもならない。
 
+トラックごとの観察量（`trk_<stem>` を対象にした測定と、定位 `image_position`・埋もれ `masking`・残響の付き方 `wet_ratio`）、配置の宣言 `scene`、方位と距離からパン・レベル・高域・センドを導く手 `place`、全トラック横断の下見 `direction stems observe|relate|purity`（何も書かない）も選べる。`direction validate` は、台帳指標（`P-nn`）に立てた主張・期待・安全弁を警告 `unmeasured_quantity` で知らせる（`direction check` は結果を測り直さず、標準の流れでは判定されないため）。これらで音が良くなることは実証していない（[docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) §8）。
+
 ```
+mankomix direction stems relate --project my_song.mmx                               # 全トラック横断の被りの表（何も書かない）
+mankomix direction stems purity --project my_song.mmx                               # ステムの共有成分・焼き付いた残響などを測る（何も書かない）
 mankomix direction edit scan --project my_song.mmx --track <trk> --op edit_gate     # 編集 op が切る区間・拒否する区間を下見する（何も書かない）
 mankomix direction edit revert --project my_song.mmx --direction <dir_id>           # 編集で無音化した区間を戻す
 ```
