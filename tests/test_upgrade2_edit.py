@@ -179,13 +179,21 @@ BASE_VALIDATE = {
     "2026-11-15_p5-ref-stems": ("dir_b86a8a0667a2", "1508342f97f86112"),
     "2026-11-15_p6-vocal-words": ("dir_89dc56c90b97", "1a5623aec838033e"),
 }
-BASE_APPLY_RECORD_NOMOVE = "a61b5bacb7260fa3"
-BASE_OUTCOME = {"plain": "72f11127d364c785", "min": "eaecaa0b01bedb14", "refs": "19cf281a5b2be7f8"}
+# _masked hashes, re-taken in W-9 from HEAD 87800e8 with the current mask (tmp/upgrade2/w9/scripts)
+BASE_APPLY_RECORD_NOMOVE = "9ca1527ce302b959"
+BASE_OUTCOME = {"plain": "7da0e89a35a5ecb1", "min": "b0fb3bc89e66a490", "refs": "dcc18e8b02cdfeda"}
 
 
 def _masked(text: str) -> str:
-    gate = D.gate_definitions_hash()["combined"]
-    return hashlib.sha256(text.replace(gate, "<gate>").encode("utf-8")).hexdigest()[:16]
+    """Hash of an output with the environment-dependent parts masked: the gate definition hashes
+    (combined and per file; the working copy's line endings change the raw file bytes) and the newline
+    convention of the platform's text-mode write. Everything else must stay byte-identical."""
+    gate = D.gate_definitions_hash()
+    text = text.replace("\r\n", "\n")
+    for v in (gate["combined"], *gate["files"].values()):
+        if v is not None:
+            text = text.replace(v, "<gate>")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 @pytest.mark.parametrize("folder", sorted(BASE_VALIDATE))

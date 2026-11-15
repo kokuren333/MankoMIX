@@ -62,8 +62,15 @@ def _local_home(tmp_path, monkeypatch):
 
 
 def _masked(text: str) -> str:
-    gate = D.gate_definitions_hash()["combined"]
-    return hashlib.sha256(text.replace(gate, "<gate>").encode("utf-8")).hexdigest()[:16]
+    """Hash of an output with the environment-dependent parts masked: the gate definition hashes
+    (combined and per file; the working copy's line endings change the raw file bytes) and the newline
+    convention of the platform's text-mode write. Everything else must stay byte-identical."""
+    gate = D.gate_definitions_hash()
+    text = text.replace("\r\n", "\n")
+    for v in (gate["combined"], *gate["files"].values()):
+        if v is not None:
+            text = text.replace(v, "<gate>")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def _h(obj) -> str:
@@ -189,12 +196,13 @@ def _render(root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 # outputs of direction.py / calibrate.py before the duck op (W-3 golden tmp/upgrade2/golden/W3/fixtures.json;
-# the same values as the W-2 golden where both exist)
+# the same values as the W-2 golden where both exist). apply_record_nomove / outcome are _masked hashes,
+# re-taken in W-9 from HEAD 87800e8 with the current mask (tmp/upgrade2/w9/scripts)
 BASE = {"validate_synth": "f0e997b2ca13d4f9", "proposal_synth": "b9fc8176b26b7c51",
         "proposal_id": "mxp_1a4b2293ec3c", "changes": "6b712b6aca37970b", "knobs": "0c9148a98cb0be4e",
         "calibrate_max": "adc832338447d3a2", "calibrate_min": "74655b720c50933d",
-        "apply_record_nomove": "a61b5bacb7260fa3",
-        "outcome": {"plain": "72f11127d364c785", "min": "eaecaa0b01bedb14", "refs": "19cf281a5b2be7f8"}}
+        "apply_record_nomove": "9ca1527ce302b959",
+        "outcome": {"plain": "7da0e89a35a5ecb1", "min": "b0fb3bc89e66a490", "refs": "dcc18e8b02cdfeda"}}
 
 
 class _FakePredictor:
