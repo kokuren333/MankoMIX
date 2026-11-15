@@ -15,6 +15,7 @@ materials: [{ type: master, lossy: false, format: "48k/32f", sha256: "ba9a2aafb6
 study: { sha256: "90f9b14ee7ed95edf6dbc5361d7db3ea7a63c0183e8ffa7d88970559ce9ea9eb", engine: { version: "0.1.0", refstudy: 1 } }
 evidence: measured
 backing: [refstudy.md]
+sources: [{ kind: official_stems, where: "曲を作った生成サービスのステム書き出し機能（本人のアカウントから）", rights_note: "本人の制作物。生成サービスの利用条件の範囲で使う", noted: 2026-11-15 }]
 ---
 
 # work_manko-shugi-suno-stems
