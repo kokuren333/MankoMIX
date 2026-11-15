@@ -88,7 +88,15 @@ mankomix kb lint                                                                
 
 任意で、利用者が持ち込んだリファレンス（マスターやステム）を測って指揮書の材料にできる（`direction ref study|compare|credit|list`）。これは目標への自動一致ではなく、差を問いとして読むための資料で、使わなくても指揮書は従来どおり動く。kb のカードは `kb search`／`kb show` で引ける。詳しくは [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) §6。この経路の効き目は、プロの市販音源ではまだ確かめていない。
 
+指揮書で選べる手には、ステムの内容の無い区間を無音化する編集 op（`edit_trim`／`edit_gate`）と、あるトラックが鳴る瞬間だけ別のトラックを下げる `duck` もある。観察量の `view`（モノ・帯域制限の見方）、`direction check --translation`、`direction ref study|compare --add` も選べる。どれも任意で、使わなくても指揮書は従来どおり動き、不利にもならない。
+
+```
+mankomix direction edit scan --project my_song.mmx --track <trk> --op edit_gate     # 編集 op が切る区間・拒否する区間を下見する（何も書かない）
+mankomix direction edit revert --project my_song.mmx --direction <dir_id>           # 編集で無音化した区間を戻す
+```
+
 **持ち込む音源の入手と利用条件は、利用者の責任で確かめること。** 本ツールは持ち込まれた音源をその場で測るだけで、音源やその変換物を保存しない。第三者の作品の測定は、既定で非公開の `_private/kb/` に置かれる。
+素材の入手は利用者が公式の経路で行う。本ツールは素材を探しにも取りにも行かない（kb のカードに残せるのは所在メモと権利注記だけ）。
 
 ### エージェントから（MCP）
 

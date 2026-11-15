@@ -85,6 +85,10 @@
 | `direction ref list [--kb ROOT]` | 作品・技術者の一覧と refstudy の鮮度 |
 | `direction dossier ... [--ref WORK_ID ...] [--ref-kb ROOT]` | 曲資料 §10.3 に指定した作品の ID・題・refstudy のハッシュを載せる |
 | `kb search [--kind K ...] [--genre G ...] [--text T] [--root ROOT]` / `kb show ID [--root ROOT]` | kb のカードの検索と表示（読み取りのみ。`--root` の既定は `kb`） |
+| `direction edit scan --track TRK --op edit_trim\|edit_gate [--params JSON\|@FILE] [--section ID\|JSON]` | 編集 op が切る区間・拒否する区間（safeguard EG-1〜EG-5）・除くエネルギーを、整音前の原素材で調べて JSON で返す。何も書かない（2026-11-15 追補 2） |
+| `direction edit revert --direction DIR_ID [--move MID]` | 指揮書の編集段で無音化した区間とフェードを、台帳 `directions/dir_<id>.edits.json` から戻す（ジャーナル 1 エントリ。同じトラックに適用中の編集の手が他にあると `--move` は拒否され、指揮書全体か `checkout` で戻す） |
+
+追補 2 で既存のコマンドに足したフラグ（どれも付けたときだけ働き、付けないときの出力は従来と同じ。使わなくても不利にならない）: `direction ref study --add transient`（refstudy にトランジェント輪郭の節）、`direction ref compare --add transient|guide`（refsheet に輪郭の対照・汎用ガイドからの形の偏差の節）、`direction check --translation`（outcome に判定外の `translation` ブロック）、`kb search --source-type T ... --curriculum CUR_ID`。詳しくは [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §6.1・§7。
 
 `STUB_GROUPS` の仕組み（未実装のグループを登録して `not implemented yet (milestone Mx)` で終了コード 2 を返す）は、後続のグループのために残している。現時点で該当するグループはない。
 
