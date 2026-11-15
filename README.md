@@ -86,6 +86,10 @@ mankomix kb index                                                               
 mankomix kb lint                                                                  # kb/ の検査
 ```
 
+任意で、利用者が持ち込んだリファレンス（マスターやステム）を測って指揮書の材料にできる（`direction ref study|compare|credit|list`）。これは目標への自動一致ではなく、差を問いとして読むための資料で、使わなくても指揮書は従来どおり動く。kb のカードは `kb search`／`kb show` で引ける。詳しくは [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) §6。この経路の効き目は、プロの市販音源ではまだ確かめていない。
+
+**持ち込む音源の入手と利用条件は、利用者の責任で確かめること。** 本ツールは持ち込まれた音源をその場で測るだけで、音源やその変換物を保存しない。第三者の作品の測定は、既定で非公開の `_private/kb/` に置かれる。
+
 ### エージェントから（MCP）
 
 ```

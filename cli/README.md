@@ -75,6 +75,17 @@
 
 `--profile` と `--delivery` は繰り返せる（全プロファイルに全納品形式）。`--variants '[{"objective": "bass_heavy:0.7", "profile": "club"}]'` で組み合わせを直接指定できる。最初の目的関数のバリアントは `var_<profile>`、それ以外は `var_<objective>_<profile>`。
 
+指揮レイヤー（`director/`。コア API を経由しない。`direction`／`kb` 群の全体は [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §0）のうち、リファレンス（原液）と kb の検索のコマンド。今回は CLI だけで、MCP には出していない:
+
+| コマンド | 内容 |
+|---|---|
+| `direction ref study --work SLUG [--master AUDIO] [--stems DIR] [--sections JSON] [--roles JSON] [--separate] [--kb ROOT]` | 持ち込まれたリファレンスのマスター／ステムをメモリ上で測り、`<kb>/references/works/<slug>/refstudy.md` を書く（音声は残さない）。work カードの雛形が無ければ作る。`--kb` の既定は `_private/kb`（第三者作品は非公開） |
+| `direction ref compare --work SLUG [--variant V] --out MD [--kb ROOT]` | 対照表 refsheet（参照／こちら／差／比較条件。目標・推奨の列は無い）。`--out` はプロジェクトの外。読み取りのみ |
+| `direction ref credit --person SLUG [--kb ROOT]` | 技術者カードの集計部（中央値・四分位範囲・n）の再生成 |
+| `direction ref list [--kb ROOT]` | 作品・技術者の一覧と refstudy の鮮度 |
+| `direction dossier ... [--ref WORK_ID ...] [--ref-kb ROOT]` | 曲資料 §10.3 に指定した作品の ID・題・refstudy のハッシュを載せる |
+| `kb search [--kind K ...] [--genre G ...] [--text T] [--root ROOT]` / `kb show ID [--root ROOT]` | kb のカードの検索と表示（読み取りのみ。`--root` の既定は `kb`） |
+
 `STUB_GROUPS` の仕組み（未実装のグループを登録して `not implemented yet (milestone Mx)` で終了コード 2 を返す）は、後続のグループのために残している。現時点で該当するグループはない。
 
 ```
