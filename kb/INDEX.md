@@ -2,7 +2,7 @@
 
 <!-- 機械生成（mankomix kb index）。手で編集しない。 -->
 
-47 件。並び順: 種類（song > work > lesson > move > research > theory > outcome > direction > analysis > research-log）→ ID。
+59 件。並び順: 種類（song > work > lesson > move > research > theory > curriculum > outcome > direction > analysis > research-log）→ ID。
 
 | ID | kind | 題 | 適用条件 | 等級 | 状態 | 要旨 |
 |---|---|---|---|---|---|---|
@@ -33,9 +33,19 @@
 | [KT-0020](theory/KT-0020.md) | theory | マスタリングは古典的な連鎖の量決め | — | practice | active | 自動のものを含め、マスタリングの実体の多くは、EQ、コンプレッサー、マキシマイザー、クリッパー、サチュレーターといった古典的な処理の並びの量を決めることである… |
 | [KT-0021](theory/KT-0021.md) | theory | 生成物の劣化は前段で扱う | — | practice | active | 生成された音源には、高域の雑音やざらつき、圧縮由来の人工的な響きなど、特有の劣化が乗ることがある。 これを仕上げの処理でまとめて隠そうとすると、リミッターやサ… |
 | [KT-0022](theory/KT-0022.md) | theory | 判断は要所に置く | — | practice | active | 言語モデルが力を発揮するのは、構成、編曲の判断、処理の設計、結果のレビューといった要所である。 音を一つずつ処理する常駐の仕事は、決定論の道具に任せる方が再現… |
+| [KT-0023](theory/KT-0023.md) | theory | 原液は探して集める | — | practice | active | プロの実素材は、待っていても手元には来ない。権利者が表に出している道筋をたどって、人が自分で見つけてくるものである。 道筋はおおよそ四つに分かれる。公募や競作… |
+| [KT-0024](theory/KT-0024.md) | theory | 低音の音色パレット（見取り図） | — | practice | active | 踊らせる音楽の低音は、どんな波形や変調で作られたかによって、いくつかの家系に分けて呼べる。呼び名を持っておくと、何に気を配るかの見当が早く付く。 家系を見分け… |
+| [KT-0025](theory/KT-0025.md) | theory | 純音に近いサブ | — | practice | active | 正弦波かそれに近い波形で作る、いちばん素朴な低音の家系。エネルギーのほとんどが基音に集まり、上に乗る倍音はごくわずかしかない。 体で感じる圧はあるが、音色の手… |
+| [KT-0026](theory/KT-0026.md) | theory | 音程つきの長い打撃低音 | — | practice | active | 叩いた瞬間の短いアタックと、そのあと高さを持ったまま長く尾を引く胴が、一つの音になっている家系。打楽器でもありベースでもある。 胴の部分は正弦波に近く、基音が… |
+| [KT-0027](theory/KT-0027.md) | theory | うねる鋸歯状波の重ね | — | practice | active | 倍音をたっぷり含む鋸歯状の波を何本か、ほんの少しずつ高さをずらして重ねる家系。ずれた波どうしが干渉して、ゆっくりした揺れ（うなり）が生まれる。横の広がりは重ね… |
+| [KT-0028](theory/KT-0028.md) | theory | 変調で作る金属的・唸り系 | — | practice | active | ある波でもう一つの波の周波数や振幅を揺らしたり、波形を折り曲げたり歪ませたりして作る家系。整数倍からずれた成分や、時間とともに形を変える倍音が生まれ、金属的な… |
+| [KT-0029](theory/KT-0029.md) | theory | 共鳴フィルターを動かす単音系 | — | practice | active | 単純な波形一つに、共鳴を強く効かせたフィルターを掛け、その共鳴の位置を音ごとに動かして表情を付ける家系。短い音が次々に並ぶ使い方が多く、音と音を滑らせてつなぐ… |
+| [KT-0030](theory/KT-0030.md) | theory | 矩形・パルス系の短い低音 | — | practice | active | 矩形の波や、山と谷の幅を変えたパルスの波で作る家系。山と谷の幅が等しい矩形では奇数番目の倍音だけが並び、中が空いたような響きになる。幅を変えたパルスでは偶数番… |
+| [cur_low-end-basics](curricula/low-end-basics.md) | curriculum | 低域の基礎（同梱の例） | — | — | active | 束カードがどんな形をしているかを見せるための見本である。低い帯について、この kb にすでにある理論カードを、知らない人がたどりやすい順に並べ直した。利用者が… |
 | [out_2a6c9969107a](songs/manko-shugi/2026-11-14_p2-ultra-sub-bass/outcome.md) | outcome | マンコ主義 × 超重低音強化しつつも聞ける 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 0/3 達成、主張全体 1/7。床とは非収束（差分 RMS … |
 | [out_68e88f393670](songs/manko-shugi/2026-11-14_p1-kikigokochi/outcome.md) | outcome | マンコ主義 × 聞きごこちを最大追求 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 0/2 達成、主張全体 1/6。床とは非収束（差分 RMS … |
 | [out_89dc56c90b97](songs/manko-shugi/2026-11-15_p6-vocal-words/outcome.md) | outcome | マンコ主義 × ボーカルの言葉を前に 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 1/1 達成、主張全体 4/6（測定できたものは 4/5）。… |
+| [out_925f853a58bc](songs/manko-shugi/2026-11-15_p7-lowend-tidy/outcome.md) | outcome | マンコ主義 × 低域の整理と小さな再生 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete、ゲート定義ハッシュ不変）。主たる主張は 0/1（c1 は向きは合っているが量… |
 | [out_9a31fadac3cc](songs/manko-shugi/2026-11-15_p4-ref-fullmix/outcome.md) | outcome | マンコ主義 × 参照フルミックスを読んで移す 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 0/1 達成、主張全体 3/5。床とは非収束（差分 RMS … |
 | [out_b465721f74fb](songs/manko-shugi/2026-11-14_p3-spatial-panning/outcome.md) | outcome | マンコ主義 × 空間音響と複雑なパンニング 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 0/3 達成、主張全体 1/6。床とは非収束（差分 RMS … |
 | [out_b86a8a0667a2](songs/manko-shugi/2026-11-15_p5-ref-stems/outcome.md) | outcome | マンコ主義 × 配布ステムと p3 の結果を比べて問う 結果 | — | — | active | ゲートは成立（verify pass、OF-5 は床と同じ incomplete）。主たる主張は 1/2 達成、主張全体 3/5（測定できたものは 3/4）。… |
@@ -44,6 +54,7 @@
 | [dir_2a6c9969107a](songs/manko-shugi/2026-11-14_p2-ultra-sub-bass/direction.md) | direction | マンコ主義 × 超重低音強化しつつも聞ける 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
 | [dir_68e88f393670](songs/manko-shugi/2026-11-14_p1-kikigokochi/direction.md) | direction | マンコ主義 × 聞きごこちを最大追求 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
 | [dir_89dc56c90b97](songs/manko-shugi/2026-11-15_p6-vocal-words/direction.md) | direction | マンコ主義 × ボーカルの言葉を前に 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
+| [dir_925f853a58bc](songs/manko-shugi/2026-11-15_p7-lowend-tidy/direction.md) | direction | マンコ主義 × 低域の整理と小さな再生 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
 | [dir_9a31fadac3cc](songs/manko-shugi/2026-11-15_p4-ref-fullmix/direction.md) | direction | マンコ主義 × 参照フルミックスを読んで移す 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
 | [dir_b465721f74fb](songs/manko-shugi/2026-11-14_p3-spatial-panning/direction.md) | direction | マンコ主義 × 空間音響と複雑なパンニング 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
 | [dir_b86a8a0667a2](songs/manko-shugi/2026-11-15_p5-ref-stems/direction.md) | direction | マンコ主義 × 配布ステムと p3 の結果を比べて問う 全体指揮書 | — | — | active | json direction { "schemaversion": 1, "kind": "direction", "song": "manko-shugi"… |
@@ -53,3 +64,4 @@
 | [ana_71399c8d372a](songs/manko-shugi/2026-11-15_p4-ref-fullmix/analysis.md) | analysis | マンコ主義 × 参照フルミックスを読んで移す 分析メモ | — | — | active | 凡例: 〔測定〕= 曲資料の値、〔測定・追加〕= 床のマスターへの direction query の値、〔参照: work<slug> §n〕= refst… |
 | [ana_8a8a77341fcd](songs/manko-shugi/2026-11-14_p1-kikigokochi/analysis.md) | analysis | マンコ主義 × 聞きごこちを最大追求 分析メモ | — | — | active | 凡例: 〔測定〕= 曲資料の値、〔推定〕= director の読み、〔知見: 出典〕= kb カード／調査コーパスの見出し。 |
 | [ana_b174fb3a26b3](songs/manko-shugi/2026-11-14_p3-spatial-panning/analysis.md) | analysis | マンコ主義 × 空間音響と複雑なパンニング 分析メモ | — | — | active | 凡例: 〔測定〕= 曲資料の値、〔推定〕= director の読み、〔知見: 出典〕= kb カード／調査コーパスの見出し。 |
+| [ana_cb0912af47b4](songs/manko-shugi/2026-11-15_p7-lowend-tidy/analysis.md) | analysis | マンコ主義 × 低域の整理と小さな再生 分析メモ | — | — | active | 凡例: 〔測定〕= 曲資料の値、〔測定・追加〕= 床のマスターへの direction query の値、〔走査〕= direction edit scan … |

@@ -1,0 +1,609 @@
+{
+  "kind": "direction_edits",
+  "schema_version": 1,
+  "direction": "dir_925f853a58bc",
+  "journal_seq_before": 8,
+  "measure": {
+    "source": "raw_asset_pre_clean",
+    "frame_ms": 50.0,
+    "hop_ms": 10.0,
+    "guards": {
+      "EG-1": -36.0,
+      "EG-2": -40.0,
+      "EG-3": 0.1,
+      "EG-4": -40.0,
+      "EG-5": 48
+    }
+  },
+  "moves": {
+    "m01": {
+      "op": "edit_gate",
+      "track": "trk_bass",
+      "params": {
+        "fade_ms": 20.0,
+        "hold_ms": 400.0,
+        "lead_ms": 10.0,
+        "min_gap_ms": 1000.0,
+        "threshold_db": -60.0
+      },
+      "section": null,
+      "active_db": -19.68,
+      "track_energy_db": -26.31,
+      "regions": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 58560,
+          "t0_s": 0.0,
+          "t1_s": 1.22,
+          "max_frame_dbfs": -89.81,
+          "rel_active_db": -70.13,
+          "energy_rel_track_db": -93.74,
+          "flatness": null,
+          "muted_clips": [
+            "clp_bass"
+          ],
+          "journal_seq": 9
+        },
+        {
+          "n": 2,
+          "start": 1589760,
+          "end": 1656480,
+          "t0_s": 33.12,
+          "t1_s": 34.51,
+          "max_frame_dbfs": -81.0,
+          "rel_active_db": -61.32,
+          "energy_rel_track_db": -79.39,
+          "flatness": null,
+          "muted_clips": [
+            "clp_bass_b_b"
+          ],
+          "journal_seq": 10
+        },
+        {
+          "n": 3,
+          "start": 2757120,
+          "end": 2862240,
+          "t0_s": 57.44,
+          "t1_s": 59.63,
+          "max_frame_dbfs": -81.43,
+          "rel_active_db": -61.76,
+          "energy_rel_track_db": -77.84,
+          "flatness": null,
+          "muted_clips": [
+            "clp_bass_b_b_b_b"
+          ],
+          "journal_seq": 11
+        }
+      ],
+      "refused": [],
+      "fades": [
+        {
+          "clip": "clp_bass_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_bass_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_bass_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_bass_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_bass_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        }
+      ],
+      "fades_journal_seq": 12,
+      "removed_energy_rel_db": -75.47,
+      "status": "applied"
+    },
+    "m02": {
+      "op": "edit_gate",
+      "track": "trk_backing_vocals",
+      "params": {
+        "fade_ms": 20.0,
+        "hold_ms": 400.0,
+        "lead_ms": 10.0,
+        "min_gap_ms": 1000.0,
+        "threshold_db": -60.0
+      },
+      "section": null,
+      "active_db": -21.64,
+      "track_energy_db": -32.74,
+      "regions": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 738240,
+          "t0_s": 0.0,
+          "t1_s": 15.38,
+          "max_frame_dbfs": -84.38,
+          "rel_active_db": -62.74,
+          "energy_rel_track_db": -78.72,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals"
+          ],
+          "journal_seq": 13
+        },
+        {
+          "n": 2,
+          "start": 790080,
+          "end": 1164960,
+          "t0_s": 16.46,
+          "t1_s": 24.27,
+          "max_frame_dbfs": -87.94,
+          "rel_active_db": -66.29,
+          "energy_rel_track_db": -82.52,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b"
+          ],
+          "journal_seq": 14
+        },
+        {
+          "n": 3,
+          "start": 1212960,
+          "end": 1354560,
+          "t0_s": 25.27,
+          "t1_s": 28.22,
+          "max_frame_dbfs": -90.84,
+          "rel_active_db": -69.2,
+          "energy_rel_track_db": -82.69,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b"
+          ],
+          "journal_seq": 15
+        },
+        {
+          "n": 4,
+          "start": 1406400,
+          "end": 1690560,
+          "t0_s": 29.3,
+          "t1_s": 35.22,
+          "max_frame_dbfs": -82.04,
+          "rel_active_db": -60.39,
+          "energy_rel_track_db": -71.58,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b_b_b"
+          ],
+          "journal_seq": 16
+        },
+        {
+          "n": 5,
+          "start": 2318880,
+          "end": 2464320,
+          "t0_s": 48.31,
+          "t1_s": 51.34,
+          "max_frame_dbfs": -94.57,
+          "rel_active_db": -72.92,
+          "energy_rel_track_db": -87.46,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 17
+        },
+        {
+          "n": 6,
+          "start": 2493120,
+          "end": 2688000,
+          "t0_s": 51.94,
+          "t1_s": 56.0,
+          "max_frame_dbfs": -82.41,
+          "rel_active_db": -60.76,
+          "energy_rel_track_db": -80.12,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 18
+        },
+        {
+          "n": 7,
+          "start": 3764160,
+          "end": 3906240,
+          "t0_s": 78.42,
+          "t1_s": 81.38,
+          "max_frame_dbfs": -82.01,
+          "rel_active_db": -60.37,
+          "energy_rel_track_db": -69.78,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 19
+        },
+        {
+          "n": 8,
+          "start": 4275360,
+          "end": 4729440,
+          "t0_s": 89.07,
+          "t1_s": 98.53,
+          "max_frame_dbfs": -85.29,
+          "rel_active_db": -63.65,
+          "energy_rel_track_db": -86.12,
+          "flatness": null,
+          "muted_clips": [
+            "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 20
+        }
+      ],
+      "refused": [],
+      "fades": [
+        {
+          "clip": "clp_backing_vocals_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_backing_vocals_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        }
+      ],
+      "fades_journal_seq": 21,
+      "removed_energy_rel_db": -66.71,
+      "status": "applied"
+    },
+    "m03": {
+      "op": "edit_gate",
+      "track": "trk_woodwinds",
+      "params": {
+        "fade_ms": 20.0,
+        "hold_ms": 400.0,
+        "lead_ms": 10.0,
+        "min_gap_ms": 1000.0,
+        "threshold_db": -60.0
+      },
+      "section": null,
+      "active_db": -27.41,
+      "track_energy_db": -44.7,
+      "regions": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 1173120,
+          "t0_s": 0.0,
+          "t1_s": 24.44,
+          "max_frame_dbfs": -92.75,
+          "rel_active_db": -65.34,
+          "energy_rel_track_db": -79.42,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds"
+          ],
+          "journal_seq": 22
+        },
+        {
+          "n": 2,
+          "start": 1248960,
+          "end": 1379040,
+          "t0_s": 26.02,
+          "t1_s": 28.73,
+          "max_frame_dbfs": -91.83,
+          "rel_active_db": -64.43,
+          "energy_rel_track_db": -77.06,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b"
+          ],
+          "journal_seq": 23
+        },
+        {
+          "n": 3,
+          "start": 1471200,
+          "end": 1672800,
+          "t0_s": 30.65,
+          "t1_s": 34.85,
+          "max_frame_dbfs": -88.13,
+          "rel_active_db": -60.72,
+          "energy_rel_track_db": -75.71,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b"
+          ],
+          "journal_seq": 24
+        },
+        {
+          "n": 4,
+          "start": 1724160,
+          "end": 1805280,
+          "t0_s": 35.92,
+          "t1_s": 37.61,
+          "max_frame_dbfs": -155.92,
+          "rel_active_db": -128.52,
+          "energy_rel_track_db": -197.45,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b"
+          ],
+          "journal_seq": 25
+        },
+        {
+          "n": 5,
+          "start": 1834080,
+          "end": 2368800,
+          "t0_s": 38.21,
+          "t1_s": 49.35,
+          "max_frame_dbfs": -157.26,
+          "rel_active_db": -129.86,
+          "energy_rel_track_db": -191.9,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 26
+        },
+        {
+          "n": 6,
+          "start": 2415360,
+          "end": 2543040,
+          "t0_s": 50.32,
+          "t1_s": 52.98,
+          "max_frame_dbfs": -97.85,
+          "rel_active_db": -70.44,
+          "energy_rel_track_db": -85.84,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 27
+        },
+        {
+          "n": 7,
+          "start": 2839200,
+          "end": 2940960,
+          "t0_s": 59.15,
+          "t1_s": 61.27,
+          "max_frame_dbfs": -93.98,
+          "rel_active_db": -66.57,
+          "energy_rel_track_db": -102.41,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 28
+        },
+        {
+          "n": 8,
+          "start": 2978400,
+          "end": 3116160,
+          "t0_s": 62.05,
+          "t1_s": 64.92,
+          "max_frame_dbfs": -89.78,
+          "rel_active_db": -62.37,
+          "energy_rel_track_db": -74.9,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 29
+        },
+        {
+          "n": 9,
+          "start": 3139200,
+          "end": 4078080,
+          "t0_s": 65.4,
+          "t1_s": 84.96,
+          "max_frame_dbfs": -90.27,
+          "rel_active_db": -62.86,
+          "energy_rel_track_db": -77.73,
+          "flatness": null,
+          "muted_clips": [
+            "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b"
+          ],
+          "journal_seq": 30
+        }
+      ],
+      "refused": [],
+      "fades": [
+        {
+          "clip": "clp_woodwinds_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_out",
+          "before": 0,
+          "after": 960
+        },
+        {
+          "clip": "clp_woodwinds_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b_b",
+          "field": "fade_in",
+          "before": 0,
+          "after": 960
+        }
+      ],
+      "fades_journal_seq": 31,
+      "removed_energy_rel_db": -69.59,
+      "status": "applied"
+    }
+  },
+  "reverted": false
+}
