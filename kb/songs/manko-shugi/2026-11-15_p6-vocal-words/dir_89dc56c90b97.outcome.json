@@ -1,0 +1,307 @@
+{
+  "kind": "direction_outcome",
+  "schema_version": 1,
+  "direction": "dir_89dc56c90b97",
+  "song": "manko-shugi",
+  "pattern": "p6",
+  "request": "ボーカルの言葉をもう少し前に出したい。リファレンスは無し",
+  "variant": "var_streaming_universal",
+  "files": {
+    "result": "streaming_universal__hires_native.wav",
+    "floor": "streaming_universal__hires_native.wav"
+  },
+  "loudness": {
+    "result_lufs_i": -14.009,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": 0.002
+  },
+  "observations": {
+    "o1": {
+      "floor": {
+        "status": "ok",
+        "value": -17.1495,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -16.0838,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.002
+      }
+    },
+    "o2": {
+      "floor": {
+        "status": "ok",
+        "value": -14.4711,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -13.5503,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.002
+      }
+    },
+    "o3": {
+      "floor": {
+        "status": "ok",
+        "value": 24.1297,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": 23.6541,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.002
+      }
+    },
+    "o4": {
+      "floor": {
+        "status": "ok",
+        "value": -11.2985,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -11.0697,
+        "unit": "dB",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.002
+      }
+    },
+    "o5": {
+      "floor": {
+        "status": "ok",
+        "value": -22.8286,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -22.8308,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.002
+      }
+    }
+  },
+  "claims": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -17.1495,
+      "result": -16.0838,
+      "delta": 1.0657,
+      "verdict": "met",
+      "id": "c1",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "up",
+      "floor": -14.4711,
+      "result": -13.5503,
+      "delta": 0.9208,
+      "verdict": "met",
+      "id": "c2",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "up",
+      "floor": 24.1297,
+      "result": 23.6541,
+      "delta": -0.4756,
+      "verdict": "not_met",
+      "id": "c3",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "not_worse",
+      "floor": -11.2985,
+      "result": -11.0697,
+      "delta": 0.2288,
+      "verdict": "met",
+      "id": "c4",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": -22.8286,
+      "result": -22.8308,
+      "delta": -0.0022,
+      "verdict": "met",
+      "id": "c5",
+      "primary": false
+    },
+    {
+      "quantity": "P-10",
+      "direction": "not_worse",
+      "floor": null,
+      "result": null,
+      "verdict": "not_measured",
+      "id": "c6",
+      "primary": false
+    }
+  ],
+  "move_checks": [
+    {
+      "quantity": "obs:o3",
+      "direction": "up",
+      "floor": 24.1297,
+      "result": 23.6541,
+      "delta": -0.4756,
+      "verdict": "not_met",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": -22.8286,
+      "result": -22.8308,
+      "delta": -0.0022,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -17.1495,
+      "result": -16.0838,
+      "delta": 1.0657,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": -22.8286,
+      "result": -22.8308,
+      "delta": -0.0022,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "not_worse",
+      "floor": -11.2985,
+      "result": -11.0697,
+      "delta": 0.2288,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "not_worse",
+      "floor": -17.1495,
+      "result": -16.0838,
+      "delta": 1.0657,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "not_worse",
+      "floor": -11.2985,
+      "result": -11.0697,
+      "delta": 0.2288,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    }
+  ],
+  "move_ref": {
+    "items": 3,
+    "by_move": {
+      "m01": [
+        "mx.trk_vocals.comp_peak"
+      ],
+      "m02": [
+        "dr.trk_vocals.m02"
+      ],
+      "m03": [
+        "send:trk_vocals->bus_reverb"
+      ]
+    },
+    "unknown_refs": [],
+    "moves_without_trace": [],
+    "ok": true
+  },
+  "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+  },
+  "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -25.68,
+    "frames_compared": 4746240,
+    "converged": false
+  },
+  "summary": {
+    "primary_met": 1,
+    "primary": 1,
+    "claims_met": 4,
+    "claims": 6,
+    "safeguards_not_met": []
+  },
+  "status": "checked"
+}

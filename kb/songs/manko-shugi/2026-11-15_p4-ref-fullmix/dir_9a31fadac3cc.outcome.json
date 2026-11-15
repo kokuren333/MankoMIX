@@ -1,0 +1,438 @@
+{
+  "kind": "direction_outcome",
+  "schema_version": 1,
+  "direction": "dir_9a31fadac3cc",
+  "song": "manko-shugi",
+  "pattern": "p4",
+  "request": "参照フルミックス（work_manko-shugi-suno-master）の感じを参考にしたい。写すのではなく、読んで、この曲のミックスに移せるところを取り入れてほしい",
+  "variant": "var_streaming_universal",
+  "files": {
+    "result": "streaming_universal__hires_native.wav",
+    "floor": "streaming_universal__hires_native.wav"
+  },
+  "loudness": {
+    "result_lufs_i": -14.005,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": -0.002
+  },
+  "observations": {
+    "o1": {
+      "floor": {
+        "status": "ok",
+        "value": -12.8334,
+        "unit": "LUFS",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -12.4671,
+        "unit": "LUFS",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o2": {
+      "floor": {
+        "status": "ok",
+        "value": -7.9419,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -8.5688,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o3": {
+      "floor": {
+        "status": "ok",
+        "value": -9.1376,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -8.9327,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o4": {
+      "floor": {
+        "status": "ok",
+        "value": -19.4128,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -19.1283,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o5": {
+      "floor": {
+        "status": "ok",
+        "value": -14.3219,
+        "unit": "LUFS",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -14.3816,
+        "unit": "LUFS",
+        "range_s": [
+          3.1,
+          32.5
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o6": {
+      "floor": {
+        "status": "ok",
+        "value": 11.5264,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": 11.5552,
+        "unit": "dB",
+        "range_s": [
+          90.8,
+          93.8
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o7": {
+      "floor": {
+        "status": "ok",
+        "value": -13.6864,
+        "unit": "LUFS",
+        "range_s": [
+          84.3,
+          95.7
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -13.3293,
+        "unit": "LUFS",
+        "range_s": [
+          84.3,
+          95.7
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o8": {
+      "floor": {
+        "status": "ok",
+        "value": -12.3048,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -12.173,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": -0.0022
+      }
+    },
+    "o9": {
+      "floor": {
+        "status": "ok",
+        "value": -7.5785,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": 0.0
+      },
+      "result": {
+        "status": "ok",
+        "value": -7.6581,
+        "unit": "dB",
+        "range_s": [
+          0.0,
+          98.88
+        ],
+        "gain_db": -0.0022
+      }
+    }
+  },
+  "reference_distance": {
+    "note": "reference only (U-7): |value - ref_value| for the floor and the result, measured as the observation is (result level-matched to the floor); change < 0 = the result is nearer. Not part of any verdict: the claims are judged against the floor",
+    "by_observation": {
+      "o2": {
+        "ref_value": -9.5,
+        "floor": 1.5581,
+        "result": 0.9312,
+        "change": -0.6269
+      },
+      "o3": {
+        "ref_value": -8.5,
+        "floor": 0.6376,
+        "result": 0.4327,
+        "change": -0.2049
+      },
+      "o4": {
+        "ref_value": -18.3,
+        "floor": 1.1128,
+        "result": 0.8283,
+        "change": -0.2845
+      },
+      "o6": {
+        "ref_value": 11.6,
+        "floor": 0.0736,
+        "result": 0.0448,
+        "change": -0.0288
+      },
+      "o8": {
+        "ref_value": -10.7,
+        "floor": 1.6048,
+        "result": 1.473,
+        "change": -0.1318
+      },
+      "o9": {
+        "ref_value": -9.1,
+        "floor": 1.5215,
+        "result": 1.4419,
+        "change": -0.0796
+      }
+    }
+  },
+  "claims": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -12.8334,
+      "result": -12.4671,
+      "delta": 0.3663,
+      "verdict": "not_met",
+      "id": "c1",
+      "primary": true
+    },
+    {
+      "quantity": "obs:o7",
+      "direction": "up",
+      "floor": -13.6864,
+      "result": -13.3293,
+      "delta": 0.3571,
+      "verdict": "not_met",
+      "id": "c2",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "down",
+      "floor": -7.9419,
+      "result": -8.5688,
+      "delta": -0.6269,
+      "verdict": "met",
+      "id": "c3",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": -14.3219,
+      "result": -14.3816,
+      "delta": -0.0597,
+      "verdict": "met",
+      "id": "c4",
+      "primary": false
+    },
+    {
+      "quantity": "obs:o6",
+      "direction": "not_worse",
+      "floor": 11.5264,
+      "result": 11.5552,
+      "delta": 0.0288,
+      "verdict": "met",
+      "id": "c5",
+      "primary": false
+    }
+  ],
+  "move_checks": [
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -12.8334,
+      "result": -12.4671,
+      "delta": 0.3663,
+      "verdict": "not_met",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o3",
+      "direction": "up",
+      "floor": -9.1376,
+      "result": -8.9327,
+      "delta": 0.2049,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o6",
+      "direction": "not_worse",
+      "floor": 11.5264,
+      "result": 11.5552,
+      "delta": 0.0288,
+      "verdict": "met",
+      "move": "m01",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o1",
+      "direction": "up",
+      "floor": -12.8334,
+      "result": -12.4671,
+      "delta": 0.3663,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o2",
+      "direction": "down",
+      "floor": -7.9419,
+      "result": -8.5688,
+      "delta": -0.6269,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o5",
+      "direction": "not_worse",
+      "floor": -14.3219,
+      "result": -14.3816,
+      "delta": -0.0597,
+      "verdict": "met",
+      "move": "m02",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o4",
+      "direction": "up",
+      "floor": -19.4128,
+      "result": -19.1283,
+      "delta": 0.2845,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "expect",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    },
+    {
+      "quantity": "obs:o6",
+      "direction": "not_worse",
+      "floor": 11.5264,
+      "result": 11.5552,
+      "delta": 0.0288,
+      "verdict": "met",
+      "move": "m03",
+      "kind": "safeguard",
+      "note": "evaluated on the combined result (moves are not isolated in v0)"
+    }
+  ],
+  "move_ref": {
+    "items": 3,
+    "by_move": {
+      "m02": [
+        "automation:trk_bass"
+      ],
+      "m01": [
+        "automation:trk_drums"
+      ],
+      "m03": [
+        "automation:trk_percussion"
+      ]
+    },
+    "unknown_refs": [],
+    "moves_without_trace": [],
+    "ok": true
+  },
+  "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+  },
+  "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -31.31,
+    "frames_compared": 4746240,
+    "converged": false
+  },
+  "summary": {
+    "primary_met": 0,
+    "primary": 1,
+    "claims_met": 3,
+    "claims": 5,
+    "safeguards_not_met": []
+  },
+  "status": "checked"
+}
