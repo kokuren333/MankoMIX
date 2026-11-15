@@ -212,6 +212,10 @@ def _profile(pid: str) -> dict | None:
 # validate
 # ---------------------------------------------------------------------------
 
+# processor parameters whose value is a list (stereo crossovers_hz / widths): a 2-item list of numbers is
+# such a value, never a range [lo, hi], so they are passed through as written and cannot be calibrated
+ARRAY_PARAM_IDS = frozenset(p["id"] for spec in P.PROCESSORS.values() for p in spec.get("params") or []
+                            if p.get("type") == "float_array")
 
 
 def _is_range(v: Any) -> bool:
@@ -236,7 +240,7 @@ def resolve_params(move: dict, params: dict | None, sel: dict | None = None,
     ``<move id>.chain<i>`` for a bus_add chain item); a chosen value must lie inside the range."""
     out, notes = {}, []
     for k, v in (params or {}).items():
-        if _is_range(v):
+        if _is_range(v) and k not in ARRAY_PARAM_IDS:
             lo, hi = float(min(v)), float(max(v))
             kid = f"{prefix or move.get('id')}.{k}"
             if sel is not None and kid in sel:
@@ -280,10 +284,10 @@ def _rule_ids() -> set[str]:
 
 def _ends(params: dict) -> list[dict]:
     """The parameter sets at both ends of every range (both ends must be inside the declared range)."""
-    if not any(_is_range(v) for k, v in params.items()):
+    if not any(_is_range(v) and k not in ARRAY_PARAM_IDS for k, v in params.items()):
         return [params]
-    lo = {k: (min(v) if _is_range(v) else v) for k, v in params.items()}
-    hi = {k: (max(v) if _is_range(v) else v) for k, v in params.items()}
+    lo = {k: (min(v) if _is_range(v) and k not in ARRAY_PARAM_IDS else v) for k, v in params.items()}
+    hi = {k: (max(v) if _is_range(v) and k not in ARRAY_PARAM_IDS else v) for k, v in params.items()}
     return [lo, hi]
 
 

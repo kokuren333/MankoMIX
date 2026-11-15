@@ -561,6 +561,86 @@ def test_ms_release_with_a_tempo_records_the_nearest_note(song, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# §8.5 stereo array parameters (T-33)
+# ---------------------------------------------------------------------------
+
+ARRAY_FORMS = [
+    {"mono_below_hz": 120, "crossovers_hz": [4000], "widths": [1.0, 1.1]},
+    {"crossovers_hz": [300, 4000], "widths": [0.8, 1.0, 1.2]},
+    {"crossovers_hz": [2000, 6000, 10000], "widths": [1.0, 1.0, 1.1, 1.2]},
+]
+
+
+def _stereo(params, target="bus_mix", mid="m01") -> dict:
+    return {"id": mid, "aim": "a1", "op": "chain_add", "target": target, "processor": "stereo",
+            "params": params, "basis": "band width", "origin": "new"}
+
+
+@pytest.mark.parametrize("i", range(len(ARRAY_FORMS)))
+def test_stereo_array_forms_validate_and_stay_arrays(song, tmp_path, i):
+    params = ARRAY_FORMS[i]
+    res = _validate(song, tmp_path, [_stereo(params)])
+    assert res["ok"], res["errors"]
+    assert D.validate(D.parse_document(_doc(tmp_path / "np", _block([_stereo(params)]))))["ok"]
+    a = D.apply(song, _doc(tmp_path / "d", _block([_stereo(params)])))
+    assert a["applied"] is True
+    data = json.loads((song / "project.json").read_text(encoding="utf-8"))
+    mix = next(b for b in data["buses"] if b["id"] == "bus_mix")
+    it = next(x for x in mix["chain"] if x.get("move_ref"))
+    assert it["type"] == "stereo"
+    assert it["params"]["crossovers_hz"] == [float(x) for x in params["crossovers_hz"]]
+    assert it["params"]["widths"] == [float(x) for x in params["widths"]]
+
+
+def test_ranges_still_resolve_and_arrays_are_not_knobs(song, tmp_path):
+    m = {"id": "m", "select": {"gain_db": "max"}}
+    out, _ = D.resolve_params(m, {"gain_db": [1.5, 3.0], "widths": [1.0, 1.1], "crossovers_hz": [300, 4000]})
+    assert out == {"gain_db": 3.0, "widths": [1.0, 1.1], "crossovers_hz": [300, 4000]}
+    assert D._ends({"gain_db": [1.5, 3.0], "widths": [1.0, 1.1]}) == [{"gain_db": 1.5, "widths": [1.0, 1.1]},
+                                                                      {"gain_db": 3.0, "widths": [1.0, 1.1]}]
+    assert D._ends({"widths": [1.0, 1.1]}) == [{"widths": [1.0, 1.1]}]
+    assert D.ARRAY_PARAM_IDS == frozenset({"crossovers_hz", "widths"})
+    st = _stereo({"crossovers_hz": [4000], "widths": [1.0, 1.1], "mono_below_hz": [80, 160]})
+    doc = D.parse_document(_doc(tmp_path / "d", _block([st])))
+    assert D.validate(doc, song)["ok"]
+    assert [k["id"] for k in C.knobs(doc, D._Project(song))] == ["m01.mono_below_hz"]
+    bus = {"id": "m02", "aim": "a1", "op": "bus_add", "target": "bus_wide",
+           "params": {"chain": [{"processor": "stereo", "params": {"crossovers_hz": [4000], "widths": [1.0, 1.2]}}]},
+           "basis": "x", "origin": "new"}
+    doc2 = D.parse_document(_doc(tmp_path / "d2", _block([bus])))
+    assert D.validate(doc2, song)["ok"]
+    assert C.knobs(doc2, D._Project(song)) == []
+
+
+def _ms(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    return (x[:, 0] + x[:, 1]) / 2.0, (x[:, 0] - x[:, 1]) / 2.0
+
+
+def _band_rms(x: np.ndarray, lo: float, hi: float) -> float:
+    from mankomix.director import query as Q
+    y = Q._bandpass(x, SR, [lo, hi])
+    n = y.shape[0]
+    return float(np.sqrt(np.mean(y[n // 10:-n // 10] ** 2)))
+
+
+def test_band_split_stereo_on_the_mix_bus(tmp_path):
+    t = np.arange(int(3 * SR)) / SR
+    mid = 0.1 * np.sin(2 * np.pi * 200 * t) + 0.05 * np.sin(2 * np.pi * 7000 * t)
+    side = 0.05 * np.sin(2 * np.pi * 300 * t) + 0.05 * np.sin(2 * np.pi * 8000 * t)
+    x = np.stack([mid + side, mid - side], axis=1)
+    song = _make(tmp_path / "st", {"pad": x})
+    y0, _, _ = mr.render_mix(Project.open(song), measure=False)
+    a = D.apply(song, _doc(tmp_path / "d", _block([_stereo({"crossovers_hz": [4000], "widths": [1.0, 0.5]})])))
+    assert a["applied"] is True
+    y1, _, _ = mr.render_mix(Project.open(song), measure=False)
+    m0, s0 = _ms(y0)
+    m1, s1 = _ms(y1)
+    assert np.max(np.abs(m1 - m0)) < 1e-6                       # the mid is not touched
+    assert _band_rms(s1, 6000, 10000) / _band_rms(s0, 6000, 10000) == pytest.approx(0.5, abs=0.02)
+    assert _band_rms(s1, 150, 500) / _band_rms(s0, 150, 500) == pytest.approx(1.0, abs=0.02)
+
+
+# ---------------------------------------------------------------------------
 # §3.7-8 check --translation (T-34)
 # ---------------------------------------------------------------------------
 

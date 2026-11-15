@@ -74,7 +74,7 @@ def strong_end(op: str, ptype: str | None, key: str, lo: float, hi: float, param
 
 def knobs(doc: dict, proj=None) -> list[dict]:
     """Every range parameter of the direction: id, move, key, range, select value, strong / weak end."""
-    from .direction import EDIT_OPS, resolve_params
+    from .direction import ARRAY_PARAM_IDS, EDIT_OPS, resolve_params
     out = []
     items = proj.floor_items() if proj is not None else {}
     tracks = proj.tracks() if proj is not None else {}
@@ -84,6 +84,8 @@ def knobs(doc: dict, proj=None) -> list[dict]:
         start, _ = resolve_params(m, params)
         for k, v in params.items():
             if not _is_range(v):
+                continue
+            if k in ARRAY_PARAM_IDS:   # a list value (stereo crossovers_hz / widths), never a range
                 continue
             lo, hi = float(min(v)), float(max(v))
             st = strong_end(m.get("op"), ptype, k, lo, hi, {**params, **start})
