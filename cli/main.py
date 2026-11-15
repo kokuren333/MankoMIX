@@ -472,7 +472,8 @@ def cmd_direction_apply(a):
 
 def cmd_direction_check(a):
     from mankomix.director import direction as D
-    return _direction_errors(D.check, _project(a), a.floor, a.file, variant=a.variant, delivery=a.delivery)
+    return _direction_errors(D.check, _project(a), a.floor, a.file, variant=a.variant, delivery=a.delivery,
+                             translation=bool(getattr(a, "translation", False)))
 
 
 def cmd_direction_query(a):
@@ -491,6 +492,36 @@ def cmd_direction_query(a):
     return {"kind": "observations", "file": Path(a.audio).name, "observations": out}
 
 
+def _edit_errors(fn, *args, **kw):
+    from mankomix.director import edit as E
+    try:
+        return _direction_errors(fn, *args, **kw)
+    except E.EditError as e:
+        raise InputError(str(e)) from None
+
+
+def _json_arg(text: str | None):
+    if text is None:
+        return None
+    s = text.strip()
+    if s.startswith("@"):
+        return json.loads(Path(s[1:]).read_text(encoding="utf-8"))
+    if s[:1] in "{[\"" or s in ("null", "true", "false"):
+        return json.loads(s)
+    return s
+
+
+def cmd_direction_edit_scan(a):
+    from mankomix.director import edit as E
+    params = _json_arg(a.params) if a.params else {}
+    return _edit_errors(E.scan, _project(a), a.track, a.op, params, _json_arg(a.section))
+
+
+def cmd_direction_edit_revert(a):
+    from mankomix.director import edit as E
+    return _edit_errors(E.revert, _project(a), a.direction, a.move, actor=a.actor)
+
+
 def _ref_errors(fn, *args, **kw):
     from mankomix.core.errors import EnvironmentProblem
     from mankomix.director import refsheet as RSH
@@ -506,14 +537,15 @@ def _ref_errors(fn, *args, **kw):
 def cmd_direction_ref_study(a):
     from mankomix.director import refstudy as RS
     res = _ref_errors(RS.study_command, a.work, master=a.master, stems=a.stems, sections=a.sections,
-                      roles=a.roles, separate=a.separate, kb_root=a.kb)
+                      roles=a.roles, separate=a.separate, kb_root=a.kb, add=a.add)
     res["kb"] = _shown_path(Path(a.kb))
     return res
 
 
 def cmd_direction_ref_compare(a):
     from mankomix.director import refsheet as RSH
-    res = _ref_errors(RSH.compare_command, _project(a), a.work, a.out, variant=a.variant, kb_root=a.kb)
+    res = _ref_errors(RSH.compare_command, _project(a), a.work, a.out, variant=a.variant, kb_root=a.kb,
+                      add=a.add)
     res["out"] = _shown_path(Path(a.out))
     return res
 
@@ -555,7 +587,8 @@ def cmd_kb_search(a):
     root = Path(a.root)
     if not root.is_dir():
         raise InputError(f"kb root not found: {_shown_path(root)}")
-    res = kb.search(root, kind=a.kind, genre=a.genre, text=a.text)
+    res = kb.search(root, kind=a.kind, genre=a.genre, text=a.text, source_type=a.source_type,
+                    curriculum=a.curriculum)
     res["root"] = _shown_path(root)
     return res
 
@@ -987,11 +1020,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--floor", required=True, help="the floor project folder (rendered)")
     sp.add_argument("--variant", help="variant id (default: the project's first variant)")
     sp.add_argument("--delivery", default="hires_native", help="delivery file to compare (default hires_native)")
+    sp.add_argument("--translation", action="store_true",
+                    help="add the translation block (mono / small-speaker view; reference only, in no verdict)")
     sp = add("query", cmd_direction_query,
              "observation quantities on an audio file (band_energy, band_ratio, crest, loudness, side_ratio, "
              "correlation); --project resolves section ids", gsub)
     sp.add_argument("audio", help="audio file")
     sp.add_argument("spec", help="observation JSON (object or list) or @file")
+
+    # the edit (declutter) stage: read-only scan and revert from the ledger (an optional move, UPGRADE2 §1)
+    grp_edit = add("edit", None, "edit stage of a direction (edit_trim / edit_gate): scan a track read-only, "
+                                 "revert the cut regions from the ledger", gsub)
+    esub = grp_edit.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")   # third word of the command name
+    esub.required = True
+    sp = add("scan", cmd_direction_edit_scan,
+             "what an edit move would cut and refuse on --project (raw asset before cleanup, safeguards EG-1 to "
+             "EG-5, removed energy); writes nothing", esub)
+    sp.add_argument("--track", required=True, help="track id")
+    sp.add_argument("--op", required=True, choices=("edit_trim", "edit_gate"), help="edit op")
+    sp.add_argument("--params", help="params JSON (as in a direction move) or @file")
+    sp.add_argument("--section", help="section id or JSON {\"t0_s\", \"t1_s\"} (detection range)")
+    sp = add("revert", cmd_direction_edit_revert,
+             "unmute the regions a direction cut and restore the fades (one journal entry), from "
+             "directions/dir_<id>.edits.json", esub)
+    sp.add_argument("--direction", required=True, help="direction id dir_<12 hex>")
+    sp.add_argument("--move", help="only this edit move (default: every applied edit move)")
 
     # raw-reference path (原液): measures user-supplied references for the director; never the core yardstick
     grp_ref = add("ref", None, "raw references (原液): refstudy of a work, refsheet against this project, engineer "
@@ -1011,6 +1064,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--separate", action="store_true",
                     help="pseudo stems from --master with the registered separation model (origin: separated, "
                          "confidence at most medium); error when no model is usable here")
+    sp.add_argument("--add", action="append", choices=("transient",),
+                    help="optional section (repeatable; off by default): transient = per-section band crest, "
+                         "attack density and their signs (master only)")
     sp.add_argument("--kb", default="_private/kb", help=kb_help)
     sp = add("compare", cmd_direction_ref_compare,
              "write the refsheet: the work's refstudy next to this project's master and stems with the same "
@@ -1018,6 +1074,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--work", required=True, help="work slug")
     sp.add_argument("--variant", help="variant id (default: the project's first variant)")
     sp.add_argument("--out", required=True, help="Markdown file to write (outside the project folder)")
+    sp.add_argument("--add", action="append", choices=("transient", "guide"),
+                    help="optional section (repeatable; off by default): transient = both transient profiles; "
+                         "guide = shape deviation from the generic guide (and the project's yardstick)")
     sp.add_argument("--kb", default="_private/kb", help=kb_help)
     sp = add("credit", cmd_direction_ref_credit,
              "regenerate the aggregate part of an engineer card from the credited works' refstudies "
@@ -1038,6 +1097,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--kind", action="append", help="card kind (repeatable), e.g. theory, work, lesson")
     sp.add_argument("--genre", action="append", help="genre in the card's genre list or applies_to (repeatable)")
     sp.add_argument("--text", help="case-insensitive text in the id, title or body")
+    sp.add_argument("--source-type", dest="source_type", action="append",
+                    help="the card's optional source_type (repeatable), e.g. curriculum")
+    sp.add_argument("--curriculum", help="bundle id cur_<slug>: its cards, by the bundle's order of learning, then id")
     sp.add_argument("--root", default="kb", help="kb folder (default: kb)")
     sp = add("show", cmd_kb_show, "front matter and body of one card by id (read-only)", gsub)
     sp.add_argument("id", help="card id, e.g. KT-0001, work_<slug>, KL-0001")

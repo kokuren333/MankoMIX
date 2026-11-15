@@ -26,6 +26,13 @@ share definitions and rounding by construction.
 
 Read-only: nothing in the project is written (the output must be outside the
 project folder), and nothing is written in the kb either.
+
+Optional sections (``--add``; without them the sheet is byte-identical):
+``transient`` puts the transient profile of both masters side by side (the
+reference's from its refstudy §8), ``guide`` the shape deviation of both
+masters from the generic guide (and, for this side, from the project's own
+yardstick references when registered). Both are material to read; nothing
+calibrates or moves towards them.
 """
 
 from __future__ import annotations
@@ -40,6 +47,13 @@ import numpy as np
 from . import refstudy as RS
 
 DIFF_NOTE = "差 = こちら − 参照"
+ADD_NAMES = ("transient", "guide")
+GUIDE_SHAPE_BANDS = ("lowmid", "mid", "highmid")    # their median is removed: shape only
+GUIDE_NOTE = ("ジャンル固有の目標カーブは同梱していない。汎用ガイドは目標ではない。"
+              "偏差は性格の記述で、0 に近いほど良いわけではない")
+GUIDE_SOURCE = ("出どころ: 汎用ガイド（`knowledge/thresholds_m3.json` の `p01_generic_prior`: −3 dB/oct の傾きと"
+                "緩い帯域制限。読み取りのみ）")
+LTAS_N_FFT = 8192                                   # the ERB LTAS of core.reference (ltas_erb default)
 
 # (key, label, decimals, group)  group: level | spectral | space | hf | dyn
 MASTER_ROWS = (
@@ -107,8 +121,11 @@ def _within(child: Path, parent: Path) -> bool:
 # this project's side (read the project like the dossier does)
 # ---------------------------------------------------------------------------
 
-def project_side(project: str | Path, variant: str | None, kb_section_audio: bool = True) -> dict:
-    """Measure this project's master render and stems with the refstudy functions; return parsed values."""
+def project_side(project: str | Path, variant: str | None, kb_section_audio: bool = True,
+                 add: list[str] | None = None) -> dict:
+    """Measure this project's master render and stems with the refstudy functions; return parsed values.
+
+    ``add`` (``transient``) measures the optional refstudy sections on this master too."""
     from . import direction as D
     from . import dossier as DS
     root = Path(project)
@@ -134,6 +151,11 @@ def project_side(project: str | Path, variant: str | None, kb_section_audio: boo
         mm = RS.master_measure(x, sr, secs)
         summ = RS.section_summary(mm["sections"])
         study.update(master=mm, summary=summ, signs=RS.apply_caps(RS.signs(mm, summ), lossy=False, separated=False))
+        info["master_sr"] = int(sr)
+        if "transient" in (add or []):
+            tr = RS.transient_measure(x, sr, secs, mm.get("vector"))
+            tr["signs"] = RS.apply_caps(RS.transient_signs(tr, summ), lossy=False, separated=False)
+            study.update(add=["transient"], transient=tr)
         del x
     else:
         info["master_sha256"] = None
@@ -266,16 +288,133 @@ def _caps(group: str, ref: dict, stems: str | None = None) -> list[str]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# optional sections (--add)
+# ---------------------------------------------------------------------------
+
+def check_add(add: Any) -> list[str]:
+    names = [] if add is None else ([add] if isinstance(add, str) else list(add))
+    for n in names:
+        if n not in ADD_NAMES:
+            raise RefSheetError(f"--add: unknown addition '{n}' (use one of {', '.join(ADD_NAMES)})")
+    return [n for n in ADD_NAMES if n in names]
+
+
+def _transient_section(num: int, ref: dict, me: dict, ref_md: str, has_ref_master: bool,
+                       has_our_master: bool) -> list[str]:
+    out = [f"## {num}. トランジェント輪郭の対照", "",
+           f"- 両側のマスターを同じ関数（refstudy §8）で測り、参照と比べて見る。注記: {RS.TRANSIENT_NOTE}",
+           f"- アタック密度: {RS.ATTACK_DENSITY_NOTE}"]
+    ref_has = bool(ref.get("transient"))
+    if not has_ref_master:
+        out.append("- 参照にマスターがない（refstudy にマスターの測定がない）。こちらの値だけを出す")
+    elif not ref_has:
+        out.append("- 参照側は未測定（`ref study --add transient`）。こちらの値だけを出す")
+    if not has_our_master:
+        out.append("- こちらのマスターが無い: こちらの列は空欄")
+    out.append("")
+    rows = []
+    for b in RS.BAND_IDS:
+        key = f"tr_crest:whole:{b}"
+        a, c = (ref.get(key) if ref_has else None), (me.get(key) if has_our_master else None)
+        g = "hf" if b == "air" else "dyn"
+        rows.append([f"`{key}` 全体の帯域クレスト dB `{b}`", RS._num(a, 2), RS._num(c, 2), _diff(a, c, 2),
+                     "; ".join(["マスターどうし。P-04 の定義。最終段の抑え込みを含む", *_caps(g, ref)])])
+    for gid, (lo, hi) in RS.ATTACK_GROUPS:
+        key = f"tr_density:whole:{gid}"
+        a, c = (ref.get(key) if ref_has else None), (me.get(key) if has_our_master else None)
+        g = "hf" if gid == "high" else "dyn"
+        rows.append([f"`{key}` 全体のアタック密度 /s `{gid}`（{lo:g}–{hi:g} Hz）", RS._num(a, 2), RS._num(c, 2),
+                     _diff(a, c, 2), "; ".join(["マスターどうし。曲全体の数 ÷ 秒数（テンポ・編成の違いを含む）",
+                                                *_caps(g, ref)])])
+    out += RS._table(["量", "参照", "こちら", "差", "比較条件"], rows)
+    out += [""]
+    return out
+
+
+def guide_band_means(sr: int) -> dict:
+    """The generic guide (P-01 generic prior) averaged over the P-22 bands, on the ERB bands of the LTAS."""
+    from mankomix.core.analysis import erb as E
+    from mankomix.core.analysis import perceptual as P
+    step = float(P._cfg()["erb"]["step_erb"])
+    edges, centers = E.erb_band_edges(float(sr), LTAS_N_FFT, step=step)
+    g = P.generic_prior({"n_fft": LTAS_N_FFT, "edges_hz": edges, "centers_hz": centers}, float(sr))
+    return RS._ltas_band_means({"centers_hz": [float(c) for c in centers],
+                                "level_db": [float(v) for v in g["median_db"]]})
+
+
+def shape_deviation(levels: dict, base: dict) -> dict:
+    """levels - base per band, minus the median over GUIDE_SHAPE_BANDS (shape only)."""
+    d = {b: (RS._f(levels.get(b)) - RS._f(base.get(b)))
+         if RS._f(levels.get(b)) is not None and RS._f(base.get(b)) is not None else None for b in RS.BAND_IDS}
+    mids = [d[b] for b in GUIDE_SHAPE_BANDS if d.get(b) is not None]
+    if len(mids) != len(GUIDE_SHAPE_BANDS):
+        return {b: None for b in RS.BAND_IDS}
+    off = float(np.median(mids))
+    return {b: (v - off if v is not None else None) for b, v in d.items()}
+
+
+def yardstick_band_means(project: str | Path) -> tuple[dict | None, int]:
+    """Median LTAS of the project's yardstick references (``reference add``) over the P-22 bands; read-only."""
+    from mankomix.core.errors import MankoError
+    from mankomix.core.project import Project
+    from mankomix.core.reference import reference_distribution
+    try:
+        dist = reference_distribution(Project.open(Path(project)))
+    except MankoError:
+        return None, 0
+    if not dist:
+        return None, 0
+    return RS._ltas_band_means({"centers_hz": dist["centers_hz"], "level_db": dist["median_db"]}), int(dist["n"])
+
+
+def _guide_section(num: int, ref: dict, me: dict, info: dict, project: str | Path, has_ref_master: bool,
+                   has_our_master: bool) -> list[str]:
+    out = [f"## {num}. 汎用ガイドからの形の偏差", "", f"- {GUIDE_NOTE}", f"- {GUIDE_SOURCE}",
+           "- 定義（両側同じ）: −23 LUFS 合わせの LTAS の帯域平均 − ガイドの同じ帯域平均。"
+           "lowmid・mid・highmid の中央値を引いて形だけにする。参照と比べて見る材料の 1 観点"]
+    if not has_ref_master:
+        out.append("- 参照にマスターがない: 参照の列は空欄")
+    if not has_our_master:
+        out.append("- こちらのマスターが無い: こちらの列は空欄")
+    out.append("")
+    rs_sr = ref.get("sample_rate") or info.get("master_sr")
+    ref_lv = {b: ref.get(f"ltas_db:{b}") for b in RS.BAND_IDS} if has_ref_master else {}
+    our_lv = {b: me.get(f"ltas_db:{b}") for b in RS.BAND_IDS} if has_our_master else {}
+    ref_dev = shape_deviation(ref_lv, guide_band_means(rs_sr)) if ref_lv and rs_sr else {}
+    our_dev = shape_deviation(our_lv, guide_band_means(info["master_sr"])) if our_lv and info.get("master_sr") else {}
+    rows = []
+    for b in RS.BAND_IDS:
+        a, c = ref_dev.get(b), our_dev.get(b)
+        g = "hf" if b == "air" else "ltas"
+        rows.append([f"`guide_dev:{b}` 汎用ガイドからの形の偏差 dB `{b}`", RS._num(a, 1), RS._num(c, 1), _diff(a, c, 1),
+                     "; ".join([GROUP_NOTE["ltas"] + "。形だけ（中域 3 帯域の中央値を引く）", *_caps(g, ref)])])
+    yb, n = yardstick_band_means(project)
+    if yb is None:
+        out += RS._table(["量", "参照", "こちら", "差", "比較条件"], rows)
+        out += ["", "- このプロジェクトの物差し（`reference add` の参照群）: 物差しは未登録", ""]
+        return out
+    yd = shape_deviation(our_lv, yb) if our_lv else {}
+    for b in RS.BAND_IDS:
+        rows.append([f"`yardstick_dev:{b}` 物差しの分布の中央値からの形の偏差 dB `{b}`", "—", RS._num(yd.get(b), 1), "—",
+                     f"こちら側だけ。このプロジェクトの物差し（`reference add` の参照群 n = {n}）の中央値との差、"
+                     "中域 3 帯域の中央値を引いた形。利用者が選んだ参照群"])
+    out += RS._table(["量", "参照", "こちら", "差", "比較条件"], rows)
+    out += [""]
+    return out
+
+
 def build_sheet(project: str | Path, work: str, *, variant: str | None = None,
-                kb_root: str | Path = RS.DEFAULT_KB) -> dict:
+                kb_root: str | Path = RS.DEFAULT_KB, add: Any = None) -> dict:
     RS.check_slug(work)
+    adds = check_add(add)
     rs_path = RS.work_dir(Path(kb_root), work) / "refstudy.md"
     if not rs_path.is_file():
         raise RefSheetError(f"no refstudy for work_{work} in the kb (run: mankomix direction ref study --work {work} ...)")
     ref_md = rs_path.read_text(encoding="utf-8")
     ref = RS.study_values(ref_md)
     ref_sha = hashlib.sha256(rs_path.read_bytes()).hexdigest()
-    ours = project_side(project, variant)
+    ours = project_side(project, variant, add=[a for a in adds if a == "transient"])
     me, info = ours["values"], ours["info"]
     has_ref_master = "## 3. マスター: 全体" in ref_md
     has_our_master = info.get("master_sha256") is not None
@@ -287,8 +426,10 @@ def build_sheet(project: str | Path, work: str, *, variant: str | None = None,
              + (f"`{info['master_sha256']}`" if has_our_master else "なし"),
              f"- 列は 参照の値／こちらの値／差／比較条件 だけ（{DIFF_NOTE}）。目標・推奨の列は作らない。"
              "差は埋めるべき目標ではなく問い（U-5）。一度に比べる問いは 1 つ（SPEC §4.6）",
-             "- 採る特徴はこの曲の素材での手に翻訳し、主張は床に対して立てる（U-6）。参照との距離は参考値（U-7）",
-             ""]
+             "- 採る特徴はこの曲の素材での手に翻訳し、主張は床に対して立てる（U-6）。参照との距離は参考値（U-7）"]
+    if adds:
+        lines.append("- 追加: " + ", ".join(adds))
+    lines += [""]
     for n in info.get("notes") or []:
         lines.append(f"- 注: {n}")
     if info.get("notes"):
@@ -378,21 +519,30 @@ def build_sheet(project: str | Path, work: str, *, variant: str | None = None,
                       "対処は既存の整音段（`cleanup_override`）の仕事", *_caps("hf", ref)])
     lines += RS._table(["量", "参照", "こちら", "差", "比較条件"],
                        [["`flatness` 高域（10–14 kHz）の平坦度", RS._num(a, 4), RS._num(b, 4), _diff(a, b, 4), cond]])
-    lines += ["", "## 付記", "",
+    lines += [""]
+    num = 6
+    if "transient" in adds:
+        lines += _transient_section(num, ref, me, ref_md, has_ref_master, has_our_master)
+        num += 1
+    if "guide" in adds:
+        lines += _guide_section(num, ref, me, info, project, has_ref_master, has_our_master)
+        num += 1
+    lines += ["## 付記", "",
               "- 参照の値は refstudy の表からの読み取り（書き写し）。こちらの値は同じ関数・同じ丸めで測った",
               "- この表は読み取りのみで作る。プロジェクトも kb も書き換えない", ""]
     md = "\n".join(lines)
     return {"markdown": md, "sha256": hashlib.sha256(md.encode("utf-8")).hexdigest(), "refstudy_sha256": ref_sha,
             "variant": info["variant"], "roles_both": both, "roles_ref_only": only_ref, "roles_this_only": only_me,
-            "master_compared": bool(has_ref_master and has_our_master)}
+            "master_compared": bool(has_ref_master and has_our_master),
+            **({"add": adds} if adds else {})}
 
 
 def compare_command(project: str | Path, work: str, out: str | Path, *, variant: str | None = None,
-                    kb_root: str | Path = RS.DEFAULT_KB) -> dict:
+                    kb_root: str | Path = RS.DEFAULT_KB, add: Any = None) -> dict:
     outp = Path(out)
     if _within(outp, Path(project)):
         raise RefSheetError("--out must be outside the project folder (ref compare never writes into the project)")
-    res = build_sheet(project, work, variant=variant, kb_root=kb_root)
+    res = build_sheet(project, work, variant=variant, kb_root=kb_root, add=add)
     outp.parent.mkdir(parents=True, exist_ok=True)
     data = res["markdown"].encode("utf-8")
     old = outp.read_bytes() if outp.is_file() else None
@@ -401,4 +551,5 @@ def compare_command(project: str | Path, work: str, out: str | Path, *, variant:
     return {"kind": "refsheet", "work": f"work_{work}", "variant": res["variant"], "refsheet_sha256": res["sha256"],
             "refstudy_sha256": res["refstudy_sha256"], "master_compared": res["master_compared"],
             "roles_both": res["roles_both"], "roles_ref_only": res["roles_ref_only"],
-            "roles_this_only": res["roles_this_only"], "changed": old != data}
+            "roles_this_only": res["roles_this_only"], "changed": old != data,
+            **({"add": res["add"]} if res.get("add") else {})}

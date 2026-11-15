@@ -16,6 +16,13 @@ Primitives (contract: ``docs/DIRECTION_FORMAT.md``):
 
 Only ``target: master`` (a rendered file) is supported; a track's contribution
 inside the mix (``trk_*``) is reported as unsupported.
+
+Optional ``view`` (translation view; absent or ``stereo`` = the plain signal,
+results unchanged): ``mono`` puts m = (L+R)/2 on both channels before
+measuring; ``mono_band`` then band-passes it (``_bandpass``, 4th order, zero
+phase) to ``view_band_hz`` (default 150-6000 Hz; lo 80-400, hi 3000-10000).
+``side_ratio`` / ``correlation`` are refused under a mono view (no side
+signal). The view is computed in memory; no audio is written.
 """
 
 from __future__ import annotations
@@ -30,6 +37,12 @@ from mankomix.core.measure import loudness as L
 
 PRIMITIVES = ("band_energy", "band_ratio", "crest", "loudness", "side_ratio", "correlation")
 LOUDNESS_STATS = ("integrated", "short_p95", "short_p50", "short_max")
+VIEWS = ("stereo", "mono", "mono_band")
+MONO_VIEWS = ("mono", "mono_band")
+VIEW_BAND_DEFAULT_HZ = (150.0, 6000.0)
+VIEW_BAND_LO_RANGE_HZ = (80.0, 400.0)
+VIEW_BAND_HI_RANGE_HZ = (3000.0, 10000.0)
+STEREO_ONLY_PRIMITIVES = ("side_ratio", "correlation")
 FRAME = 8192
 EPS = 1e-20
 
@@ -96,6 +109,43 @@ def _bandpass(y: np.ndarray, sr: int, band: list[float] | None) -> np.ndarray:
     return _sig.sosfiltfilt(sos, y, axis=0)
 
 
+def view_spec(obs: dict) -> tuple[str, tuple[float, float] | None]:
+    """(view, band) of an observation; raises QueryError ('bad_value: ...') for a bad view."""
+    view = obs.get("view")
+    view = "stereo" if view is None else view
+    if not isinstance(view, str) or view not in VIEWS:
+        raise QueryError(f"bad_value: unknown view {view!r} (use one of {', '.join(VIEWS)})")
+    vb = obs.get("view_band_hz")
+    if view != "mono_band":
+        if vb is not None:
+            raise QueryError("bad_value: view_band_hz needs view: mono_band")
+        if view in MONO_VIEWS and obs.get("primitive") in STEREO_ONLY_PRIMITIVES:
+            raise QueryError(f"bad_value: {obs.get('primitive')} has no meaning under view '{view}' (no side signal)")
+        return view, None
+    if obs.get("primitive") in STEREO_ONLY_PRIMITIVES:
+        raise QueryError(f"bad_value: {obs.get('primitive')} has no meaning under view '{view}' (no side signal)")
+    if vb is None:
+        return view, VIEW_BAND_DEFAULT_HZ
+    if not isinstance(vb, (list, tuple)) or len(vb) != 2 or             not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in vb):
+        raise QueryError("bad_value: view_band_hz must be [lo, hi] in Hz")
+    lo, hi = float(vb[0]), float(vb[1])
+    if not (VIEW_BAND_LO_RANGE_HZ[0] <= lo <= VIEW_BAND_LO_RANGE_HZ[1]) or             not (VIEW_BAND_HI_RANGE_HZ[0] <= hi <= VIEW_BAND_HI_RANGE_HZ[1]):
+        raise QueryError(f"bad_value: view_band_hz [{lo:g}, {hi:g}] out of range "
+                         f"(lo {VIEW_BAND_LO_RANGE_HZ[0]:g}-{VIEW_BAND_LO_RANGE_HZ[1]:g}, "
+                         f"hi {VIEW_BAND_HI_RANGE_HZ[0]:g}-{VIEW_BAND_HI_RANGE_HZ[1]:g})")
+    return view, (lo, hi)
+
+
+def apply_view(x: np.ndarray, sr: int, view: str, band: tuple[float, float] | None) -> np.ndarray:
+    """The signal as heard through the view (stereo input, stereo output)."""
+    if view not in MONO_VIEWS:
+        return x
+    m = (x[:, 0] + x[:, 1]) / 2.0
+    if view == "mono_band":
+        m = _bandpass(m, sr, list(band or VIEW_BAND_DEFAULT_HZ))
+    return np.stack([m, m], axis=1)
+
+
 def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = None,
             gain_db: float = 0.0) -> dict:
     """Compute one observation. ``gain_db`` is applied first (level matching)."""
@@ -105,7 +155,10 @@ def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = 
     target = obs.get("target", "master")
     if target != "master":
         return {"status": "unsupported", "reason": f"target '{target}': only 'master' is supported in v0"}
+    view, vband = view_spec(obs)
     x = _stereo(x) * (10.0 ** (gain_db / 20.0))
+    if view != "stereo":
+        x = apply_view(x, sr, view, vband)
     dur = x.shape[0] / sr
     t0, t1 = section_range(obs.get("section", "all"), sections, dur)
     seg = x[int(round(t0 * sr)):int(round(t1 * sr))]

@@ -453,8 +453,9 @@ def test_repository_kb_lints_ok_and_index_is_unchanged():
     assert res["ok"], res["errors"]
     assert kb.build_index(REPO_KB) == (REPO_KB / "INDEX.md").read_text(encoding="utf-8")
     # The design order (§2.2) itself, pinned independently of the heading.
-    assert kb.KINDS == ("song", "work", "engineer", "lesson", "move", "research", "theory", "outcome",
-                        "direction", "analysis", "research-log")
+    # upgrade 2 (§6.3 b) inserts 'curriculum' right after 'theory'
+    assert kb.KINDS == ("song", "work", "engineer", "lesson", "move", "research", "theory", "curriculum",
+                        "outcome", "direction", "analysis", "research-log")
     legacy = ("song", "lesson", "move", "research", "outcome", "direction", "analysis", "research-log")
     assert [k for k in kb.KINDS if k in legacy] == list(legacy)
     # Heading = legacy kinds + the new kinds actually present in the repository kb, in design order.

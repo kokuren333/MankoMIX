@@ -55,6 +55,9 @@ def _is_range(v: Any) -> bool:
 
 def strong_end(op: str, ptype: str | None, key: str, lo: float, hi: float, params: dict) -> float | None:
     """The end of [lo, hi] where the move acts most; None when the parameter has no such order."""
+    if op == "duck":
+        # a deeper duck acts more; its other parameters (times, trigger) have no such order
+        return hi if key == "depth_db" else None
     if key == "delta_db" or (key == "gain_db" and op != "gain"):
         return lo if abs(lo) > abs(hi) else (hi if abs(hi) > abs(lo) else None)
     if key == "width":
@@ -71,7 +74,7 @@ def strong_end(op: str, ptype: str | None, key: str, lo: float, hi: float, param
 
 def knobs(doc: dict, proj=None) -> list[dict]:
     """Every range parameter of the direction: id, move, key, range, select value, strong / weak end."""
-    from .direction import resolve_params
+    from .direction import EDIT_OPS, resolve_params
     out = []
     items = proj.floor_items() if proj is not None else {}
     tracks = proj.tracks() if proj is not None else {}
@@ -93,6 +96,8 @@ def knobs(doc: dict, proj=None) -> list[dict]:
     for m in doc["block"].get("moves") or []:
         op = m.get("op")
         params = m.get("params") or {}
+        if op in EDIT_OPS:   # edit parameters are never calibration knobs (§1.3)
+            continue
         if op == "bus_add":
             for i, c in enumerate(params.get("chain") or []):
                 add(m, c.get("params") or {}, c.get("type") or c.get("processor"), f"{m['id']}.chain{i}")

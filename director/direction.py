@@ -54,7 +54,13 @@ OPS = {
     "bus_add": ("mix", ("target", "params")),
     "cleanup_override": ("clean", ("target", "params")),
     "master_target": ("master", ("params",)),
+    # the edit (declutter) stage (UPGRADE2 §1): optional, decided and applied before every other move
+    "edit_trim": ("edit", ("target", "params")),
+    "edit_gate": ("edit", ("target", "params")),
+    # cross-track ducking (UPGRADE2 §2): gain automation on the target keyed by another track's hits
+    "duck": ("mix", ("target", "params")),
 }
+EDIT_OPS = ("edit_trim", "edit_gate")
 SELECTS = ("mid", "min", "max")
 DIRECTIONS = ("up", "down", "not_worse")
 MASTER_ONLY = ("limiter", "clipper", "dither", "resample", "loudness_gain")
@@ -206,6 +212,8 @@ def _profile(pid: str) -> dict | None:
 # validate
 # ---------------------------------------------------------------------------
 
+
+
 def _is_range(v: Any) -> bool:
     return (isinstance(v, list) and len(v) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool)
                                                          for x in v))
@@ -272,7 +280,7 @@ def _rule_ids() -> set[str]:
 
 def _ends(params: dict) -> list[dict]:
     """The parameter sets at both ends of every range (both ends must be inside the declared range)."""
-    if not any(_is_range(v) for v in params.values()):
+    if not any(_is_range(v) for k, v in params.items()):
         return [params]
     lo = {k: (min(v) if _is_range(v) else v) for k, v in params.items()}
     hi = {k: (max(v) if _is_range(v) else v) for k, v in params.items()}
@@ -408,6 +416,14 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             err(f"observations.{oid}", "unknown_section", f"unknown section '{sec}'")
         if "ref_value" in o and o["ref_value"] is not None and _scalar(o["ref_value"]) is None:
             err(f"observations.{oid}.ref_value", "bad_value", "ref_value must be a finite number (or null)")
+        if "view" in o or "view_band_hz" in o:
+            # the optional view (UPGRADE2 §3.5): the same rule as query.observe, so a written view never
+            # fails only at check time
+            try:
+                Q.view_spec(o)
+            except Q.QueryError as e:
+                msg = str(e).removeprefix("bad_value: ")
+                err(f"observations.{oid}.{'view_band_hz' if 'view_band_hz' in msg else 'view'}", "bad_value", msg)
     _validate_reference_fields(b, err)
 
     def check_quantity(where: str, q: dict):
@@ -493,7 +509,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             err(where, "invariant", f"'{proc}' is part of the master stage (order, limiter, dither) and cannot be used")
         sec = m.get("section")
         if sec not in (None, "all"):
-            if op != "gain":
+            if op != "gain" and op not in EDIT_OPS:
                 err(where, "section_scope", "only 'gain' can be limited to a section (other ops: tool_requests)")
             elif isinstance(sec, str) and proj and sec not in sections:
                 err(where, "unknown_section", f"unknown section '{sec}'")
@@ -560,12 +576,27 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "missing_field", "master_target needs params.target_lufs")
             elif win and not win[0] <= float(tl) <= win[1]:
                 err(where, "invariant", f"target_lufs {tl} is outside the profile window {win}")
+        elif op in EDIT_OPS:
+            from . import edit as E
+            if target == "master" or str(target).startswith("bus_") or (proj and target in buses):
+                err(where, "bad_target", f"'{op}' needs a track target")
+            elif proj and target not in tracks:
+                err(where, "unknown_target", f"unknown target '{target}'")
+            E.check_params(op, raw, where, err)
+        elif op == "duck":
+            from . import duck as K
+            if target == "master" or str(target).startswith("bus_") or (proj and target in buses):
+                err(where, "bad_target", "'duck' needs a track target (the track that goes down)")
+            elif proj and target not in tracks:
+                err(where, "unknown_target", f"unknown target '{target}'")
+            K.check_params(raw, target, where, err, tracks=tracks, buses=buses,
+                           bpm=K.floor_bpm(proj.floor_mxp) if proj else None, has_project=proj is not None)
         # review tier (assigned here, not self-declared). E1 is only the catalog range check: a move
         # taken from another work (origin: reference) is E2 or above (another song's facts are no
         # guarantee here), and citing a theory card (KT-nnnn) never makes a move E1
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
-        if m.get("origin") == "catalog" and cited and cited <= rule_ids:
+        if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck":
             tier = "E1"
         if op == "master_target":
             prof = _profile((variants[0] if variants else {}).get("profile") or "")
@@ -573,7 +604,8 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             if dflt is not None and params.get("target_lufs") is not None and float(params["target_lufs"]) != float(dflt):
                 tier = "E3"
         if target == LEAD and ((op == "gain" and sec not in (None, "all"))
-                               or (op == "chain_add" and proc in TIME_VARYING)):
+                               or (op == "chain_add" and proc in TIME_VARYING) or op in EDIT_OPS
+                               or op == "duck"):
             tier = "E3"
             lead_e3 = True
         if tier == "E3" and not b.get("listen_for"):
@@ -684,6 +716,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
         raise DirectionError(f"processor '{pid}' not found in the floor mix")
 
     seg_gain: dict[str, list] = {}
+    ducks: dict[str, list] = {}
     # new buses first so sends can reach them
     for m in b.get("moves") or []:
         if m.get("op") != "bus_add":
@@ -775,11 +808,26 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
         elif op == "master_target":
             record["master_target"] = float(params["target_lufs"])
             record["moves"][mid] = {"op": op, "target_lufs": float(params["target_lufs"])}
+        elif op == "duck":
+            from . import duck as K
+            try:
+                dp = K.plan(proj.root, m, params, K.floor_bpm(proj.floor_mxp))
+            except ValueError as e:
+                raise DirectionError(f"{mid}: {e}") from None
+            base = cur[target].get("automation") if isinstance(cur[target].get("automation"), dict) else {}
+            dp["record"]["floor_automation"] = {"points": len(base.get("gain_db") or []), "owner": base.get("owner")}
+            ducks.setdefault(target, []).append((mid, dp["points"]))
+            record["moves"][mid] = dp["record"]
+            notes += dp["notes"]
     for tid, segs in seg_gain.items():
+        if tid in ducks:
+            continue
         d = track(tid)
         pts = _automation(proj.rate, [s[:3] for s in segs], (cur[tid].get("automation") or {}).get("gain_db"))
         d["automation"] = {"gain_db": pts, "owner": OWNER, "reason": f"direction {dir_id}: section gains",
                            "move_ref": [_ref(dir_id, s[3]) for s in segs]}
+    for tid, dl in ducks.items():
+        _merge_ducks(proj, dir_id, tid, dl, seg_gain.get(tid) or [], cur, track)
     mix_moves = [m for m in b.get("moves") or [] if OPS.get(m.get("op"), ("",))[0] == "mix"]
     if not mix_moves:
         return None, record, notes
@@ -802,6 +850,29 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     prop["status"] = "proposed"
     prop["author"] = "agent"
     return prop, record, notes
+
+
+def _merge_ducks(proj: _Project, dir_id: str, tid: str, dl: list, segs: list, cur: dict, track) -> None:
+    """One automation on a duck target: the floor's automation + this direction's section gains + every
+    duck on the track, summed exactly (U-23). Nothing is written when no duck has a hit and no section
+    gain is there (the floor's automation then stays as it is)."""
+    from . import duck as K
+    base = cur[tid].get("automation") if isinstance(cur[tid].get("automation"), dict) else {}
+    total = list(base.get("gain_db") or [])
+    refs = []
+    if segs:
+        total = K.merge_automation(total, _automation(proj.rate, [s[:3] for s in segs], None))
+        refs += [s[3] for s in segs]
+    for mid, pts in dl:
+        if pts:
+            total = K.merge_automation(total, pts)
+            refs.append(mid)
+    if not refs:
+        return
+    what = ["ducking"] + (["section gains"] if segs else []) + (["the floor automation"] if base.get("gain_db") else [])
+    d = track(tid)
+    d["automation"] = {"gain_db": total, "owner": OWNER, "reason": f"direction {dir_id}: " + " + ".join(what),
+                       "move_ref": [_ref(dir_id, r) for r in refs]}
 
 
 def _director_items(data: dict) -> list[dict]:
@@ -848,10 +919,18 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
     rec_path = ddir / f"{doc['id']}.apply.json"
     if rec_path.is_file():
         raise DirectionError(f"{doc['id']} was already applied to this project")
+    # the edit stage (UPGRADE2 §1, U-19): before calibration, cleanup and the mix; skipped (and its
+    # module never imported) when the direction has no edit move
+    edit_moves = [m for m in doc["block"].get("moves") or [] if m.get("op") in EDIT_OPS]
+    edits = None
+    if edit_moves:
+        from . import edit as E
+        edits = E.apply_moves(root, doc, edit_moves, actor=actor)
+        proj = _Project(root)
     cal = None
     if calibrate:
         from . import calibrate as C
-        cal = C.calibrate(root, doc)
+        cal = C.calibrate(root, _without_edit_params(doc) if edit_moves else doc)
     # frozen copies of the director's documents
     shutil.copyfile(doc["path"], ddir / f"{doc['id']}.md")
     apath = Path(doc["path"]).parent / "analysis.md"
@@ -862,6 +941,9 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
                  "gate_definitions": gate_definitions_hash(), "floor_mix_proposal": proj.floor_mxp_id}
     if cal is not None:
         out["calibration"] = cal
+    if edits is not None:
+        record["moves"].update(edits["record"])
+        out["edits"] = edits["summary"]
     if record["cleanup"]:
         cl = []
         for c in record["cleanup"]:
@@ -885,6 +967,16 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
     rec_path.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     out["record_path"] = f"{DIRECTIONS_DIR}/{rec_path.name}"
     return out
+
+
+def _without_edit_params(doc: dict) -> dict:
+    """The document as calibration sees it: edit moves keep their claims and safeguards but carry no
+    parameter, so no edit parameter is ever a calibration knob (§1.3)."""
+    d = copy.deepcopy(doc)
+    for m in d["block"].get("moves") or []:
+        if m.get("op") in EDIT_OPS:
+            m["params"] = {}
+    return d
 
 
 class _ApiProj:
@@ -979,7 +1071,11 @@ def reference_distance(block: dict, obs_vals: dict) -> dict | None:
 
 
 def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, variant: str | None = None,
-          delivery: str = "hires_native") -> dict:
+          delivery: str = "hires_native", translation: bool = False) -> dict:
+    """Judge the applied direction against the floor -> ``directions/dir_<id>.outcome.json``.
+
+    ``translation``: add the ``translation`` block (UPGRADE2 §3.5; reference only, read by no verdict,
+    summary or calibration). Without it the outcome is unchanged."""
     root, froot = Path(project), Path(floor)
     doc = parse_document(doc_path)
     b = doc["block"]
@@ -1020,6 +1116,9 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     rd = reference_distance(b, obs_vals)
     if rd is not None:
         out["reference_distance"] = rd
+    if translation:
+        from . import translation as TR
+        out["translation"] = TR.block(x, y, sr, match)
     tterms, fterms = _terms(root, vid), _terms(froot, fv.get("id"))
 
     def value(qty: str) -> tuple[float | None, float | None, dict | None, dict | None]:
@@ -1076,13 +1175,24 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     for m in b.get("moves") or []:
         op = m.get("op")
         if op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
-                or (op == "gain" and m.get("section") not in (None, "all")):
+                or (op == "gain" and m.get("section") not in (None, "all")) \
+                or (op == "duck" and (recorded.get(m.get("id")) or {}).get("hits") != 0):
             if m.get("id") not in refs:
                 missing.append(m.get("id"))
         elif m.get("id") not in recorded:
             missing.append(m.get("id"))
     out["move_ref"] = {"items": len(items), "by_move": refs, "unknown_refs": bad, "moves_without_trace": missing,
                        "ok": not bad and not missing}
+    # the edit ledger (only when the direction has an edit move; otherwise the outcome has no such field)
+    led_path = root / DIRECTIONS_DIR / f"{doc['id']}.edits.json"
+    if led_path.is_file():
+        led = _read_json(led_path)
+        lmv = led.get("moves") or {}
+        out["edits"] = {"moves": len(lmv), "regions": sum(len(e.get("regions") or []) for e in lmv.values()),
+                        "refused": sum(len(e.get("refused") or []) for e in lmv.values()),
+                        "removed_energy_rel_db": {k: e.get("removed_energy_rel_db") for k, e in lmv.items()},
+                        "status": {k: e.get("status") for k, e in lmv.items()},
+                        "ledger": f"{DIRECTIONS_DIR}/{led_path.name}", "reverted": bool(led.get("reverted"))}
     # gate definitions before / after
     now = gate_definitions_hash()
     before = (rec or {}).get("gate_definitions")
@@ -1090,7 +1200,7 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
                                "unchanged": bool(before) and before.get("combined") == now["combined"]}
     # convergence with the floor
     def mix_state(data: dict) -> str:
-        keep = ("gain_db", "pan", "chain", "sends", "automation")
+        keep = ("gain_db", "pan", "chain", "sends", "automation", "clips")
         return canonical_hash({"tracks": {t.get("id"): {k: t.get(k) for k in keep} for t in data.get("tracks") or []},
                                "buses": data.get("buses")})[:16]
     n = min(x.shape[0], y.shape[0])

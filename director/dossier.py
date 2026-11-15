@@ -842,10 +842,17 @@ def _s10_theory(cards: list[dict]) -> list[str]:
     shelf = sorted((str(c["meta"].get("id")), str(c["meta"].get("title") or "")) for c in cards
                    if c["meta"].get("kind") == "theory" and c["meta"].get("status") == "active")
     if not shelf:
-        return ["- 理論カードなし"]
-    out = [f"active な理論カード（kind: theory）の ID と題だけを全件、ID 順に載せる（{len(shelf)} 枚。本文は載せない。"
-           "10.1 の上限とは別枠）。引くときは `mankomix kb show <ID>`。使うかどうかは指揮者の裁量で、使わなくてよい。", ""]
-    out += [f"- {cid} {' '.join(title.split())}" for cid, title in shelf]
+        out = ["- 理論カードなし"]
+    else:
+        out = [f"active な理論カード（kind: theory）の ID と題だけを全件、ID 順に載せる（{len(shelf)} 枚。本文は載せない。"
+               "10.1 の上限とは別枠）。引くときは `mankomix kb show <ID>`。使うかどうかは指揮者の裁量で、使わなくてよい。", ""]
+        out += [f"- {cid} {' '.join(title.split())}" for cid, title in shelf]
+    # active curriculum bundles (upgrade 2, proposal 6): one line each, only when present, so a kb without
+    # bundles gives the same section as before
+    bundles = sorted((str(c["meta"].get("id")), str(c["meta"].get("title") or ""),
+                      len(c["meta"]["items"]) if isinstance(c["meta"].get("items"), list) else 0) for c in cards
+                     if c["meta"].get("kind") == "curriculum" and c["meta"].get("status") == "active")
+    out += [f"- カリキュラム: {cid} {' '.join(title.split())}（{n} 項）" for cid, title, n in bundles]
     return out
 
 

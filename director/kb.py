@@ -23,15 +23,17 @@ REFSTUDY_NAME = "refstudy.md"
 EXEMPT_NAMES = {"README.md", INDEX_NAME, "dossier.md", REFSTUDY_NAME}
 _REFSHEET_RE = re.compile(r"^refsheet[^/\\]*\.md$")
 
-# Order of the kinds in kb/INDEX.md. New kinds (work, engineer, theory) are inserted without changing the
-# relative order of the existing ones.
-KINDS = ("song", "work", "engineer", "lesson", "move", "research", "theory", "outcome", "direction", "analysis",
-         "research-log")
+# Order of the kinds in kb/INDEX.md. New kinds (work, engineer, theory, curriculum) are inserted without
+# changing the relative order of the existing ones.
+KINDS = ("song", "work", "engineer", "lesson", "move", "research", "theory", "curriculum", "outcome", "direction",
+         "analysis", "research-log")
 # The kinds the index header always lists (the kinds of the first kb version). The new kinds appear in the
 # header only once a card of that kind exists, so an index without such cards stays byte-identical.
 _LEGACY_KINDS = ("song", "lesson", "move", "research", "outcome", "direction", "analysis", "research-log")
 STATUSES = ("draft", "active", "stale", "disputed", "superseded", "retracted")
-EVIDENCE = ("replicated", "measured", "literature", "practice", "tip", "hunch")
+# strongest first. observed_media (upgrade 2, U-25): an observation of a process / breakdown medium, below
+# practice (n = 1, not cross-checked) and above tip (first-hand, tied to one work). Not a BACKED_EVIDENCE.
+EVIDENCE = ("replicated", "measured", "literature", "practice", "observed_media", "tip", "hunch")
 VISIBILITY = ("public", "private")
 REQUIRED = ("id", "kind", "title", "created", "status", "visibility")
 EVIDENCE_REQUIRED_KINDS = ("research", "move", "lesson")
@@ -40,7 +42,7 @@ ID_PREFIX = {"research": "KR-", "move": "KM-", "lesson": "KL-", "theory": "KT-"}
 
 # new kinds (update proposal: reference works, credited engineers, theory cards)
 SLUG_RE = r"[a-z0-9][a-z0-9_-]*"
-SLUG_ID_PREFIX = {"work": "work_", "engineer": "eng_"}
+SLUG_ID_PREFIX = {"work": "work_", "engineer": "eng_", "curriculum": "cur_"}
 RIGHTS = ("own", "third_party")
 WORK_CREDIT_ROLES = ("mix", "master", "produce", "arrange", "record")
 THEORY_DOMAINS = ("rudiments", "harmony", "philosophy", "practice")
@@ -51,17 +53,51 @@ KIND_REQUIRED = {
     "work": ("rights", "credits_source", "materials"),
     "engineer": ("works", "credits_source"),
     "theory": ("evidence", "domain", "tradition", "paraphrase", "sources_note"),
+    "curriculum": ("specified_by", "paraphrase", "sources_note", "items"),
 }
 # fields a draft work card (the template written by 'direction ref study') may leave empty; the key itself
 # must still be present
-DRAFT_MAY_BE_EMPTY = {"work": ("credits_source", "materials"), "engineer": ("works", "credits_source")}
+DRAFT_MAY_BE_EMPTY = {"work": ("credits_source", "materials"), "engineer": ("works", "credits_source"),
+                      "curriculum": ("items",)}
+
+# --- upgrade 2: optional fields (none is required; a card without them lints exactly as before) ------------
+# source class of any card (v2 e.3). Optional; when written it must be one of these.
+SOURCE_TYPES = ("paper", "pro", "amateur", "internal", "curriculum")
+# work 'sources' (proposal 4): where a human found the material and under which conditions. Record only; no
+# tool reads it or opens the url.
+SOURCE_KINDS = ("contest_stems", "description_materials", "official_stems", "breakdown_media")
+SOURCE_REQUIRED_KEYS = ("kind", "where", "rights_note")
+SOURCE_OPTIONAL_KEYS = ("url", "noted")
+SOURCE_TEXT_MAX_CHARS = 200
+# work / engineer 'observed_media' (proposal 5): facts observed in a process medium, in your own words
+OBSERVED_REQUIRED_KEYS = ("part", "note")
+OBSERVED_OPTIONAL_KEYS = ("order", "source")
+OBSERVED_PART_MAX_CHARS = 60
+OBSERVED_NOTE_MAX_CHARS = 200
+OBSERVED_QUOTE_MAX_CHARS = 20
+OBSERVED_SECTION = "観察"
+# curriculum bundle cards (proposal 6): order and level are the order of learning, never a work procedure;
+# no tool reads them as a sequence
+CURRICULUM_LEVELS = ("intro", "core", "advanced")
+CURRICULUM_ITEM_REQUIRED_KEYS = ("order", "level", "topic")
+CURRICULUM_ITEM_OPTIONAL_KEYS = ("cards",)
+CURRICULUM_TOPIC_MAX_CHARS = 80
+# keys that would name or locate a teaching material; the bundle carries topics and card ids only
+CURRICULUM_MATERIAL_KEYS = ("title", "name", "author", "publisher", "url", "uri", "isbn", "source", "file", "path")
+CURRICULUM_CARD_ID_RE = re.compile(r"^(?:KT|KR|KL|KM)-\d{4}$")
+CURRICULUM_REF_KEYS = ("id", "order", "level")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # --- publication stops (UD-1, conservative side) ---------------------------------------------------------
 # (a) every root: these rights may never be combined with visibility: public. Relax by editing this one line.
 PUBLIC_FORBIDDEN_RIGHTS = ("third_party",)
 # (b) the repository's public kb (a root that is not inside a '_private' folder): work cards must be
-# rights: own, and engineer cards may only refer to such works (UD-4).
+# rights: own, and engineer cards may only refer to such works (UD-4). Every Markdown file other than
+# README / INDEX (cards, analysis notes, directions, outcomes, refsheets, dossiers) may name a work id only if
+# it is a rights: own work card of the same kb (upgrade 2, T-22: closes the case-folder route, gate N4).
 PUBLIC_KB_RIGHTS = ("own",)
+_WORK_ID_RE = re.compile(r"(?<![A-Za-z0-9_])work_[a-z0-9][a-z0-9_-]*")
+PUBLIC_WORK_REF_EXEMPT = {"README.md", INDEX_NAME}
 PRIVATE_DIR_NAME = "_private"
 
 # --- theory cards: limits against copying (design 2.1 / 3.3) ---------------------------------------------
@@ -500,6 +536,11 @@ def _location_errors(kind: str, cid: str, rel: str) -> list[tuple[str, str]]:
         want = f"references/engineers/{m.group(1)}.md"
     elif kind == "theory":
         want = f"theory/{cid}.md"
+    elif kind == "curriculum":
+        m = re.fullmatch(r"cur_(" + SLUG_RE + ")", cid)
+        if not m:
+            return [("bad_id", "id of a curriculum card must look like cur_<slug> (lowercase letters, digits, - _)")]
+        want = f"curricula/{m.group(1)}.md"
     else:
         return []
     return [] if rel == want else [("bad_location", f"a {kind} card with id {cid} belongs at {want}")]
@@ -543,6 +584,9 @@ def _required_errors(meta: dict) -> list[tuple[str, str]]:
             v = meta.get(key)
             if v is not None and v not in allowed:
                 out.append(("bad_value", f"{key} '{v}' of a theory card is not one of {', '.join(allowed)}"))
+    elif kind == "curriculum":
+        if meta.get("paraphrase") is not True and "paraphrase" in meta:
+            out.append(("bad_value", "paraphrase must be true (the bundle is written in your own words)"))
     return out
 
 
@@ -587,15 +631,232 @@ def _theory_body_errors(body: str) -> list[tuple[str, str]]:
             out.append(("theory_image", f"body line {ln}: embedded image"))
         if _BLOCKQUOTE_RE.match(line):
             out.append(("theory_blockquote", f"body line {ln}: quotation block ('>')"))
+    for line, inner, op, cl in _long_quotes(body, THEORY_QUOTE_MAX_CHARS):
+        out.append(("theory_long_quote", f"body line {line}: {inner} characters inside {op}{cl} (limit "
+                                         f"{THEORY_QUOTE_MAX_CHARS})"))
+    return out
+
+
+def _long_quotes(text: str, limit: int) -> list[tuple[int, int, str, str]]:
+    """(line, characters, opening, closing) of every pair of quotation marks holding more than ``limit``."""
+    out = []
     for op, cl in _QUOTE_PAIRS:
         rx = re.compile(re.escape(op) + r"([^" + re.escape(cl) + (re.escape(op) if op != cl else "") + r"]*)"
                         + re.escape(cl))
-        for m in rx.finditer(body):
+        for m in rx.finditer(text):
             inner = len(m.group(1).replace("\n", ""))
-            if inner > THEORY_QUOTE_MAX_CHARS:
-                line = body.count("\n", 0, m.start()) + 1
-                out.append(("theory_long_quote", f"body line {line}: {inner} characters inside {op}{cl} (limit "
-                                                 f"{THEORY_QUOTE_MAX_CHARS})"))
+            if inner > limit:
+                out.append((text.count("\n", 0, m.start()) + 1, inner, op, cl))
+    return out
+
+
+def _quote_errors(body: str) -> list[tuple[str, str]]:
+    """The copying limits of theory cards without the length limit (curriculum-sourced cards of any kind)."""
+    return [e for e in _theory_body_errors(body) if e[0] != "theory_too_long"]
+
+
+def _looks_like_file(s: str) -> bool:
+    return bool(_FILE_NAME_RE.search(s) or _PATH_RE.search(s))
+
+
+def _text_ok(v: Any, limit: int) -> bool:
+    return isinstance(v, str) and v.strip() != "" and len(v) <= limit
+
+
+def _pos_int(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 1
+
+
+def _source_errors(sources: Any) -> list[tuple[str, str]]:
+    """work 'sources' (upgrade 2, proposal 4): where the material was found and its conditions; record only.
+
+    No tool reads this field to act on it (nothing opens the url; U-3)."""
+    out = []
+    if sources is None:
+        return out
+    if not isinstance(sources, list):
+        return [("bad_sources", "sources must be a flow list of maps: [{ kind: official_stems, where: \"...\", "
+                                "rights_note: \"...\" }]")]
+    allowed = SOURCE_REQUIRED_KEYS + SOURCE_OPTIONAL_KEYS
+    for i, item in enumerate(sources, start=1):
+        if not isinstance(item, dict):
+            out.append(("bad_sources", f"sources[{i}] must be a map"))
+            continue
+        for k in item:
+            if k not in allowed:
+                out.append(("bad_sources", f"sources[{i}]: unknown key '{k}' (allowed: {', '.join(allowed)})"))
+        for k in SOURCE_REQUIRED_KEYS:
+            v = item.get(k)
+            if _empty(v) or (isinstance(v, str) and not v.strip()):
+                out.append(("bad_sources", f"sources[{i}]: '{k}' is required"))
+        kind = item.get("kind")
+        if not _empty(kind) and kind not in SOURCE_KINDS:
+            out.append(("bad_sources", f"sources[{i}].kind '{kind}' is not one of {', '.join(SOURCE_KINDS)}"))
+        for k in ("where", "rights_note"):
+            v = item.get(k)
+            if not _empty(v) and not _text_ok(v, SOURCE_TEXT_MAX_CHARS):
+                out.append(("bad_sources", f"sources[{i}].{k} must be a text of at most {SOURCE_TEXT_MAX_CHARS} "
+                                           f"characters"))
+        where = item.get("where")
+        if isinstance(where, str) and _looks_like_file(where):
+            out.append(("source_file_name", f"sources[{i}].where: looks like a file name or path (write where "
+                                            f"to look, in words)"))
+        if "url" in item:
+            url = item.get("url")
+            if not (isinstance(url, str) and re.match(r"^https?://\S+$", url)):
+                out.append(("bad_sources", f"sources[{i}].url must be one string starting with http:// or "
+                                           f"https://"))
+        if "noted" in item and not (isinstance(item.get("noted"), str) and _DATE_RE.match(item["noted"])):
+            out.append(("bad_sources", f"sources[{i}].noted must be YYYY-MM-DD"))
+    return out
+
+
+def _observed_errors(meta: dict, body: str) -> list[tuple[str, str]]:
+    """work / engineer 'observed_media' (upgrade 2, proposal 5): observed facts in your own words."""
+    obs = meta.get("observed_media")
+    if obs is None:
+        return []
+    if not isinstance(obs, list):
+        return [("bad_observed", "observed_media must be a flow list of maps: [{ part: \"...\", note: \"...\" }]")]
+    out = []
+    kind = meta.get("kind")
+    sources = meta.get("sources") if isinstance(meta.get("sources"), list) else []
+    allowed = OBSERVED_REQUIRED_KEYS + OBSERVED_OPTIONAL_KEYS
+    for i, item in enumerate(obs, start=1):
+        if not isinstance(item, dict):
+            out.append(("bad_observed", f"observed_media[{i}] must be a map"))
+            continue
+        for k in item:
+            if k not in allowed:
+                out.append(("bad_observed", f"observed_media[{i}]: unknown key '{k}' (allowed: "
+                                            f"{', '.join(allowed)})"))
+        for k, limit in (("part", OBSERVED_PART_MAX_CHARS), ("note", OBSERVED_NOTE_MAX_CHARS)):
+            if not _text_ok(item.get(k), limit):
+                out.append(("bad_observed", f"observed_media[{i}].{k} is required (a text of at most {limit} "
+                                            f"characters)"))
+        if "order" in item and not _pos_int(item.get("order")):
+            out.append(("bad_observed", f"observed_media[{i}].order must be an integer of at least 1"))
+        if "source" in item:
+            src = item.get("source")
+            if kind != "work":
+                out.append(("bad_observed", f"observed_media[{i}].source refers to 'sources', which only work "
+                                            f"cards have"))
+            elif not _pos_int(src) or src > len(sources):
+                out.append(("bad_observed", f"observed_media[{i}].source must be the 1-based number of an entry "
+                                            f"of sources (1..{len(sources)})"))
+            elif not (isinstance(sources[src - 1], dict) and sources[src - 1].get("kind") == "breakdown_media"):
+                out.append(("bad_observed", f"observed_media[{i}].source points to sources[{src}], which is not "
+                                            f"kind: breakdown_media"))
+        note = item.get("note")
+        if isinstance(note, str):
+            for _, inner, op, cl in _long_quotes(note, OBSERVED_QUOTE_MAX_CHARS):
+                out.append(("observed_quote", f"observed_media[{i}].note: {inner} characters inside {op}{cl} "
+                                              f"(limit {OBSERVED_QUOTE_MAX_CHARS}; observations are paraphrased)"))
+    section = section_text(body, OBSERVED_SECTION)
+    for ln, line in enumerate(section.splitlines(), start=1):
+        if _BLOCKQUOTE_RE.match(line):
+            out.append(("observed_quote", f"section '## {OBSERVED_SECTION}' line {ln}: quotation block ('>')"))
+    return out
+
+
+def _curriculum_errors(meta: dict) -> list[tuple[str, str]]:
+    """curriculum bundle 'items' (upgrade 2, proposal 6): order, level, topic in your own words, card ids.
+
+    Card ids are checked for their form only, not for existence (a private bundle may list public cards)."""
+    items = meta.get("items")
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        return [("bad_curriculum", "items must be a flow list of maps: [{ order: 1, level: intro, topic: "
+                                   "\"...\", cards: [KT-0004] }]")]
+    out = []
+    allowed = CURRICULUM_ITEM_REQUIRED_KEYS + CURRICULUM_ITEM_OPTIONAL_KEYS
+    seen: set[int] = set()
+    for i, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            out.append(("bad_curriculum", f"items[{i}] must be a map"))
+            continue
+        for k in item:
+            if str(k).lower() in CURRICULUM_MATERIAL_KEYS:
+                out.append(("curriculum_material_name", f"items[{i}]: key '{k}' is not allowed (a bundle names "
+                                                        f"topics and card ids only, never the material)"))
+            elif k not in allowed:
+                out.append(("bad_curriculum", f"items[{i}]: unknown key '{k}' (allowed: {', '.join(allowed)})"))
+        order = item.get("order")
+        if not _pos_int(order):
+            out.append(("bad_curriculum", f"items[{i}].order must be an integer of at least 1"))
+        elif order in seen:
+            out.append(("bad_curriculum", f"items[{i}].order {order} is used twice in the bundle"))
+        else:
+            seen.add(order)
+        if item.get("level") not in CURRICULUM_LEVELS:
+            out.append(("bad_curriculum", f"items[{i}].level '{item.get('level')}' is not one of "
+                                          f"{', '.join(CURRICULUM_LEVELS)}"))
+        if not _text_ok(item.get("topic"), CURRICULUM_TOPIC_MAX_CHARS):
+            out.append(("bad_curriculum", f"items[{i}].topic is required (a text of at most "
+                                          f"{CURRICULUM_TOPIC_MAX_CHARS} characters)"))
+        if "cards" in item:
+            cards = item.get("cards")
+            if not isinstance(cards, list):
+                out.append(("bad_curriculum", f"items[{i}].cards must be a flow list of card ids"))
+            else:
+                for c in cards:
+                    if not CURRICULUM_CARD_ID_RE.match(str(c)):
+                        out.append(("bad_curriculum", f"items[{i}].cards entry '{c}' is not a card id "
+                                                      f"(KT-/KR-/KL-/KM- and 4 digits)"))
+    return out
+
+
+def _curriculum_ref_errors(ref: Any) -> list[tuple[str, str]]:
+    """The optional 'curriculum' field of a distilled card: { id: cur_<slug>, order: n, level: core } (form only)."""
+    if ref is None:
+        return []
+    if not isinstance(ref, dict):
+        return [("bad_curriculum_ref", "curriculum must be a flow map: { id: cur_<slug>, order: 3, level: core }")]
+    out = []
+    for k in ref:
+        if k not in CURRICULUM_REF_KEYS:
+            out.append(("bad_curriculum_ref", f"curriculum: unknown key '{k}' (allowed: "
+                                              f"{', '.join(CURRICULUM_REF_KEYS)})"))
+    if not re.fullmatch(r"cur_" + SLUG_RE, str(ref.get("id") or "")):
+        out.append(("bad_curriculum_ref", "curriculum.id must be a bundle id cur_<slug>"))
+    if "order" in ref and not _pos_int(ref.get("order")):
+        out.append(("bad_curriculum_ref", "curriculum.order must be an integer of at least 1"))
+    if "level" in ref and ref.get("level") not in CURRICULUM_LEVELS:
+        out.append(("bad_curriculum_ref", f"curriculum.level '{ref.get('level')}' is not one of "
+                                          f"{', '.join(CURRICULUM_LEVELS)}"))
+    return out
+
+
+def _source_type_errors(meta: dict, body: str) -> list[tuple[str, str]]:
+    """'source_type' (optional, any kind); a card distilled from a curriculum is paraphrased, without quotes."""
+    if "source_type" not in meta:
+        return []
+    st = meta.get("source_type")
+    if st not in SOURCE_TYPES:
+        return [("bad_value", f"source_type '{st}' is not one of {', '.join(SOURCE_TYPES)}")]
+    out = []
+    # theory and curriculum cards already require paraphrase: true and get the full copying limits
+    if st == "curriculum" and meta.get("kind") not in ("theory", "curriculum"):
+        if "paraphrase" not in meta:
+            out.append(("missing_field", "source_type: curriculum needs 'paraphrase: true' (written in your own "
+                                         "words)"))
+        elif meta.get("paraphrase") is not True:
+            out.append(("bad_value", "paraphrase must be true (the card is written in your own words)"))
+        out += _quote_errors(body)
+    return out
+
+
+def _public_work_ref_errors(text: str, work_rights: dict[str, Any]) -> list[tuple[str, str]]:
+    """Public kb (T-22): a work id may appear only if it is a rights: own work card of the same kb."""
+    out = []
+    for w in sorted(set(_WORK_ID_RE.findall(text))):
+        if w not in work_rights:
+            out.append(("public_kb_rights", f"names {w}, which is not a work card of this kb (its rights cannot "
+                                            f"be confirmed); keep the file in _private/kb/"))
+        elif work_rights[w] not in PUBLIC_KB_RIGHTS:
+            out.append(("public_kb_rights", f"names {w} (rights: {work_rights[w]}); the public kb may refer to "
+                                            f"own works only; keep the file in _private/kb/"))
     return out
 
 
@@ -724,6 +985,10 @@ def lint(root: str | Path, *, public: bool | None = None) -> dict:
                     err(rel, "absolute_link", f"line {n}: link must be relative: {target}")
                 elif not q.exists():
                     err(rel, "broken_link", f"line {n}: link target not found: {target}")
+        # public kb: work ids in any file other than README / INDEX must be own work cards of this kb (T-22)
+        if public_kb and p.name not in PUBLIC_WORK_REF_EXEMPT:
+            for code, msg in _public_work_ref_errors(text, work_rights):
+                err(rel, code, msg)
         # machine-generated reference documents: section / band granularity only
         if is_reference_document(p.name):
             for code, msg in granularity_errors(text):
@@ -777,9 +1042,23 @@ def lint(root: str | Path, *, public: bool | None = None) -> dict:
         if kind == "work":
             for code, msg in _material_errors(meta.get("materials")):
                 err(rel, code, msg)
-        if kind == "theory":
+        if kind in ("theory", "curriculum"):
             for code, msg in _theory_body_errors(body):
                 err(rel, code, msg)
+        # upgrade 2: optional fields, checked only when written
+        if kind == "work":
+            for code, msg in _source_errors(meta.get("sources")):
+                err(rel, code, msg)
+        if kind in ("work", "engineer"):
+            for code, msg in _observed_errors(meta, body):
+                err(rel, code, msg)
+        if kind == "curriculum":
+            for code, msg in _curriculum_errors(meta):
+                err(rel, code, msg)
+        for code, msg in _curriculum_ref_errors(meta.get("curriculum")):
+            err(rel, code, msg)
+        for code, msg in _source_type_errors(meta, body):
+            err(rel, code, msg)
         refs = _work_refs(meta, body, p, root) if kind == "engineer" else []
         for code, msg in _publication_errors(meta, public_kb, work_rights, refs):
             err(rel, code, msg)
@@ -829,31 +1108,86 @@ def _entry(c: dict) -> dict:
             "applies_to": format_applies(m.get("applies_to")), "summary": c["summary"]}
 
 
+def _curriculum_positions(cards: list[dict], cur_id: str) -> tuple[dict[str, tuple[float, Any]], list[str]]:
+    """{card id: (order, level)} of the cards a bundle lists (items[].cards) or that name it (curriculum.id),
+    and the ids the bundle lists that are not cards of this kb. With several positions the smallest order wins.
+    The order is the bundle's order of learning; it is only used to sort search results."""
+    pos: dict[str, tuple[float, Any]] = {}
+
+    def put(cid: str, order: Any, level: Any):
+        o = float(order) if _pos_int(order) else float("inf")
+        if cid not in pos or o < pos[cid][0]:
+            pos[cid] = (o, level)
+
+    bundle = next((c for c in cards if c["meta"].get("kind") == "curriculum"
+                   and str(c["meta"].get("id")) == cur_id), None)
+    listed: list[str] = []
+    if bundle is not None and isinstance(bundle["meta"].get("items"), list):
+        for item in bundle["meta"]["items"]:
+            if isinstance(item, dict) and isinstance(item.get("cards"), list):
+                for cid in item["cards"]:
+                    listed.append(str(cid))
+                    put(str(cid), item.get("order"), item.get("level"))
+    for c in cards:
+        ref = c["meta"].get("curriculum")
+        if isinstance(ref, dict) and str(ref.get("id")) == cur_id and c["meta"].get("kind") != "curriculum":
+            put(str(c["meta"].get("id")), ref.get("order"), ref.get("level"))
+    present = {str(c["meta"].get("id")) for c in cards}
+    return pos, sorted(set(listed) - present)
+
+
 def search(root: str | Path, *, kind: str | list[str] | None = None, genre: str | list[str] | None = None,
-           text: str | None = None) -> dict:
+           text: str | None = None, source_type: str | list[str] | None = None,
+           curriculum: str | None = None) -> dict:
     """Cards matching every given filter, in index order.
 
     kind: card kind(s). genre: matches the card's 'genre' list or applies_to.genre (case-insensitive).
     text: case-insensitive substring of the id, title or body.
+    source_type: the card's optional 'source_type' (repeatable).
+    curriculum: a bundle id cur_<slug>; the cards it lists in items[].cards and the cards whose 'curriculum.id'
+    names it, sorted by the bundle's order, then id (the order of learning; nothing else reads it).
+    The new filters (source_type, curriculum) appear in 'filters' only when given, so the result of a search
+    without them is unchanged.
     """
     root = Path(root)
     kinds = [str(k) for k in _as_list(kind)]
     genres = [str(g).lower() for g in _as_list(genre)]
+    stypes = [str(t) for t in _as_list(source_type)]
     needle = text.casefold() if text else None
+    cards = sorted_cards(root)
+    pos, missing = _curriculum_positions(cards, str(curriculum)) if curriculum else ({}, [])
     hits = []
-    for c in sorted_cards(root):
+    for c in cards:
         m = c["meta"]
         if kinds and m.get("kind") not in kinds:
             continue
         if genres and not ({g.lower() for g in _genres(m)} & set(genres)):
             continue
+        if stypes and str(m.get("source_type")) not in stypes:
+            continue
+        if curriculum and str(m.get("id")) not in pos:
+            continue
         if needle is not None:
             hay = "\n".join([str(m.get("id") or ""), str(m.get("title") or ""), c["body"]]).casefold()
             if needle not in hay:
                 continue
-        hits.append(_entry(c))
-    return {"kind": "kb_search", "filters": {"kind": kinds, "genre": genres, "text": text},
-            "count": len(hits), "cards": hits}
+        e = _entry(c)
+        if curriculum:
+            o, level = pos[str(m.get("id"))]
+            e["curriculum_order"] = None if o == float("inf") else int(o)
+            e["curriculum_level"] = level
+        hits.append(e)
+    filters: dict[str, Any] = {"kind": kinds, "genre": genres, "text": text}
+    if stypes:
+        filters["source_type"] = stypes
+    if curriculum:
+        filters["curriculum"] = str(curriculum)
+        hits.sort(key=lambda e: (e["curriculum_order"] is None, e["curriculum_order"] or 0, str(e["id"]),
+                                 e["path"]))
+    out = {"kind": "kb_search", "filters": filters, "count": len(hits), "cards": hits}
+    if curriculum:
+        out["not_in_this_kb"] = missing
+    return out
 
 
 def show(root: str | Path, card_id: str) -> dict | None:

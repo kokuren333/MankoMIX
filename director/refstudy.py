@@ -80,6 +80,21 @@ ALIGN_WINDOW_S = 30.0
 
 CONF_ORDER = ("low", "medium", "high")
 
+# --- optional additions (``--add``; off by default: without them the document is byte-identical) ---
+ADD_NAMES = ("transient",)
+ATTACK_GROUPS = (("low", (20.0, 250.0)), ("mid", (250.0, 2000.0)), ("high", (2000.0, 20000.0)))
+ATTACK_LOCAL_S = 0.4                  # local mean of the onset strength (s)
+ATTACK_PEAK_MIN = 1.5                 # peak threshold of the normalised onset strength
+ATTACK_MIN_GAP_S = 0.05               # minimum spacing of two attacks (s)
+ATTACK_GROUP_FLOOR_DB = 40.0          # a group this far below the loudest group is not counted (UPGRADE2 §15.1)
+TRANSIENT_RULE = {"crest_spread_db_min": 6.0, "crest_high_db": 14.0, "crest_low_db": 8.0,
+                  "section_crest_db_min": 3.0, "density_ratio_min": 1.5, "bpm_confidence_min": 0.5}
+TRANSIENT_NOTE = "クレストは最終段の抑え込みを含んだ結果で、ミックス段の立ち上がりそのものではない。読みは指揮者の〔推定〕"
+ATTACK_DENSITY_NOTE = (f"最大の群より {ATTACK_GROUP_FLOOR_DB:g} dB 以上低い群は数えない（—）。密度は群ごとに正規化した"
+                       "相対の指標で、打点の実数ではない。打点の乏しい群では定常音・残響・雑音の揺らぎも数に入り、"
+                       "low 群では持続する低音のうねりも数に入る。群どうしの大小は比べず、同じ群の区間どうし・版どうしで読む")
+ATTACK_EXCLUDED_NOTE = f"low 群は測定対象外（最大の群より {ATTACK_GROUP_FLOOR_DB:g} dB 以上低い）"
+
 STEM_NOTE = ("配布ステムは通常「処理済みの書き出し」で、見えるのは要素ごとの結果であり、処理そのもの"
              "（個別トラックの処理・使用機材・編集の経緯）ではない。")
 
@@ -735,6 +750,156 @@ def sum_master_difference(master: np.ndarray, total: np.ndarray, sr: int,
 
 
 # ---------------------------------------------------------------------------
+# transient profile (``--add transient``; T-28)
+# ---------------------------------------------------------------------------
+
+def check_add(add: Any, allowed: tuple[str, ...] = ADD_NAMES) -> list[str]:
+    """Normalise ``--add`` names: unique, in the fixed order of ``allowed``; unknown names are an error."""
+    names = [] if add is None else ([add] if isinstance(add, str) else list(add))
+    for n in names:
+        if n not in allowed:
+            raise RefStudyError(f"--add: unknown addition '{n}' (use one of {', '.join(allowed)})")
+    return [n for n in allowed if n in names]
+
+
+def attack_times(x: np.ndarray, sr: int) -> dict[str, np.ndarray | None]:
+    """Attack times (s) per group: band-passed mono sum -> onset strength -> local-mean residual
+    over the whole-song standard deviation -> peaks >= ATTACK_PEAK_MIN at least ATTACK_MIN_GAP_S apart.
+    A group whose whole-song mean square is more than ATTACK_GROUP_FLOOR_DB below the loudest group's
+    is not counted (None); on silence (every group 0) nothing is excluded."""
+    from scipy.signal import find_peaks
+    from mankomix.core.analysis.music import onset_envelope
+    mono = _stereo(x).mean(axis=1)
+    out: dict[str, np.ndarray | None] = {}
+    bands: dict[str, np.ndarray | None] = {}
+    power: dict[str, float] = {}
+    for gid, (lo, hi) in ATTACK_GROUPS:
+        hi_eff = min(hi, 0.95 * sr / 2.0)
+        if lo >= hi_eff or mono.size == 0:
+            bands[gid], power[gid] = None, 0.0
+            continue
+        y = Q._bandpass(mono, sr, [lo, hi_eff])
+        bands[gid], power[gid] = y, float(np.mean(y ** 2))
+    p_max = max(power.values()) if power else 0.0
+    p_floor = p_max * 10.0 ** (-ATTACK_GROUP_FLOOR_DB / 10.0)
+    for gid, _ in ATTACK_GROUPS:
+        y = bands[gid]
+        if p_max > 0 and power[gid] < p_floor:
+            out[gid] = None
+            continue
+        if y is None:
+            out[gid] = np.zeros(0)
+            continue
+        flux, _, fr = onset_envelope(y, float(sr))
+        if flux.size == 0:
+            out[gid] = np.zeros(0)
+            continue
+        w = max(3, int(round(ATTACK_LOCAL_S * fr)) | 1)
+        local = np.convolve(flux, np.ones(w) / w, mode="same")
+        o = np.maximum(flux - local, 0.0)
+        sd = float(np.std(o))
+        if sd <= 0:
+            out[gid] = np.zeros(0)
+            continue
+        o = o / sd
+        idx, _ = find_peaks(o, height=ATTACK_PEAK_MIN, distance=max(1, int(math.ceil(ATTACK_MIN_GAP_S * fr))))
+        out[gid] = idx.astype(np.float64) / float(fr)
+    return out
+
+
+def _density(times: np.ndarray | None, t0: float, t1: float) -> float | None:
+    if times is None or t1 - t0 <= 0:
+        return None
+    return float(np.sum((times >= t0) & (times < t1))) / (t1 - t0)
+
+
+def transient_measure(x: np.ndarray, sr: int, sections: list[dict], vector: dict | None = None) -> dict:
+    """Per-section band crest (P-04 on the section), attack density per group, low attacks per beat."""
+    a = _stereo(x)
+    dur = a.shape[0] / float(sr)
+    rows = [{"id": "whole", "start_s": 0.0, "end_s": _r(dur, 3), "rng": None}]
+    rows += [{"id": s["id"], "start_s": s["start_s"], "end_s": s["end_s"],
+              "rng": (float(s["start_s"]), float(s["end_s"]))} for s in sections]
+    att = attack_times(a, sr)
+    out_rows = []
+    for r in rows:
+        seg = _seg(a, sr, r["rng"])
+        bc = _band_crest(seg, sr) if seg.shape[0] > 0 else {}
+        t0, t1 = (0.0, dur) if r["rng"] is None else r["rng"]
+        out_rows.append({"id": r["id"], "start_s": r["start_s"], "end_s": r["end_s"],
+                         "band_crest_db": {b: _r((bc.get(b) or {}).get("crest_db"), 2) for b in BAND_IDS},
+                         "density": {g: _r(_density(att[g], t0, t1), 2) for g, _ in ATTACK_GROUPS}})
+    v = vector or {}
+    bpm, conf = _f(v.get("bpm")), _f(v.get("bpm_confidence"))
+    low = out_rows[0]["density"].get("low")
+    per_beat = None
+    if bpm and bpm > 0 and conf is not None and conf >= TRANSIENT_RULE["bpm_confidence_min"] and low is not None:
+        per_beat = _r(float(low) * 60.0 / bpm, 2)
+    return {"rows": out_rows, "bpm": _r(bpm, 1), "bpm_confidence": _r(conf, 2), "low_per_beat": per_beat}
+
+
+def transient_signs(tr: dict, summary: dict) -> list[dict]:
+    """RS-TR-BAND / RS-TR-SECTION / RS-TR-DENSITY: facts from the profile; no intent is stated."""
+    rule = TRANSIENT_RULE
+    out = []
+    whole = tr["rows"][0]
+    bc = {b: _f(whole["band_crest_db"].get(b)) for b in BAND_IDS if b != "sub"}
+    bc = {b: v for b, v in bc.items() if v is not None}
+    if len(bc) >= 2:
+        hi_b = max(bc, key=lambda b: (bc[b], b))
+        lo_b = min(bc, key=lambda b: (bc[b], b))
+        spread = bc[hi_b] - bc[lo_b]
+        kept = [b for b in BAND_IDS if b in bc and bc[b] >= rule["crest_high_db"]]
+        flat = [b for b in BAND_IDS if b in bc and bc[b] <= rule["crest_low_db"]]
+        raised = spread >= rule["crest_spread_db_min"]
+        finding = (f"立ち上がりが残る帯域（≥ {rule['crest_high_db']:g} dB）: {', '.join(kept) or 'なし'}／"
+                   f"ならされた帯域（≤ {rule['crest_low_db']:g} dB）: {', '.join(flat) or 'なし'}"
+                   f"（sub を除く 5 帯域の差 {_num(spread, 1)} dB）")
+        hf = "air" in kept or "air" in flat or "air" in (hi_b, lo_b)
+        out.append(_sign("RS-TR-BAND", "帯域ごとの立ち上がりの残り方", raised, finding,
+                         [(f"最大の帯域 {hi_b} dB", _r(bc[hi_b], 2)), (f"最小の帯域 {lo_b} dB", _r(bc[lo_b], 2)),
+                          (f"差 dB（≥ {rule['crest_spread_db_min']:g}{'、該当' if raised else ''}）", _r(spread, 2))],
+                         "high", "hf" if hf else "all"))
+    else:
+        out.append(_sign("RS-TR-BAND", "帯域ごとの立ち上がりの残り方", False, "帯域クレストを測れない", [], "low", "all"))
+    secs = {r["id"]: r for r in tr["rows"][1:]}
+    mx, mn = secs.get(summary.get("max") or ""), secs.get(summary.get("min") or "")
+    if mx and mn and mx is not mn:
+        ca, cb = _f(mx["band_crest_db"].get("bass")), _f(mn["band_crest_db"].get("bass"))
+        dc = ca - cb if ca is not None and cb is not None else None
+        da, db_ = _f(mx["density"].get("low")), _f(mn["density"].get("low"))
+        ratio = None
+        if da is not None and db_ is not None and max(da, db_) > 0:
+            ratio = max(da, db_) / min(da, db_) if min(da, db_) > 0 else math.inf
+        hits = [dc is not None and abs(dc) >= rule["section_crest_db_min"],
+                ratio is not None and ratio >= rule["density_ratio_min"]]
+        k = sum(hits)
+        out.append(_sign("RS-TR-SECTION", "区間による立ち上がり・打点の違い", k >= 1,
+                         (f"最大区間 `{mx['id']}` と最小区間 `{mn['id']}` で、"
+                          + ("立ち上がりの扱い・打点の密度が変わる" if k >= 1
+                             else "立ち上がりの扱い・打点の密度の差は閾値未満")),
+                         [(f"bass 帯域クレストの差 dB（≥ {rule['section_crest_db_min']:g}）", _r(dc, 2)),
+                          (f"low 群のアタック密度の比（≥ {rule['density_ratio_min']:g}）",
+                           "∞" if ratio == math.inf else _r(ratio, 2))],
+                         "medium" if k >= 2 else "low", "sections"))
+    else:
+        out.append(_sign("RS-TR-SECTION", "区間による立ち上がり・打点の違い", False, "比べる区間が 2 つ未満", [],
+                         "low", "sections"))
+    conf = _f(tr.get("bpm_confidence"))
+    pb = tr.get("low_per_beat")
+    low = whole["density"].get("low")
+    excluded = low is None
+    ok = not excluded and pb is not None and conf is not None and conf >= rule["bpm_confidence_min"]
+    out.append(_sign("RS-TR-DENSITY", "拍あたりの低域アタック", ok,
+                     (f"低域のアタックは 1 拍あたり {_num(pb, 2)} 個（密度 {_num(low, 2)} /s）" if ok
+                      else ATTACK_EXCLUDED_NOTE if excluded
+                      else f"BPM の確度が {rule['bpm_confidence_min']:g} 未満（拍あたりは出さない）"),
+                     [("BPM", tr.get("bpm")), ("BPM の確度", conf), ("low 群の密度 /s", low)],
+                     "medium", "all"))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # signs (rules)
 # ---------------------------------------------------------------------------
 
@@ -872,8 +1037,10 @@ def render(study: dict) -> str:
              f"- 版: refstudy {REFSTUDY_VERSION} / engine mankomix {ENGINE_VERSION}",
              f"- origin: `{study['origin']}`",
              "- 道具が出すのは〔測定〕と〔兆候〕まで。作品の意図・傾向の読みは指揮者が分析メモに〔推定〕（確度つき）として書く",
-             "- 粒度: 時間は区間単位、周波数は帯域集計まで。フレーム列・スペクトログラム・波形・LTAS の全ビンは載せない",
-             ""]
+             "- 粒度: 時間は区間単位、周波数は帯域集計まで。フレーム列・スペクトログラム・波形・LTAS の全ビンは載せない"]
+    if study.get("add"):
+        lines.append("- 追加: " + ", ".join(study["add"]))
+    lines += [""]
     # 1. materials
     lines += ["## 1. 素材", ""]
     rows = []
@@ -903,6 +1070,8 @@ def render(study: dict) -> str:
         lines += _render_difference(study["difference"])
     else:
         lines += ["- ステムとマスターの両方がないため空欄", ""]
+    if "transient" in (study.get("add") or []):
+        lines += _render_transient(study)
     lines += ["## 付記: 載せていない項目", "",
               "- 個別トラックの処理、使用機材、編集の経緯（2mix・配布ステムからは分からない。分析メモでは〔不明〕と書く）",
               "- フレームごとの値、スペクトログラム、波形、LTAS の全ビン（粒度の規則）",
@@ -1065,6 +1234,50 @@ def _render_stems(st: dict, study: dict) -> list[str]:
     return out
 
 
+TRANSIENT_HEADING = "## 8. トランジェント輪郭"
+
+
+def _render_transient(study: dict) -> list[str]:
+    """§8 (``--add transient``): section x band crest, attack density, signs. Sections and bands only."""
+    out = [TRANSIENT_HEADING, "", f"- 注記: {TRANSIENT_NOTE}"]
+    tr = study.get("transient")
+    if not tr:
+        out += ["- マスターがないため空欄（輪郭はマスターだけを測る）", ""]
+        return out
+    out += ["- 区分: §4 と同じ（`whole` = 曲全体）", ""]
+    out += ["### 8.1 区間別・帯域別クレスト dB（P-04 の定義を区間の切り出しに掛けたもの）", ""]
+    rows = [[f"`{r['id']}`", f"{_num(r['start_s'], 1)}–{_num(r['end_s'], 1)}"]
+            + [_num(r["band_crest_db"].get(b), 2) for b in BAND_IDS] for r in tr["rows"]]
+    out += _table(["区間", "秒"] + [f"{b} dB" for b in BAND_IDS], rows)
+    groups = "、".join(f"{g} {lo:g}–{hi:g} Hz" for g, (lo, hi) in ATTACK_GROUPS)
+    out += ["", "### 8.2 アタック密度 /s", "",
+            f"モノ和を 3 群（{groups}）に帯域通過し、オンセット強度から {ATTACK_LOCAL_S:g} 秒の移動平均を引いて"
+            f"曲全体の標準偏差で割った値が {ATTACK_PEAK_MIN:g} 以上の極大（間隔 {ATTACK_MIN_GAP_S * 1000:g} ms 以上）を"
+            "アタックと数える。密度 = 区間内の数 ÷ 区間の秒数", "", ATTACK_DENSITY_NOTE, ""]
+    rows = [[f"`{r['id']}`", f"{_num(r['start_s'], 1)}–{_num(r['end_s'], 1)}"]
+            + [_num(r["density"].get(g), 2) for g, _ in ATTACK_GROUPS] for r in tr["rows"]]
+    out += _table(["区間", "秒"] + [f"{g} /s" for g, _ in ATTACK_GROUPS], rows)
+    out += [""]
+    low_excluded = bool(tr["rows"]) and tr["rows"][0]["density"].get("low") is None
+    pb_note = (f"BPM {_num(tr.get('bpm'), 1)}（確度 {_num(tr.get('bpm_confidence'), 2)}）"
+               + ("" if tr.get("low_per_beat") is not None
+                  else f"。{ATTACK_EXCLUDED_NOTE}のため出さない" if low_excluded
+                  else f"。確度が {TRANSIENT_RULE['bpm_confidence_min']:g} 未満のため出さない"))
+    out += _table(["量", "値"], [[f"`low_attacks_per_beat` 拍あたりの低域アタック（全体。{pb_note}）",
+                                 _num(tr.get("low_per_beat"), 2)]])
+    out += ["", "### 8.3 輪郭の兆候", "", "測定の組み合わせから規則で導いた事実寄りの所見。意図は言わない。", ""]
+    rows = []
+    for s in tr["signs"]:
+        ev = "; ".join(f"{k} = {_c(v)}" for k, v in s["evidence"]) or "—"
+        rows.append([f"`{s['rule']}`", s["title"], "立つ" if s["raised"] else "立たず", s["finding"], ev,
+                     s["confidence"] or "—", f"{s['cap']}（{s['cap_reason']}）" if s.get("cap") else "—"])
+    out += _table(["規則", "兆候", "状態", "所見", "根拠の測定値", "確度（規則）", "確度上限"], rows)
+    if study.get("lossy"):
+        out += ["", "- 非可逆音源: air 帯域のクレストと high 群の密度に関わる所見は確度上限 low"]
+    out += [""]
+    return out
+
+
 def _render_difference(df: dict) -> list[str]:
     out = ["ステム和（ゲイン 0、頭合わせ）をマスターに時間とゲインで合わせ、差を測る。"
            "バス／マスター段が全体として何をしたかの推定値（推定であって処理の記録ではない）。", ""]
@@ -1160,9 +1373,12 @@ def _load_json_arg(v: Any, what: str) -> Any:
 
 def build_study(work: str, *, master: str | Path | None = None, stems: str | Path | None = None,
                 sections: Any = None, roles: Any = None, separate: bool = False,
-                _separator=None) -> dict:
-    """Measure the material and return the study (dict) and its Markdown. Nothing is written."""
+                add: Any = None, _separator=None) -> dict:
+    """Measure the material and return the study (dict) and its Markdown. Nothing is written.
+
+    ``add`` names optional sections (``ADD_NAMES``); without it the document is unchanged."""
     check_slug(work)
+    adds = check_add(add)
     if master is None and stems is None:
         raise RefStudyError("give --master and/or --stems")
     if separate and master is None:
@@ -1254,12 +1470,18 @@ def build_study(work: str, *, master: str | Path | None = None, stems: str | Pat
         sec_src = "auto"
     study: dict = {"work": work, "origin": origin, "lossy": bool(lossy), "materials": materials,
                    "sections_source": sec_src, "section_list": secs}
+    if adds:
+        study["add"] = adds
     if x is not None:
         mm = master_measure(x, sr, secs)
         summ = section_summary(mm["sections"])
         study["summary"] = summ
         study["master"] = mm
         study["signs"] = apply_caps(signs(mm, summ), lossy=lossy, separated=origin == "separated")
+        if "transient" in adds:
+            tr = transient_measure(x, sr, secs, mm.get("vector"))
+            tr["signs"] = apply_caps(transient_signs(tr, summ), lossy=lossy, separated=origin == "separated")
+            study["transient"] = tr
     if by_role:
         study["stems"] = {"assignment": assignment,
                           "excluded": [{"reason": r, "count": excluded.count(r)} for r in sorted(set(excluded))],
@@ -1330,11 +1552,12 @@ def work_card_template(slug: str, study: dict, created: str) -> str:
 
 
 def study_command(work: str, *, master=None, stems=None, sections=None, roles=None, separate: bool = False,
-                  kb_root: str | Path = DEFAULT_KB, created: str | None = None, _separator=None) -> dict:
+                  kb_root: str | Path = DEFAULT_KB, created: str | None = None, add: Any = None,
+                  _separator=None) -> dict:
     """``direction ref study``: write refstudy.md (and the work card template when absent)."""
     root = Path(kb_root)
     study = build_study(work, master=master, stems=stems, sections=sections, roles=roles, separate=separate,
-                        _separator=_separator)
+                        add=add, _separator=_separator)
     d = work_dir(root, work)
     d.mkdir(parents=True, exist_ok=True)
     rs = d / "refstudy.md"
@@ -1364,6 +1587,11 @@ def study_command(work: str, *, master=None, stems=None, sections=None, roles=No
                      for s in study.get("signs") or []],
            "difference_reliable": (study.get("difference") or {}).get("reliable") if study.get("difference") else None,
            "sections": [s["id"] for s in study["section_list"]], "sections_source": study["sections_source"]}
+    if study.get("add"):
+        out["add"] = list(study["add"])
+        if study.get("transient"):
+            out["transient_signs"] = [{"rule": s["rule"], "raised": s["raised"], "confidence": s["confidence"],
+                                       "cap": s.get("cap")} for s in study["transient"]["signs"]]
     if card_stale:
         out["work_card_stale"] = True
         out["note"] = ("the work card's study.sha256 differs from this refstudy; update 'study' (and 'materials' "
@@ -1474,6 +1702,31 @@ def study_values(md: str) -> dict:
             if k and "担当数" in r:
                 vals[f"owners:{k}"] = cell_num(r.get("担当数"))
     vals["low_share"] = low
+    # optional additions (absent from a document made without them)
+    for r in t.get("3.2", []):
+        k = row_key(r.get("帯域", ""))
+        col = next((c for c in r if c.startswith("LTAS 平均 dB")), None)
+        if k and col:
+            vals[f"ltas_db:{k}"] = cell_num(r.get(col))
+    m = re.search(r"^- 追加: (.+)$", md, re.MULTILINE)
+    vals["add"] = [a.strip() for a in m.group(1).split(",")] if m else []
+    vals["transient"] = TRANSIENT_HEADING in md and "### 8.1" in md
+    if vals["transient"]:
+        for r in t.get("8.1", []):
+            sid = row_key(r.get("区間", ""))
+            if sid:
+                for b in BAND_IDS:
+                    vals[f"tr_crest:{sid}:{b}"] = cell_num(r.get(f"{b} dB"))
+        for r in t.get("8.2", []):
+            sid = row_key(r.get("区間", ""))
+            if sid:
+                for g, _ in ATTACK_GROUPS:
+                    vals[f"tr_density:{sid}:{g}"] = cell_num(r.get(f"{g} /s"))
+        for r in t.get("8.2#2", []):
+            if row_key(r.get("量", "")) == "low_attacks_per_beat":
+                vals["low_attacks_per_beat"] = cell_num(r.get("値"))
+    m = re.search(r"\| (\d+(?:\.\d+)?)k/(?:\d+f?|—) \|", md)
+    vals["sample_rate"] = int(round(float(m.group(1)) * 1000)) if m else None
     return vals
 
 
