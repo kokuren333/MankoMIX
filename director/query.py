@@ -13,16 +13,21 @@ Primitives (contract: ``docs/DIRECTION_FORMAT.md``):
 - ``loudness``     ``integrated`` (LUFS) or ``short_p95`` / ``short_p50`` / ``short_max``
 - ``side_ratio``   side power over mid power, dB (band_hz optional)
 - ``correlation``  L/R correlation coefficient (band_hz optional)
+- ``image_position`` (E_R - E_L) / (E_R + E_L) over the range, E = sum of squares (band_hz optional,
+                   4th order zero phase band-pass first); -1..+1, + = right (the ``pan`` direction).
+                   An energy balance, not a pan position: a mono source panned to p with the
+                   constant-power law reads sin(p*pi/2). Silence is ``status: error``
 
-Only ``target: master`` (a rendered file) is supported; a track's contribution
-inside the mix (``trk_*``) is reported as unsupported.
+Only ``target: master`` (a rendered file) is supported here; a track's contribution
+inside the mix (``trk_*``) is reported as unsupported. Track targets and the context
+primitives are measured by ``director.stemobs`` (FBREVIEW FR-1 / FR-2).
 
 Optional ``view`` (translation view; absent or ``stereo`` = the plain signal,
 results unchanged): ``mono`` puts m = (L+R)/2 on both channels before
 measuring; ``mono_band`` then band-passes it (``_bandpass``, 4th order, zero
 phase) to ``view_band_hz`` (default 150-6000 Hz; lo 80-400, hi 3000-10000).
-``side_ratio`` / ``correlation`` are refused under a mono view (no side
-signal). The view is computed in memory; no audio is written.
+``side_ratio`` / ``correlation`` / ``image_position`` are refused under a mono view
+(no side signal). The view is computed in memory; no audio is written.
 """
 
 from __future__ import annotations
@@ -35,14 +40,14 @@ from scipy import signal as _sig
 
 from mankomix.core.measure import loudness as L
 
-PRIMITIVES = ("band_energy", "band_ratio", "crest", "loudness", "side_ratio", "correlation")
+PRIMITIVES = ("band_energy", "band_ratio", "crest", "loudness", "side_ratio", "correlation", "image_position")
 LOUDNESS_STATS = ("integrated", "short_p95", "short_p50", "short_max")
 VIEWS = ("stereo", "mono", "mono_band")
 MONO_VIEWS = ("mono", "mono_band")
 VIEW_BAND_DEFAULT_HZ = (150.0, 6000.0)
 VIEW_BAND_LO_RANGE_HZ = (80.0, 400.0)
 VIEW_BAND_HI_RANGE_HZ = (3000.0, 10000.0)
-STEREO_ONLY_PRIMITIVES = ("side_ratio", "correlation")
+STEREO_ONLY_PRIMITIVES = ("side_ratio", "correlation", "image_position")
 FRAME = 8192
 EPS = 1e-20
 
@@ -203,12 +208,18 @@ def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = 
             val = _db(np.mean(_band_power_frames(s, sr, band))) - _db(np.mean(_band_power_frames(m, sr, band)))
         else:
             val = _db(np.mean(s ** 2)) - _db(np.mean(m ** 2))
+    elif prim == "image_position":
+        y = _bandpass(seg, sr, band)
+        el, er = float(np.sum(y[:, 0] ** 2)), float(np.sum(y[:, 1] ** 2))
+        if el + er < EPS:
+            return {"status": "error", "reason": "image_position: the signal is silent in the range"}
+        val = (er - el) / (er + el)
     else:  # correlation
         y = _bandpass(seg, sr, band)
         a, b = y[:, 0], y[:, 1]
         den = math.sqrt(float(np.sum(a * a)) * float(np.sum(b * b)))
         val = float(np.sum(a * b)) / den if den > 0 else 0.0
-    unit = "LUFS" if prim == "loudness" else ("" if prim == "correlation" else "dB")
+    unit = "LUFS" if prim == "loudness" else ("" if prim in ("correlation", "image_position") else "dB")
     return {"status": "ok", "value": round(float(val), 4), "unit": unit, "range_s": [round(t0, 3), round(t1, 3)],
             "gain_db": round(float(gain_db), 4)}
 

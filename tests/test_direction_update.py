@@ -176,14 +176,20 @@ def _check_out(tmp_path: Path, block: dict, tag: str) -> tuple[dict, bytes]:
 
 # hashes of the output of direction.py before the T-9 additions (same inputs as below)
 BASE_VALIDATE = {
-    "2026-11-14_p1-kikigokochi": "ae7269da2c2a3306",
-    "2026-11-14_p2-ultra-sub-bass": "e3d534ab96d12f97",
-    "2026-11-14_p3-spatial-panning": "df6057e37a5a1b07",
+    "2026-11-14_p1-kikigokochi": "d46739a0e031d94e",  # P3 8.1: + kind-B unmeasured_quantity P-10, P-02, P-02:vs_lead, P-22 (was ae7269da2c2a3306)
+    "2026-11-14_p2-ultra-sub-bass": "23d3baa391eb4a7a",  # FR-1: the 4 unsupported warnings on trk_* observations are gone (was e3d534ab96d12f97); P3 8.1: + kind-B unmeasured_quantity P-02:vs_lead, P-10, P-22, P-11 (was edc8fd383fc5820a)
+    "2026-11-14_p3-spatial-panning": "a3996e0ea6fb6846",  # P3 8.1: + kind-B unmeasured_quantity P-02:vs_lead, P-10 (was df6057e37a5a1b07)
 }
 BASE_SYNTH_VALIDATE = "f0e997b2ca13d4f9"
 BASE_PROPOSAL = "b9fc8176b26b7c51"
 BASE_OUTCOME_FILE = "72f11127d364c785"
-BASE_MINIMAL = "1e841cbbc7876916"
+BASE_MINIMAL = "9dfa59a0a7e2b4d8"  # P3 8.1: + WARN_P03_B in the validate part (was 1e841cbbc7876916)
+# P3 8.1 (FBREVIEW): a ledger quantity in a claim / expect / safeguard always gets one unmeasured_quantity
+# warning; the minimal block's claim on P-03 gets kind B (its project fixture has no evaluation terms)
+WARN_P03_B = {"where": "quantities.P-03", "code": "unmeasured_quantity",
+              "message": "P-03 は台帳指標（該当 1 件）。direction check は結果の変種の評価項だけを読み、指揮書の結果を"
+                         "測り直さない。標準の流れ（master plan --apply）では評価項が残らず not_measured になる。"
+                         "obs:<id> の観察量は check が床と結果の両方を測る"}
 
 
 @pytest.mark.parametrize("folder", sorted(EXISTING))
@@ -215,7 +221,7 @@ def test_minimal_direction_needs_no_stage(tmp_path):
     assert not (path.parent / "analysis.md").exists()
     doc = D.parse_document(path)
     v = D.validate(doc, proj)
-    assert v["ok"] and not v["warnings"], v
+    assert v["ok"] and v["warnings"] == [WARN_P03_B], v
     assert v["tiers"] == {"m01": "E2"}
     prop, record, _ = D.build_proposal(D._Project(proj), doc)
     assert prop["changes"]["tracks"]["trk_vocals"]["gain_db"] == 1.0
@@ -253,7 +259,7 @@ def test_empty_references_and_cards_are_never_reported(tmp_path):
         b["sources"] = src
         b["request"]["like"] = []
         res = D.validate(D.parse_document(_write_doc(tmp_path / f"d{i}", b)), proj)
-        assert res["ok"] and res["warnings"] == [], res
+        assert res["ok"] and res["warnings"] == [WARN_P03_B], res
 
 
 @pytest.mark.parametrize("mutate,where,code", [

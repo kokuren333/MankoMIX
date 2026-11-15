@@ -405,7 +405,8 @@ def test_validate_accepts_a_full_duck(song, tmp_path):
     m["select"] = {"depth_db": "max"}
     res = _validate(song, tmp_path, [m])
     assert res["ok"], res["errors"]
-    assert res["warnings"] == []
+    import tests.test_direction_update as T
+    assert res["warnings"] == [T.WARN_P03_B]
 
 
 # ---------------------------------------------------------------------------

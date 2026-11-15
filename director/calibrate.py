@@ -100,6 +100,8 @@ def knobs(doc: dict, proj=None) -> list[dict]:
         params = m.get("params") or {}
         if op in EDIT_OPS:   # edit parameters are never calibration knobs (§1.3)
             continue
+        if op == "place":    # place parameters keep their select value (FBREVIEW FR-5)
+            continue
         if op == "bus_add":
             for i, c in enumerate(params.get("chain") or []):
                 add(m, c.get("params") or {}, c.get("type") or c.get("processor"), f"{m['id']}.chain{i}")
@@ -179,7 +181,8 @@ class _Predictor:
         self.vid = (self.proj.variant() or {}).get("id")
         self.sections = self.proj.sections()
         b = doc["block"]
-        self.obs = [o for o in b.get("observations") or [] if o.get("target", "master") == "master"]
+        self.obs = [o for o in b.get("observations") or []
+                    if o.get("target", "master") == "master" and o.get("primitive") in Q.PRIMITIVES]
         self.renders = 0
         x, self.sr = self._render(self.pobj.data, "floor")
         self.floor_lufs = Q.integrated_lufs(x, self.sr)
@@ -207,7 +210,9 @@ class _Predictor:
 def _items(doc: dict) -> list[dict]:
     """Every measurable claim and safeguard (obs: quantities on the master)."""
     b = doc["block"]
-    obs = {o.get("id"): o for o in b.get("observations") or [] if o.get("target", "master") == "master"}
+    # track targets and the context primitives (stemobs) are not read: master signals only
+    obs = {o.get("id"): o for o in b.get("observations") or []
+           if o.get("target", "master") == "master" and o.get("primitive") in Q.PRIMITIVES}
     out = []
     for c in b.get("claims") or []:
         qty = str(c.get("quantity", ""))

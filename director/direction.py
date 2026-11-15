@@ -39,6 +39,7 @@ from mankomix.dsp import processors as P
 
 from . import kb as kbmod
 from . import query as Q
+from . import stemobs as S
 
 FORMAT_VERSION = 1
 OWNER = "director"
@@ -59,8 +60,25 @@ OPS = {
     "edit_gate": ("edit", ("target", "params")),
     # cross-track ducking (UPGRADE2 §2): gain automation on the target keyed by another track's hits
     "duck": ("mix", ("target", "params")),
+    # placement (FBREVIEW FR-5): azimuth / width / distance -> pan, fader, air shelf and a room send,
+    # expanded into the existing pan / gain / chain_add / send moves
+    "place": ("mix", ("target", "params")),
 }
 EDIT_OPS = ("edit_trim", "edit_gate")
+# place parameters (FR-5): id -> (lo, hi, default, a range [lo, hi] + select allowed); room is a bus id
+PLACE_PARAMS = {
+    "azimuth": (-1.0, 1.0, None, True),
+    "width": (0.0, 2.0, None, True),
+    "distance": (1.0, 8.0, None, True),
+    "level_db_per_doubling": (0.0, 6.0, 2.0, False),
+    "air_db_per_doubling": (0.0, 3.0, 1.0, False),
+    "air_freq_hz": (2000.0, 10000.0, 5000.0, False),
+    "near_send_db": (-40.0, -12.0, -24.0, False),
+    "send_db_per_doubling": (0.0, 6.0, 4.0, False),
+}
+PLACE_MODEL = ("level_db_per_doubling", "air_db_per_doubling", "air_freq_hz", "near_send_db", "send_db_per_doubling")
+PLACE_SEND_MAX_DB = -3.0
+PLACE_SHELF_BW_OCT = 1.9
 SELECTS = ("mid", "min", "max")
 DIRECTIONS = ("up", "down", "not_worse")
 MASTER_ONLY = ("limiter", "clipper", "dither", "resample", "loudness_gain")
@@ -319,6 +337,130 @@ def _holder_stage(target: str) -> str:
     return "bus" if str(target).startswith("bus_") else "track"
 
 
+def _num(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def place_derive(params: dict) -> dict:
+    """The derivation of FR-5 for resolved (single-value) place parameters.
+
+    -> {"model": {5 coefficients}, "derived": {...}, "moves": [(op, processor, params)]}; the moves are
+    the existing ops the place stands for (nothing for a zero delta / shelf, no send without room)."""
+    model = {k: float(params[k]) if k in params else float(PLACE_PARAMS[k][2]) for k in PLACE_MODEL}
+    az, wd, dist, room = params.get("azimuth"), params.get("width"), params.get("distance"), params.get("room")
+    moves: list[tuple] = []
+    derived = {"position": None if az is None else round(float(az), 2),
+               "width": None if wd is None else round(float(wd), 2),
+               "delta_db": None, "air_gain_db": None, "send_level_db": None, "send_clamped": None}
+    pan = {k: derived[k] for k in ("position", "width") if derived[k] is not None}
+    if pan:
+        moves.append(("pan", None, pan))
+    if dist is not None:
+        L = math.log2(float(dist))
+        delta = round(-model["level_db_per_doubling"] * L, 2) + 0.0
+        air = round(-model["air_db_per_doubling"] * L, 2) + 0.0
+        derived["delta_db"], derived["air_gain_db"] = delta, air
+        if delta != 0.0:
+            moves.append(("gain", None, {"delta_db": delta}))
+        if air != 0.0:
+            moves.append(("chain_add", "eq", {"shape": "high_shelf", "freq_hz": model["air_freq_hz"],
+                                              "gain_db": air, "bw_oct": PLACE_SHELF_BW_OCT, "phase": "minimum"}))
+        if room is not None:
+            raw = model["near_send_db"] + model["send_db_per_doubling"] * L
+            lvl = round(min(raw, PLACE_SEND_MAX_DB), 2) + 0.0
+            derived["send_level_db"], derived["send_clamped"] = lvl, raw > PLACE_SEND_MAX_DB
+            moves.append(("send", None, {"bus": room, "level_db": lvl, "pre_fader": False}))
+    return {"model": model, "derived": derived, "moves": moves}
+
+
+def _check_place(m: dict, b: dict, where: str, err, *, proj, tracks: dict, buses: dict, errors: list) -> None:
+    """Form, ranges and the expanded moves of one place move (FR-5, G-2). Conflicts are checked by the caller."""
+    target = m.get("target")
+    raw = m.get("params")
+    new_buses = {x.get("target") for x in b.get("moves") or [] if x.get("op") == "bus_add"}
+    if target == "master" or str(target).startswith("bus_") or target in buses or target in new_buses:
+        err(where, "bad_target", "'place' needs a track target")
+    elif proj and target not in tracks:
+        err(where, "unknown_target", f"unknown target '{target}'")
+    if not isinstance(raw, dict):
+        return
+    unknown = sorted(set(raw) - set(PLACE_PARAMS) - {"room"})
+    if unknown:
+        err(where, "bad_value", f"unknown place parameters: {', '.join(unknown)}")
+    if not ({"azimuth", "width", "distance"} & set(raw)):
+        err(where, "missing_field", "place needs azimuth, width and/or distance")
+    if "room" in raw:
+        room = raw["room"]
+        if "distance" not in raw:
+            err(f"{where}.room", "missing_field", "room needs distance (the send level follows the distance)")
+        if not isinstance(room, str) or not room.startswith("bus_"):
+            err(f"{where}.room", "bad_value", f"room must be a bus id (got {room!r})")
+        elif proj and room not in buses and room not in new_buses:
+            err(f"{where}.room", "unknown_target", f"unknown bus '{room}'")
+    ok = True
+    for k, (lo, hi, _dflt, ranged) in PLACE_PARAMS.items():
+        if k not in raw:
+            continue
+        v = raw[k]
+        vals = None
+        if _is_range(v):
+            if ranged:
+                vals = [float(x) for x in v]
+            else:
+                err(f"{where}.{k}", "bad_value", f"{k} takes one value (only azimuth / width / distance take a range)")
+        elif _num(v):
+            vals = [float(v)]
+        else:
+            err(f"{where}.{k}", "bad_value", f"{k} must be a number" + (" or a range [lo, hi]" if ranged else ""))
+        if vals is None:
+            ok = False
+            continue
+        if any(not math.isfinite(x) or not lo <= x <= hi for x in vals):
+            err(f"{where}.{k}", "param_range", f"{k} {v} outside [{lo:g}, {hi:g}]")
+            ok = False
+    if not ok or not isinstance(raw.get("room", ""), str):
+        return
+    # the expanded moves go through the existing range checks (a range: both ends)
+    for end in _ends({k: v for k, v in raw.items()}):
+        for op, ptype, p in place_derive(end)["moves"]:
+            if op == "pan":
+                if "position" in p and not -1.0 <= p["position"] <= 1.0:
+                    err(where, "param_range", "position must be in [-1, 1]")
+                if "width" in p and not 0.0 <= p["width"] <= 2.0:
+                    err(where, "param_range", "width must be in [0, 2]")
+            elif op == "gain":
+                if not -24.0 <= p["delta_db"] <= 12.0:
+                    err(where, "param_range", f"delta_db {p['delta_db']} outside [-24, 12]")
+            elif op == "chain_add":
+                _check_proc_params(ptype, p, "track", where, errors)
+            elif op == "send":
+                if not -60.0 <= p["level_db"] <= 6.0:
+                    err(where, "param_range", "level_db must be in [-60, 6]")
+
+
+def _place_conflicts(moves: list, err) -> None:
+    """The four conflicts of FR-5 (on one track): two places; a place with azimuth / width and a pan; a place
+    with distance and a gain without a section; a place with room and a send to the same bus."""
+    places = [m for m in moves if isinstance(m, dict) and m.get("op") == "place" and isinstance(m.get("params"), dict)]
+    seen: dict = {}
+    for m in places:
+        t, p, where = m.get("target"), m["params"], f"moves.{m.get('id')}"
+        if t in seen:
+            err(where, "conflict", f"two place moves on '{t}' ({seen[t]} and {m.get('id')})")
+        else:
+            seen[t] = m.get("id")
+        for x in moves:
+            if not isinstance(x, dict) or x.get("target") != t:
+                continue
+            xp = x.get("params") if isinstance(x.get("params"), dict) else {}
+            if x.get("op") == "pan" and ({"azimuth", "width"} & set(p)):
+                err(where, "conflict", f"place with azimuth / width and pan {x.get('id')} on '{t}'")
+            elif x.get("op") == "gain" and "distance" in p and x.get("section") in (None, "all"):
+                err(where, "conflict", f"place with distance and gain {x.get('id')} (no section) on '{t}'")
+            elif x.get("op") == "send" and "room" in p and xp.get("bus") == p.get("room"):
+                err(where, "conflict", f"place with room '{p.get('room')}' and send {x.get('id')} to the same bus on '{t}'")
+
+
 def _validate_reference_fields(b: dict, err) -> None:
     """The optional fields of the reference path: request.like, sources.references.
 
@@ -353,6 +495,154 @@ def _validate_reference_fields(b: dict, err) -> None:
             extra = sorted(set(r) - {"work", "study_sha256", "refsheet_sha256"})
             if extra:
                 err(where, "bad_value", f"unknown keys in a reference: {', '.join(extra)}")
+
+
+SCENE_KEYS = ("note", "sources")
+SCENE_SOURCE_KEYS = ("track", "azimuth", "depth", "note")
+SCENE_MAX_SOURCES = 32
+SCENE_DEPTH = (1, 5)
+
+
+def _check_scene(sc: Any, err, *, tracks: dict, has_project: bool) -> None:
+    """Form and range of the optional ``scene`` (FBREVIEW FR-4, G-2). Never checked: whether every
+    track is listed, whether the moves follow it, whether the result matches it."""
+    if not isinstance(sc, dict):
+        err("scene", "bad_value", "scene must be an object {note?, sources}")
+        return
+    extra = sorted(set(sc) - set(SCENE_KEYS))
+    if extra:
+        err("scene", "bad_value", f"unknown keys in scene: {', '.join(extra)}")
+    if "note" in sc and not isinstance(sc["note"], str):
+        err("scene.note", "bad_value", "scene.note must be a string")
+    if "sources" not in sc:
+        err("scene.sources", "missing_field", "scene needs sources (1 to 32 entries)")
+        return
+    srcs = sc["sources"]
+    if not isinstance(srcs, list):
+        err("scene.sources", "bad_value", "scene.sources must be a list")
+        return
+    if not 1 <= len(srcs) <= SCENE_MAX_SOURCES:
+        err("scene.sources", "param_range", f"scene.sources needs 1 to {SCENE_MAX_SOURCES} entries (found {len(srcs)})")
+    seen: set = set()
+    for i, s in enumerate(srcs):
+        where = f"scene.sources[{i}]"
+        if not isinstance(s, dict):
+            err(where, "bad_value", "each source is an object {track, azimuth?, depth?, note?}")
+            continue
+        extra = sorted(set(s) - set(SCENE_SOURCE_KEYS))
+        if extra:
+            err(where, "bad_value", f"unknown keys in a scene source: {', '.join(extra)}")
+        t = s.get("track")
+        if "track" not in s:
+            err(f"{where}.track", "missing_field", "a scene source needs track")
+        elif not S.is_track_target(t):
+            err(f"{where}.track", "bad_value", f"track must be a track id (trk_<stem>), not {t!r}")
+        elif t in seen:
+            err(f"{where}.track", "bad_id", f"track '{t}' is listed twice in scene.sources")
+        else:
+            seen.add(t)
+            if has_project and t not in tracks:
+                err(f"{where}.track", "unknown_target", f"unknown track '{t}'")
+        if "azimuth" in s:
+            a = s["azimuth"]
+            if not _num(a):
+                err(f"{where}.azimuth", "bad_value", "azimuth must be a number in [-1, 1]")
+            elif not -1.0 <= float(a) <= 1.0:
+                err(f"{where}.azimuth", "param_range", f"azimuth {a} outside [-1, 1]")
+        if "depth" in s:
+            d = s["depth"]
+            if not isinstance(d, int) or isinstance(d, bool):
+                err(f"{where}.depth", "bad_value", "depth must be an integer 1 to 5 (1 = front)")
+            elif not SCENE_DEPTH[0] <= d <= SCENE_DEPTH[1]:
+                err(f"{where}.depth", "param_range", f"depth {d} outside [1, 5]")
+        if "azimuth" not in s and "depth" not in s:
+            err(where, "missing_field", "a scene source needs azimuth and/or depth")
+        if "note" in s and not isinstance(s["note"], str):
+            err(f"{where}.note", "bad_value", "note must be a string")
+
+
+def _unmeasured_quantities(b: dict, proj: "_Project | None", warn) -> None:
+    """FBREVIEW FR-7 (G-1) as amended by P3 (requirements 8.1): one warning per ledger quantity
+    (P-nn[:qualifier]) in a claim, an expectation or a safeguard, with or without a project, in
+    order of first appearance. Kind A (the original text): the project's floor variant has
+    evaluation terms but none numeric (value or penalty) for the quantity. Kind B: every other case
+    (no project, an unevaluated project, or a floor term that is numeric) -- check reads only the
+    result variant's terms, which the standard flow does not keep."""
+    terms = _terms(proj.root, None) if proj else {}
+    counts: dict[str, int] = {}
+    qs = list(b.get("claims") or [])
+    for m in b.get("moves") or []:
+        if isinstance(m, dict):
+            qs += list(m.get("expect") or []) + list(m.get("safeguard") or [])
+    for q in qs:
+        qty = q.get("quantity") if isinstance(q, dict) else None
+        if isinstance(qty, str) and _P_RE.match(qty):
+            counts[qty] = counts.get(qty, 0) + 1
+    for qty, n in counts.items():
+        t = terms.get(qty) or terms.get(qty.split(":", 1)[0]) or {}
+        if terms and _scalar(t.get("value")) is None and _scalar(t.get("penalty")) is None:
+            warn(f"quantities.{qty}", "unmeasured_quantity",
+                 f"床の変種の評価項に {qty} の数値（value／penalty）が無い（該当 {n} 件）。direction check は "
+                 "not_measured を返す。obs:<id>（masking／wet_ratio／trk 対象の観察量）で測れる")
+        else:
+            warn(f"quantities.{qty}", "unmeasured_quantity",
+                 f"{qty} は台帳指標（該当 {n} 件）。direction check は結果の変種の評価項だけを読み、"
+                 "指揮書の結果を測り直さない。標準の流れ（master plan --apply）では評価項が残らず "
+                 "not_measured になる。obs:<id> の観察量は check が床と結果の両方を測る")
+
+
+def _kendall(xs: list[float], ys: list[float]) -> float | None:
+    from scipy.stats import kendalltau
+    if len(xs) < 3:
+        return None
+    t = kendalltau(xs, ys).statistic
+    return None if t is None or not math.isfinite(float(t)) else round(float(t), 3)
+
+
+def scene_block(sc: dict, src_t, src_f) -> dict:
+    """The reference-only ``scene`` block of an outcome (FBREVIEW FR-4): the declared placement next
+    to the measured one, for the floor and the result. Read by no verdict, summary or calibration."""
+    def r3(v):
+        v = _scalar(v)
+        return None if v is None else round(v, 3)
+
+    def obs(src, spec):
+        res = S.observe(src, spec)
+        return r3(res.get("value")) if res.get("status") == "ok" else None
+
+    def lufs(src, trk):
+        try:
+            x, sr = src.track(trk, "dry")
+        except S.StemObsError:
+            return None
+        return r3(Q.integrated_lufs(x, sr))
+
+    rows: dict = {}
+    depth_rows = []
+    for s in sc.get("sources") or []:
+        trk = s.get("track")
+        row: dict = {}
+        if "azimuth" in s:
+            row["azimuth"] = s["azimuth"]
+            row["expected_image"] = round(math.sin(float(s["azimuth"]) * math.pi / 2.0), 3)
+        ip = {"primitive": "image_position", "target": trk, "path": "solo"}
+        row["image_position"] = {"floor": obs(src_f, ip), "result": obs(src_t, ip)}
+        if "depth" in s:
+            row["depth"] = s["depth"]
+        wr = {"primitive": "wet_ratio", "target": trk}
+        row["wet_ratio_db"] = {"floor": obs(src_f, wr), "result": obs(src_t, wr)}
+        row["level_lufs"] = {"floor": lufs(src_f, trk), "result": lufs(src_t, trk)}
+        rows[trk] = row
+        if "depth" in s and row["wet_ratio_db"]["result"] is not None and row["level_lufs"]["result"] is not None:
+            depth_rows.append((float(s["depth"]), row["wet_ratio_db"]["result"], -row["level_lufs"]["result"]))
+    n = len(depth_rows)
+    return {"note": "参考値。どの判定にも入らない（主張・期待・ガード・summary・ゲート）。奥行きの知覚は 1 つの量で決まらない。"
+                    "expected_image は sin(azimuth·π/2) の目安（モノ素材の等電力則の値。ステレオで取り込んだ素材は"
+                    "釣り合い則で、これより中央寄りに出る）",
+            "sources": rows,
+            "depth_consistency": {"n": n,
+                                  "tau_wet": _kendall([d[0] for d in depth_rows], [d[1] for d in depth_rows]),
+                                  "tau_level": _kendall([d[0] for d in depth_rows], [d[2] for d in depth_rows])}}
 
 
 def validate(doc: dict, project: str | Path | None = None) -> dict:
@@ -410,17 +700,28 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
     aims = {a.get("id") for a in b.get("aims") or [] if isinstance(a, dict)}
     obs = {o.get("id"): o for o in b.get("observations") or [] if isinstance(o, dict)}
     for oid, o in obs.items():
-        if o.get("primitive") not in Q.PRIMITIVES:
+        if o.get("primitive") not in Q.PRIMITIVES and o.get("primitive") not in S.CONTEXT_PRIMITIVES:
             err(f"observations.{oid}", "bad_value", f"unknown primitive '{o.get('primitive')}'")
-        if o.get("target", "master") != "master":
+        # track targets (trk_<stem>) and the context primitives are measured by stemobs (FBREVIEW FR-1 / FR-2)
+        if (o.get("target", "master") != "master" and not S.is_track_target(o.get("target"))
+                and o.get("primitive") not in S.CONTEXT_PRIMITIVES):
             warn(f"observations.{oid}", "unsupported", f"target '{o.get('target')}' is not supported in v0 "
                                                        "(only master); the observation will be reported unsupported")
+        # form and range of the fields FR-1 / FR-2 add (G-2); nothing for an observation without them
+        for suffix, code, msg in S.spec_errors(o):
+            err(f"observations.{oid}{suffix}", code, msg)
+        if proj:
+            for key in ("target", "against"):
+                tv = o.get(key)
+                if S.is_track_target(tv) and tv not in tracks:
+                    err(f"observations.{oid}" + ("" if key == "target" else ".against"), "unknown_target",
+                        f"unknown track '{tv}'")
         sec = o.get("section", "all")
         if isinstance(sec, str) and sec != "all" and proj and sec not in sections:
             err(f"observations.{oid}", "unknown_section", f"unknown section '{sec}'")
         if "ref_value" in o and o["ref_value"] is not None and _scalar(o["ref_value"]) is None:
             err(f"observations.{oid}.ref_value", "bad_value", "ref_value must be a finite number (or null)")
-        if "view" in o or "view_band_hz" in o:
+        if ("view" in o or "view_band_hz" in o) and o.get("primitive") not in S.CONTEXT_PRIMITIVES:
             # the optional view (UPGRADE2 §3.5): the same rule as query.observe, so a written view never
             # fails only at check time
             try:
@@ -429,6 +730,8 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 msg = str(e).removeprefix("bad_value: ")
                 err(f"observations.{oid}.{'view_band_hz' if 'view_band_hz' in msg else 'view'}", "bad_value", msg)
     _validate_reference_fields(b, err)
+    if "scene" in b:
+        _check_scene(b["scene"], err, tracks=tracks, has_project=proj is not None)
 
     def check_quantity(where: str, q: dict):
         qty = q.get("quantity")
@@ -595,12 +898,15 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "unknown_target", f"unknown target '{target}'")
             K.check_params(raw, target, where, err, tracks=tracks, buses=buses,
                            bpm=K.floor_bpm(proj.floor_mxp) if proj else None, has_project=proj is not None)
+        elif op == "place":
+            _check_place(m, b, where, err, proj=proj, tracks=tracks, buses=buses, errors=errors)
         # review tier (assigned here, not self-declared). E1 is only the catalog range check: a move
         # taken from another work (origin: reference) is E2 or above (another song's facts are no
-        # guarantee here), and citing a theory card (KT-nnnn) never makes a move E1
+        # guarantee here), and citing a theory card (KT-nnnn) never makes a move E1; a place is E2 or above
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
-        if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck":
+        if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck" \
+                and op != "place":
             tier = "E1"
         if op == "master_target":
             prof = _profile((variants[0] if variants else {}).get("profile") or "")
@@ -615,8 +921,11 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         if tier == "E3" and not b.get("listen_for"):
             warn(where, "listen_for", "an E3 move needs listen_for entries")
         tiers[mid] = tier
+    if any(isinstance(m, dict) and m.get("op") == "place" for m in b.get("moves") or []):
+        _place_conflicts(b.get("moves") or [], err)
     if lead_e3 and not b.get("listen_for"):
         warn("listen_for", "missing", "E3 moves on the lead need listen_for")
+    _unmeasured_quantities(b, proj, warn)
     return {"kind": "direction_validation", "id": doc["id"], "ok": not errors, "errors": errors,
             "warnings": warnings, "tiers": tiers, "notes": notes,
             "moves": len(b.get("moves") or []), "claims": len(claims), "observations": len(obs)}
@@ -738,12 +1047,10 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
                             "output": params.get("output", "bus_mix"), "owner": OWNER, "chain": chain,
                             "move_ref": _ref(dir_id, m["id"])})
         record["moves"][m["id"]] = {"op": "bus_add", "bus": m["target"], "items": [c["id"] for c in chain]}
-    for m in b.get("moves") or []:
+
+    def one(m: dict, params: dict) -> None:
+        """One move of the existing ops (a place is expanded into these, FR-5)."""
         op, mid, target = m.get("op"), m.get("id"), m.get("target")
-        params, n = resolve_params(m, m.get("params") or {}, sel)
-        notes += n
-        if op == "bus_add":
-            continue
         if op == "chain_add":
             ptype = m["processor"]
             item = _item(dir_id, m, ptype, P.validate_params(ptype, params), target)
@@ -822,7 +1129,28 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             dp["record"]["floor_automation"] = {"points": len(base.get("gain_db") or []), "owner": base.get("owner")}
             ducks.setdefault(target, []).append((mid, dp["points"]))
             record["moves"][mid] = dp["record"]
-            notes += dp["notes"]
+            notes.extend(dp["notes"])
+
+    for m in b.get("moves") or []:
+        params, n = resolve_params(m, m.get("params") or {}, sel)
+        notes += n
+        if m.get("op") == "bus_add":
+            continue
+        if m.get("op") == "place":
+            # FR-5: expanded into pan / gain / chain_add / send moves that carry the place's id (move_ref)
+            pd = place_derive(params)
+            for op2, ptype, p2 in pd["moves"]:
+                sub = {k: v for k, v in m.items() if k not in ("params", "processor")}
+                sub.update({"op": op2, "params": p2})
+                if ptype:
+                    sub["processor"] = ptype
+                one(sub, p2)
+            record["moves"][m["id"]] = {
+                "op": "place", "track": m.get("target"),
+                **{k: (None if params.get(k) is None else float(params[k])) for k in ("azimuth", "width", "distance")},
+                "room": params.get("room"), "model": pd["model"], "derived": pd["derived"]}
+            continue
+        one(m, params)
     for tid, segs in seg_gain.items():
         if tid in ducks:
             continue
@@ -1108,7 +1436,15 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     out["loudness"] = {"result_lufs_i": round(lt, 3), "floor_lufs_i": round(lf, 3), "level_match_gain_db": round(match, 3)}
     sections = proj.sections()
     obs_vals: dict = {}
+    # track signals (FBREVIEW FR-1 / FR-2) only when an observation needs them: otherwise nothing is rendered
+    src_t = src_f = None
+    if any(isinstance(o, dict) and S.needs_stems(o) for o in b.get("observations") or []):
+        src_t, src_f = S.StemSource(root, vid), S.StemSource(froot, fv.get("id"))
     for o in b.get("observations") or []:
+        if src_t is not None and S.needs_stems(o):
+            obs_vals[o.get("id")] = {"floor": S.observe(src_f, o, sections=sections),
+                                     "result": S.observe(src_t, o, sections=sections)}
+            continue
         try:
             g = match if o.get("level_match", True) else 0.0
             rt = Q.observe(x, sr, o, sections=sections, gain_db=g)
@@ -1123,6 +1459,12 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     if translation:
         from . import translation as TR
         out["translation"] = TR.block(x, y, sr, match)
+    sc = b.get("scene")
+    if isinstance(sc, dict):
+        # FBREVIEW FR-4: reference only (read by no verdict, summary or calibration); only with a scene
+        if src_t is None:
+            src_t, src_f = S.StemSource(root, vid), S.StemSource(froot, fv.get("id"))
+        out["scene"] = scene_block(sc, src_t, src_f)
     tterms, fterms = _terms(root, vid), _terms(froot, fv.get("id"))
 
     def value(qty: str) -> tuple[float | None, float | None, dict | None, dict | None]:
@@ -1182,6 +1524,14 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
                 or (op == "gain" and m.get("section") not in (None, "all")) \
                 or (op == "duck" and (recorded.get(m.get("id")) or {}).get("hits") != 0):
             if m.get("id") not in refs:
+                missing.append(m.get("id"))
+        elif op == "place":
+            # FR-5: traced by the apply record; the shelf and the send it added carry its move_ref
+            dv = (recorded.get(m.get("id")) or {}).get("derived")
+            if not isinstance(dv, dict):
+                missing.append(m.get("id"))
+            elif ((dv.get("air_gain_db") or 0.0) != 0.0 or dv.get("send_level_db") is not None) \
+                    and m.get("id") not in refs:
                 missing.append(m.get("id"))
         elif m.get("id") not in recorded:
             missing.append(m.get("id"))

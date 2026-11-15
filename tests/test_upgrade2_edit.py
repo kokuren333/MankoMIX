@@ -172,12 +172,12 @@ def _audio_files(root: Path) -> list[str]:
 
 # hashes of the output of direction.py before the edit stage (W-2 golden, HEAD 87800e8)
 BASE_VALIDATE = {
-    "2026-11-14_p1-kikigokochi": ("dir_68e88f393670", "ae7269da2c2a3306"),
-    "2026-11-14_p2-ultra-sub-bass": ("dir_2a6c9969107a", "e3d534ab96d12f97"),
-    "2026-11-14_p3-spatial-panning": ("dir_b465721f74fb", "df6057e37a5a1b07"),
+    "2026-11-14_p1-kikigokochi": ("dir_68e88f393670", "d46739a0e031d94e"),  # P3 8.1: + kind-B unmeasured_quantity P-10, P-02, P-02:vs_lead, P-22 (was ae7269da2c2a3306)
+    "2026-11-14_p2-ultra-sub-bass": ("dir_2a6c9969107a", "23d3baa391eb4a7a"),  # FR-1: trk_* observations no longer warn (was e3d534ab96d12f97); P3 8.1: + kind-B unmeasured_quantity P-02:vs_lead, P-10, P-22, P-11 (was edc8fd383fc5820a)
+    "2026-11-14_p3-spatial-panning": ("dir_b465721f74fb", "a3996e0ea6fb6846"),  # P3 8.1: + kind-B unmeasured_quantity P-02:vs_lead, P-10 (was df6057e37a5a1b07)
     "2026-11-15_p4-ref-fullmix": ("dir_9a31fadac3cc", "6e7e8b698f3a472d"),
-    "2026-11-15_p5-ref-stems": ("dir_b86a8a0667a2", "1508342f97f86112"),
-    "2026-11-15_p6-vocal-words": ("dir_89dc56c90b97", "1a5623aec838033e"),
+    "2026-11-15_p5-ref-stems": ("dir_b86a8a0667a2", "07f2e31d3579cb47"),  # P3 8.1: + kind-B unmeasured_quantity P-02:vs_lead (was 1508342f97f86112)
+    "2026-11-15_p6-vocal-words": ("dir_89dc56c90b97", "4bebb2691518784a"),  # P3 8.1: + kind-B unmeasured_quantity P-10 (was 1a5623aec838033e)
 }
 # _masked hashes, re-taken in W-9 from HEAD 87800e8 with the current mask (tmp/upgrade2/w9/scripts)
 BASE_APPLY_RECORD_NOMOVE = "9ca1527ce302b959"
@@ -562,6 +562,7 @@ def test_cli_scan_and_revert(song, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_edit_moves_are_never_e1(song, tmp_path):
+    import tests.test_direction_update as T
     cat = _move(origin="catalog", basis="R-06")
     lead = _move("m02", target="trk_vocals", origin="catalog", basis="R-06")
     v = D.validate(D.parse_document(_doc(tmp_path / "a", _block([cat, lead]))), song)
@@ -570,7 +571,7 @@ def test_edit_moves_are_never_e1(song, tmp_path):
     assert {"listen_for"} <= {w["code"] for w in v["warnings"]}
     v = D.validate(D.parse_document(_doc(tmp_path / "b", _block([cat, lead], listen_for=[{"t_s": 1, "what": "x"}]))),
                    song)
-    assert v["tiers"]["m02"] == "E3" and not v["warnings"]
+    assert v["tiers"]["m02"] == "E3" and v["warnings"] == [T.WARN_P03_B]
     # the same basis on a gain move still gives E1 (nothing else changed)
     g = {"id": "m03", "aim": "a1", "op": "gain", "target": "trk_guitar", "params": {"delta_db": -1.0},
          "basis": "R-06", "origin": "catalog"}

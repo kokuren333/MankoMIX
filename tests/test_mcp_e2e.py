@@ -782,6 +782,8 @@ CLI_TO_MCP: dict[str, str | None] = {
     "direction ref study": "ref_study", "direction ref compare": "ref_compare",
     "direction ref credit": "ref_credit", "direction ref list": "ref_list",
     "direction edit scan": "direction_edit_scan", "direction edit revert": "direction_edit_revert",
+    "direction stems observe": "direction_stems_observe", "direction stems relate": "direction_stems_relate",
+    "direction stems purity": "direction_stems_purity",
 }
 # CLI flags that select a different core function (and so a different MCP tool).
 CLI_FLAG_COMMANDS = {"verify --last": ("verify", "--last"), "separate --records": ("separate", "--records")}
@@ -799,10 +801,13 @@ KNOWN_CLI_ONLY = {
     **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core). CLI only in the second "
           "update (edit stage); MCP exposure of the direction group is a separate delivery"
        for c in ("direction edit scan", "direction edit revert")},
+    **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core). C-5: the read-only "
+          "stem commands are CLI only; no MCP exposure in this update"
+       for c in ("direction stems observe", "direction stems relate", "direction stems purity")},
 }
 SERVER_TOOLS = {"job_status", "job_result", "job_list"}       # server-level, no CLI counterpart (README)
 # third-level command groups: '<group> <sub>' whose help lists its own SUBCOMMAND block
-NESTED_GROUPS = ("direction ref", "direction edit")
+NESTED_GROUPS = ("direction ref", "direction edit", "direction stems")
 
 
 def _help(*argv: str) -> str:

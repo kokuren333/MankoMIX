@@ -187,24 +187,18 @@ def _project_stems(root: Path, vid: str | None) -> tuple[dict[str, np.ndarray] |
     The cleanup caches must already be valid: core would regenerate a missing
     cache inside the project, and this sheet never writes into the project.
     """
-    from mankomix.core import cleanstage
     from mankomix.core import mixrender as MR
     from mankomix.core.errors import MankoError
     from mankomix.core.project import Project
+
+    from .stemobs import cleanup_cache_error
     try:
         pobj = Project.open(root)
         data, _ = MR.effective_data(pobj, variant_id=vid)
         tracks = MR.stem_tracks(data)
-        for t in tracks:
-            for c in t.get("clips") or []:
-                aid = c.get("asset")
-                e = cleanstage.track_cleanup_entry(t, aid)
-                if e is None:
-                    continue
-                asha = pobj.asset(aid).get("sha256") or ""
-                if e.get("asset_sha256") not in (None, asha) or \
-                        cleanstage._cache_valid(pobj, asha, str(e.get("plan_hash"))) is None:
-                    return None, None, {"error": "整音の cache が無いか古い。先に clean apply／render する"}
+        cache_err = cleanup_cache_error(pobj, tracks)
+        if cache_err:
+            return None, None, {"error": cache_err}
         stems: dict[str, np.ndarray] = {}
         _, sr, rec = MR.render_mix(pobj, variant_id=vid, stems_out=stems, measure=False)
     except MankoError as e:

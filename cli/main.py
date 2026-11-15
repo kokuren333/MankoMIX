@@ -511,6 +511,37 @@ def _json_arg(text: str | None):
     return s
 
 
+class _StemInputError(InputError):
+    """The read-only stems commands use exit code 1 for invalid measurement inputs."""
+
+    exit_code = 1
+
+
+def _stem_errors(fn, *args, **kw):
+    from mankomix.director.purity import PurityInputError
+    from mankomix.director.stemobs import StemObsError
+    try:
+        return fn(*args, **kw)
+    except (StemObsError, PurityInputError) as e:
+        raise _StemInputError(str(e)) from None
+
+
+def cmd_direction_stems_observe(a):
+    from mankomix.director import relate as R
+    specs = json.loads(_read_arg_or_file(a.spec))
+    return _stem_errors(R.observe_specs, _project(a), specs, variant=a.variant)
+
+
+def cmd_direction_stems_relate(a):
+    from mankomix.director import relate as R
+    return _stem_errors(R.stem_relate, _project(a), variant=a.variant, section=_json_arg(a.section), top=a.top)
+
+
+def cmd_direction_stems_purity(a):
+    from mankomix.director import purity as P
+    return _stem_errors(P.stem_purity, _project(a), tracks=a.track)
+
+
 def cmd_direction_edit_scan(a):
     from mankomix.director import edit as E
     params = _json_arg(a.params) if a.params else {}
@@ -1027,6 +1058,22 @@ def build_parser() -> argparse.ArgumentParser:
              "correlation); --project resolves section ids", gsub)
     sp.add_argument("audio", help="audio file")
     sp.add_argument("spec", help="observation JSON (object or list) or @file")
+
+    grp_stems = add("stems", None, "read-only stem observations, cross-track relations and contents", gsub)
+    ssub = grp_stems.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")
+    ssub.required = True
+    sp = add("observe", cmd_direction_stems_observe,
+             "measure track observation specs on --project; writes nothing; requires valid cleanup caches", ssub)
+    sp.add_argument("spec", help="observation JSON (object or list) or @file")
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp = add("relate", cmd_direction_stems_relate,
+             "cross-track masking and band owners on --project; writes nothing; requires valid cleanup caches", ssub)
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--section", help="section id or JSON {\"t0_s\", \"t1_s\"}")
+    sp.add_argument("--top", type=int, default=3, help="number of top maskers per track (1 to 8; default: 3)")
+    sp = add("purity", cmd_direction_stems_purity,
+             "post-clean, pre-chain stem contents on --project; writes nothing; requires valid cleanup caches", ssub)
+    sp.add_argument("--track", action="append", help="track id (repeatable; default: all audible stems)")
 
     # the edit (declutter) stage: read-only scan and revert from the ledger (an optional move, UPGRADE2 §1)
     grp_edit = add("edit", None, "edit stage of a direction (edit_trim / edit_gate): scan a track read-only, "
