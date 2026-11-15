@@ -778,6 +778,9 @@ CLI_TO_MCP: dict[str, str | None] = {
     "direction dossier": "direction_dossier", "direction validate": "direction_validate",
     "direction apply": "direction_apply", "direction check": "direction_check", "direction query": "direction_query",
     "kb index": "kb_index", "kb lint": "kb_lint",
+    "kb search": "kb_search", "kb show": "kb_show",
+    "direction ref study": "ref_study", "direction ref compare": "ref_compare",
+    "direction ref credit": "ref_credit", "direction ref list": "ref_list",
 }
 # CLI flags that select a different core function (and so a different MCP tool).
 CLI_FLAG_COMMANDS = {"verify --last": ("verify", "--last"), "separate --records": ("separate", "--records")}
@@ -788,8 +791,14 @@ KNOWN_CLI_ONLY = {
           "renovation proposal v2). MCP exposure is deferred until the owner decides v2 (D-085 onward)"
        for c in ("direction dossier", "direction validate", "direction apply", "direction check", "direction query",
                  "kb index", "kb lint")},
+    **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core). UD-3: CLI only in this "
+          "update; MCP exposure of the direction group is a separate delivery"
+       for c in ("kb search", "kb show", "direction ref study", "direction ref compare", "direction ref credit",
+                 "direction ref list")},
 }
 SERVER_TOOLS = {"job_status", "job_result", "job_list"}       # server-level, no CLI counterpart (README)
+# third-level command groups: '<group> <sub>' whose help lists its own SUBCOMMAND block
+NESTED_GROUPS = ("direction ref",)
 
 
 def _help(*argv: str) -> str:
@@ -836,6 +845,12 @@ def cli_commands() -> dict[str, str]:
                 out[f"{cmd} {s}"] = text
         else:
             out[cmd] = text
+    for group in NESTED_GROUPS:
+        if group in out:
+            del out[group]
+            text = _help(*group.split())
+            for s in _subcommands(text, "SUBCOMMAND"):
+                out[f"{group} {s}"] = text
     for name, (cmd, flag) in CLI_FLAG_COMMANDS.items():
         assert flag in helps[cmd], f"CLI '{cmd}' lost its {flag} option"
         out[name] = helps[cmd]

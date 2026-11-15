@@ -7,6 +7,12 @@ address, or something that looks like an access token. Also fails if a
 forbidden directory is tracked, if any commit was made with a non-noreply
 identity, or if any commit message carries a Co-Authored-By trailer.
 
+Optional name block list: when the non-committed file ``_private/blocklist.txt``
+exists (one word per line; blank lines and lines starting with '#' are
+ignored), every candidate file's path and text are matched against it
+(case-insensitive substring). Findings name the block-list line, not the word.
+Without the file nothing is checked.
+
 Usage:
     python -I tools/check_hygiene.py
 
@@ -21,6 +27,7 @@ import sys
 from pathlib import Path
 
 FORBIDDEN_DIRS = ("_handoff/", "_private/")
+BLOCKLIST = "_private/blocklist.txt"
 
 # An e-mail domain suffix that is always acceptable (GitHub noreply addresses)
 # plus reserved documentation domains.
@@ -55,6 +62,34 @@ def candidate_files(root: Path) -> list[str]:
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+def load_blocklist(root: Path) -> list[tuple[int, str]]:
+    """(line number, lowercased word) pairs of the optional block list; empty when the file is absent."""
+    path = root / BLOCKLIST
+    if not path.is_file():
+        return []
+    out = []
+    for n, raw in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
+        word = raw.strip()
+        if word and not word.startswith("#"):
+            out.append((n, word.casefold()))
+    return out
+
+
+def blocked_names(rel: str, text: str | None, blocklist: list[tuple[int, str]]) -> list[str]:
+    """Findings for block-list words in a path or text (the word itself is not printed)."""
+    found = []
+    for n, word in blocklist:
+        if word in rel.casefold():
+            found.append(f"{rel}: blocked name in the path (blocklist line {n})")
+    if text is not None:
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            low = line.casefold()
+            for n, word in blocklist:
+                if word in low:
+                    found.append(f"{rel}:{lineno}: blocked name (blocklist line {n})")
+    return found
+
+
 def check_commit_identities(root: Path) -> list[str]:
     """Every commit must use a noreply identity and carry no co-author trailer."""
     result = subprocess.run(
@@ -81,6 +116,7 @@ def check_commit_identities(root: Path) -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     findings: list[str] = []
+    blocklist = load_blocklist(root)
 
     for rel in candidate_files(root):
         if rel.startswith(FORBIDDEN_DIRS):
@@ -88,12 +124,14 @@ def main() -> int:
             continue
         path = root / rel
         if path.suffix.lower() in BINARY_SUFFIXES or not path.is_file():
+            findings.extend(blocked_names(rel, None, blocklist))
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             findings.append(f"{rel}: not valid UTF-8 text (unexpected binary?)")
             continue
+        findings.extend(blocked_names(rel, text, blocklist))
         for lineno, line in enumerate(text.splitlines(), start=1):
             for label, pattern in PATTERNS.items():
                 for match in pattern.finditer(line):

@@ -17,16 +17,94 @@ from pathlib import Path
 from typing import Any
 
 INDEX_NAME = "INDEX.md"
-EXEMPT_NAMES = {"README.md", INDEX_NAME, "dossier.md"}   # no front matter (rules / machine-generated)
+REFSTUDY_NAME = "refstudy.md"
+# no front matter (rules / machine-generated): README, INDEX, the song dossier, the reference study
+# (kb/references/works/<slug>/refstudy.md) and comparison sheets (refsheet*.md, wherever they are kept)
+EXEMPT_NAMES = {"README.md", INDEX_NAME, "dossier.md", REFSTUDY_NAME}
+_REFSHEET_RE = re.compile(r"^refsheet[^/\\]*\.md$")
 
-KINDS = ("song", "lesson", "move", "research", "outcome", "direction", "analysis", "research-log")
+# Order of the kinds in kb/INDEX.md. New kinds (work, engineer, theory) are inserted without changing the
+# relative order of the existing ones.
+KINDS = ("song", "work", "engineer", "lesson", "move", "research", "theory", "outcome", "direction", "analysis",
+         "research-log")
+# The kinds the index header always lists (the kinds of the first kb version). The new kinds appear in the
+# header only once a card of that kind exists, so an index without such cards stays byte-identical.
+_LEGACY_KINDS = ("song", "lesson", "move", "research", "outcome", "direction", "analysis", "research-log")
 STATUSES = ("draft", "active", "stale", "disputed", "superseded", "retracted")
 EVIDENCE = ("replicated", "measured", "literature", "practice", "tip", "hunch")
 VISIBILITY = ("public", "private")
 REQUIRED = ("id", "kind", "title", "created", "status", "visibility")
 EVIDENCE_REQUIRED_KINDS = ("research", "move", "lesson")
 BACKED_EVIDENCE = ("replicated", "measured")
-ID_PREFIX = {"research": "KR-", "move": "KM-", "lesson": "KL-"}
+ID_PREFIX = {"research": "KR-", "move": "KM-", "lesson": "KL-", "theory": "KT-"}
+
+# new kinds (update proposal: reference works, credited engineers, theory cards)
+SLUG_RE = r"[a-z0-9][a-z0-9_-]*"
+SLUG_ID_PREFIX = {"work": "work_", "engineer": "eng_"}
+RIGHTS = ("own", "third_party")
+WORK_CREDIT_ROLES = ("mix", "master", "produce", "arrange", "record")
+THEORY_DOMAINS = ("rudiments", "harmony", "philosophy", "practice")
+THEORY_TRADITIONS = ("common", "berklee-style", "genneki", "field")
+THEORY_EVIDENCE = ("literature", "practice")
+# required fields on top of REQUIRED. engineer: the credited works (ids) and where the credits come from.
+KIND_REQUIRED = {
+    "work": ("rights", "credits_source", "materials"),
+    "engineer": ("works", "credits_source"),
+    "theory": ("evidence", "domain", "tradition", "paraphrase", "sources_note"),
+}
+# fields a draft work card (the template written by 'direction ref study') may leave empty; the key itself
+# must still be present
+DRAFT_MAY_BE_EMPTY = {"work": ("credits_source", "materials"), "engineer": ("works", "credits_source")}
+
+# --- publication stops (UD-1, conservative side) ---------------------------------------------------------
+# (a) every root: these rights may never be combined with visibility: public. Relax by editing this one line.
+PUBLIC_FORBIDDEN_RIGHTS = ("third_party",)
+# (b) the repository's public kb (a root that is not inside a '_private' folder): work cards must be
+# rights: own, and engineer cards may only refer to such works (UD-4).
+PUBLIC_KB_RIGHTS = ("own",)
+PRIVATE_DIR_NAME = "_private"
+
+# --- theory cards: limits against copying (design 2.1 / 3.3) ---------------------------------------------
+THEORY_BODY_MAX_CHARS = 1200       # characters of the body, whitespace not counted
+THEORY_QUOTE_MAX_CHARS = 80        # longest run allowed inside one pair of quotation marks
+_QUOTE_PAIRS = (("「", "」"), ("『", "』"), ("“", "”"), ("‘", "’"), ("〝", "〟"),
+                ("＂", "＂"), ('"', '"'), ("«", "»"))
+_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(|<img\b", re.IGNORECASE)
+_BLOCKQUOTE_RE = re.compile(r"^\s{0,3}>")
+
+# --- materials: hashes only, never file names or paths -----------------------------------------------------
+_MATERIAL_FORBIDDEN_KEYS = ("path", "paths", "file", "files", "filename", "filenames", "file_name", "name",
+                            "names", "url", "uri", "location", "dir", "directory", "folder", "source_file")
+_MATERIAL_HASH_KEYS = ("sha256", "sha256_set")
+_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+_FILE_NAME_RE = re.compile(r"[\w\-]\.[A-Za-z][A-Za-z0-9]{1,4}(?![A-Za-z0-9])")
+_PATH_RE = re.compile(r"\\|^\.{1,2}/|^~|/[^/\s]*/|[^/\s]+/[^/\s]*\.[A-Za-z]")
+
+# --- granularity of machine-generated reference documents (refstudy.md, refsheet*.md) ---------------------
+# The design allows time down to sections and frequency down to band aggregates; frame series, spectrograms
+# and waveform samples are refused. The limits are set so that the documents of the design (1.2 / 1.3) pass
+# with margin and a frame or bin series does not:
+# - REF_TABLE_MAX_ROWS: the largest legitimate table is the ERB long-term spectrum of core.reference
+#   (ltas_erb, step 1 ERB from 20 Hz: about 40 bands at 44.1/48 kHz, about 44 at 96 kHz) or a per-stem table
+#   (a stem set is a few dozen files at most). A frame list of a 3-minute song at the 0.1 s short-term hop is
+#   1800 rows, at 1 s still 180; a linear FFT spectrum is thousands of bins.
+# - REF_TABLE_MAX_COLS: the widest legitimate table is a per-section or per-stem table with one column per
+#   quantity (loudness, p50/p95/max, crest, 6 band ratios, side ratio, correlation, ... about 16).
+# - REF_EVEN_SERIES_ROWS: a table whose first column is an evenly spaced numeric series of at least this many
+#   rows is a frame (time) or bin (linear frequency) series. Sections and ERB band centres are not evenly
+#   spaced.
+#   Checked on the first (key) column and on columns whose header names a time or frequency axis
+#   (_AXIS_HEADER_RE); value columns may legitimately be evenly spaced.
+# - REF_LINE_MAX_NUMBERS / REF_NUMERIC_LINES_MAX: numbers outside tables (code blocks, inline lists): one line
+#   may carry a band vector (about 44 values), and a run of numeric lines outside tables is a dump.
+REF_TABLE_MAX_ROWS = 64
+REF_TABLE_MAX_COLS = 24
+REF_EVEN_SERIES_ROWS = 16
+REF_LINE_MAX_NUMBERS = 64
+REF_NUMERIC_LINES_MAX = 32
+_AXIS_HEADER_RE = re.compile(r"時刻|時間|秒|周波数|フレーム|\b(?:s|sec|ms|time|t|hz|khz|freq|frequency|bin|frame)\b",
+                             re.IGNORECASE)
+_NUM_RE = re.compile(r"(?<![A-Za-z0-9_.])[-+−]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![A-Za-z0-9_])")
 
 # forbidden content (v2 e.2: no absolute paths, no audio references)
 _ABS_PATTERNS = [
@@ -206,6 +284,16 @@ def _rel(root: Path, p: Path) -> str:
     return p.relative_to(root).as_posix()
 
 
+def is_exempt(name: str) -> bool:
+    """True for files without front matter: rules, the index and machine-generated documents."""
+    return name in EXEMPT_NAMES or bool(_REFSHEET_RE.match(name))
+
+
+def is_reference_document(name: str) -> bool:
+    """Machine-generated reference documents whose granularity is limited (refstudy.md, refsheet*.md)."""
+    return name == REFSTUDY_NAME or bool(_REFSHEET_RE.match(name))
+
+
 def markdown_files(root: Path) -> list[Path]:
     return sorted((p for p in root.rglob("*.md") if p.is_file()), key=lambda p: _rel(root, p))
 
@@ -248,7 +336,7 @@ def load_cards(root: str | Path) -> list[dict]:
     if not root.is_dir():
         return cards
     for p in markdown_files(root):
-        if p.name in EXEMPT_NAMES:
+        if is_exempt(p.name):
             continue
         text = p.read_text(encoding="utf-8")
         try:
@@ -283,16 +371,26 @@ def _kind_rank(kind: Any) -> int:
     return KINDS.index(kind) if kind in KINDS else len(KINDS)
 
 
+def _card_order(c: dict) -> tuple:
+    return (_kind_rank(c["meta"].get("kind")), str(c["meta"].get("id")), c["path"])
+
+
+def sorted_cards(root: str | Path) -> list[dict]:
+    """Cards in index order: kind (KINDS) -> id -> path."""
+    return sorted(load_cards(root), key=_card_order)
+
+
 def build_index(root: str | Path) -> str:
     root = Path(root)
-    cards = sorted(load_cards(root), key=lambda c: (_kind_rank(c["meta"].get("kind")), str(c["meta"].get("id")),
-                                                     c["path"]))
+    cards = sorted_cards(root)
+    present = {c["meta"].get("kind") for c in cards}
+    shown = [k for k in KINDS if k in _LEGACY_KINDS or k in present]
     out = [
         "# kb 索引",
         "",
         "<!-- 機械生成（mankomix kb index）。手で編集しない。 -->",
         "",
-        f"{len(cards)} 件。並び順: 種類（{' > '.join(KINDS)}）→ ID。",
+        f"{len(cards)} 件。並び順: 種類（{' > '.join(shown)}）→ ID。",
         "",
         "| ID | kind | 題 | 適用条件 | 等級 | 状態 | 要旨 |",
         "|---|---|---|---|---|---|---|",
@@ -343,7 +441,253 @@ def _resolve(root: Path, base: Path, target: str) -> Path | None:
     return p
 
 
-def lint(root: str | Path) -> dict:
+def is_private_root(root: str | Path) -> bool:
+    """A kb root inside a '_private' folder (the non-committed kb, e.g. _private/kb/).
+
+    Every other root is treated as the repository's public kb, so the stricter publication stop (b) applies
+    to it. Judged on the resolved path, so 'kb', './kb' and an absolute path behave the same.
+    """
+    return PRIVATE_DIR_NAME in Path(root).resolve().parts
+
+
+def _empty(v: Any) -> bool:
+    return v is None or v == "" or v == [] or v == {}
+
+
+def _as_list(v: Any) -> list:
+    if v is None:
+        return []
+    return v if isinstance(v, list) else [v]
+
+
+def _publication_errors(meta: dict, public_kb: bool, work_rights: dict[str, Any],
+                        referenced_works: list[str]) -> list[tuple[str, str]]:
+    """Publication stops (UD-1). (a) everywhere; (b) only in the public kb."""
+    out = []
+    kind, rights = meta.get("kind"), meta.get("rights")
+    # (a) one rule, every root
+    if rights in PUBLIC_FORBIDDEN_RIGHTS and meta.get("visibility") == "public":
+        out.append(("public_third_party", f"rights: {rights} may not be visibility: public"))
+    if not public_kb:
+        return out
+    # (b) the repository's public kb holds own works only (UD-1), and engineers of such works only (UD-4)
+    if kind == "work" and rights not in PUBLIC_KB_RIGHTS:
+        out.append(("public_kb_rights", f"the public kb holds work cards with rights: "
+                                        f"{' / '.join(PUBLIC_KB_RIGHTS)} only (found {rights}); keep it in "
+                                        f"_private/kb/"))
+    if kind == "engineer":
+        for w in referenced_works:
+            if w not in work_rights:
+                out.append(("public_kb_rights", f"engineer card refers to {w}, which is not a work card of this "
+                                                f"kb (its rights cannot be confirmed)"))
+            elif work_rights[w] not in PUBLIC_KB_RIGHTS:
+                out.append(("public_kb_rights", f"engineer card refers to {w} (rights: {work_rights[w]}); the "
+                                                f"public kb lists credits of own works only"))
+    return out
+
+
+def _location_errors(kind: str, cid: str, rel: str) -> list[tuple[str, str]]:
+    """New kinds live at a fixed place whose name matches the id."""
+    if kind == "work":
+        m = re.fullmatch(r"work_(" + SLUG_RE + ")", cid)
+        if not m:
+            return [("bad_id", "id of a work card must look like work_<slug> (lowercase letters, digits, - _)")]
+        want = f"references/works/{m.group(1)}/work.md"
+    elif kind == "engineer":
+        m = re.fullmatch(r"eng_(" + SLUG_RE + ")", cid)
+        if not m:
+            return [("bad_id", "id of an engineer card must look like eng_<slug> (lowercase letters, digits, - _)")]
+        want = f"references/engineers/{m.group(1)}.md"
+    elif kind == "theory":
+        want = f"theory/{cid}.md"
+    else:
+        return []
+    return [] if rel == want else [("bad_location", f"a {kind} card with id {cid} belongs at {want}")]
+
+
+def _required_errors(meta: dict) -> list[tuple[str, str]]:
+    kind = meta.get("kind")
+    out = []
+    lenient = DRAFT_MAY_BE_EMPTY.get(kind, ()) if meta.get("status") == "draft" else ()
+    for k in KIND_REQUIRED.get(kind, ()):
+        if k not in meta or (_empty(meta.get(k)) and k not in lenient):
+            out.append(("missing_field", f"required field '{k}' is missing for kind '{kind}'"))
+    if kind == "work":
+        if meta.get("rights") is not None and meta.get("rights") not in RIGHTS:
+            out.append(("bad_value", f"rights '{meta.get('rights')}' is not one of {', '.join(RIGHTS)}"))
+        credits = meta.get("credits")
+        if credits is not None:
+            if not isinstance(credits, list) or not all(isinstance(c, dict) for c in credits):
+                out.append(("bad_value", "credits must be a flow list of maps: [{ role: mix, person: eng_x, "
+                                         "name: \"...\" }]"))
+            else:
+                for c in credits:
+                    if c.get("role") not in WORK_CREDIT_ROLES:
+                        out.append(("bad_value", f"credit role '{c.get('role')}' is not one of "
+                                                 f"{', '.join(WORK_CREDIT_ROLES)}"))
+                    person = c.get("person")
+                    if person not in (None, "") and not re.fullmatch(r"eng_" + SLUG_RE, str(person)):
+                        out.append(("bad_value", f"credit person '{person}' must be an engineer id eng_<slug>"))
+    elif kind == "engineer":
+        works = meta.get("works")
+        if works is not None and not isinstance(works, list):
+            out.append(("bad_value", "works must be a flow list of work ids: [work_a, work_b]"))
+        for w in _as_list(works):
+            if not re.fullmatch(r"work_" + SLUG_RE, str(w)):
+                out.append(("bad_value", f"works entry '{w}' is not a work id work_<slug>"))
+    elif kind == "theory":
+        if meta.get("paraphrase") is not True and "paraphrase" in meta:
+            out.append(("bad_value", "paraphrase must be true (the card is written in your own words)"))
+        for key, allowed in (("domain", THEORY_DOMAINS), ("tradition", THEORY_TRADITIONS),
+                             ("evidence", THEORY_EVIDENCE)):
+            v = meta.get(key)
+            if v is not None and v not in allowed:
+                out.append(("bad_value", f"{key} '{v}' of a theory card is not one of {', '.join(allowed)}"))
+    return out
+
+
+def _material_errors(materials: Any) -> list[tuple[str, str]]:
+    """work 'materials': hashes and plain facts only; no file name, no path (design 1.5 / 3.3)."""
+    out = []
+    if materials is None:
+        return out
+    if not isinstance(materials, list):
+        return [("bad_materials", "materials must be a flow list of maps")]
+    for i, item in enumerate(materials, start=1):
+        if not isinstance(item, dict):
+            out.append(("bad_materials", f"materials[{i}] must be a map"))
+            continue
+        for k, v in item.items():
+            if str(k).lower() in _MATERIAL_FORBIDDEN_KEYS:
+                out.append(("material_file_name", f"materials[{i}]: key '{k}' is not allowed (hashes only, no "
+                                                  f"file names or paths)"))
+                continue
+            for s in (x for x in _as_list(v) if isinstance(x, str)):
+                if _FILE_NAME_RE.search(s) or _PATH_RE.search(s):
+                    out.append(("material_file_name", f"materials[{i}].{k}: looks like a file name or path "
+                                                      f"(hashes only)"))
+        hashes = [k for k in _MATERIAL_HASH_KEYS if k in item]
+        if not hashes:
+            out.append(("bad_materials", f"materials[{i}] needs a sha256 (or sha256_set for a stem set)"))
+        for k in hashes:
+            if not _HEX64_RE.match(str(item[k])):
+                out.append(("bad_materials", f"materials[{i}].{k} must be 64 lowercase hex digits"))
+    return out
+
+
+def _theory_body_errors(body: str) -> list[tuple[str, str]]:
+    """Limits against copying text into theory cards (design 2.1 / 3.3)."""
+    out = []
+    n = len(re.sub(r"\s", "", body))
+    if n > THEORY_BODY_MAX_CHARS:
+        out.append(("theory_too_long", f"body is {n} characters (limit {THEORY_BODY_MAX_CHARS}, whitespace not "
+                                       f"counted)"))
+    for ln, line in enumerate(body.splitlines(), start=1):
+        if _IMAGE_RE.search(line):
+            out.append(("theory_image", f"body line {ln}: embedded image"))
+        if _BLOCKQUOTE_RE.match(line):
+            out.append(("theory_blockquote", f"body line {ln}: quotation block ('>')"))
+    for op, cl in _QUOTE_PAIRS:
+        rx = re.compile(re.escape(op) + r"([^" + re.escape(cl) + (re.escape(op) if op != cl else "") + r"]*)"
+                        + re.escape(cl))
+        for m in rx.finditer(body):
+            inner = len(m.group(1).replace("\n", ""))
+            if inner > THEORY_QUOTE_MAX_CHARS:
+                line = body.count("\n", 0, m.start()) + 1
+                out.append(("theory_long_quote", f"body line {line}: {inner} characters inside {op}{cl} (limit "
+                                                 f"{THEORY_QUOTE_MAX_CHARS})"))
+    return out
+
+
+def _numbers(s: str) -> list[float]:
+    return [float(x.replace("−", "-")) for x in _NUM_RE.findall(s)]
+
+
+def _evenly_spaced(vals: list[float]) -> bool:
+    if len(vals) < REF_EVEN_SERIES_ROWS:
+        return False
+    d = [b - a for a, b in zip(vals, vals[1:])]
+    step = d[0]
+    if step == 0:
+        return False
+    return all(abs(x - step) <= 1e-6 * max(1.0, abs(step)) for x in d)
+
+
+def granularity_errors(text: str) -> list[tuple[str, str]]:
+    """Refuse frame series, spectrograms and waveform numbers in refstudy / refsheet (see REF_* limits)."""
+    out = []
+    lines = text.splitlines()
+    i, run, run_start = 0, 0, 0
+    while i < len(lines):
+        line = lines[i]
+        if line.lstrip().startswith("|"):
+            start = i
+            block = []
+            while i < len(lines) and lines[i].lstrip().startswith("|"):
+                block.append(lines[i])
+                i += 1
+            run = 0
+            cells = [[c.strip() for c in r.strip().strip("|").split("|")] for r in block]
+            data = [c for c in cells if not all(re.fullmatch(r":?-{2,}:?", x or "-") for x in c)]
+            header, rows = (data[0], data[1:]) if data else ([], [])
+            if len(rows) > REF_TABLE_MAX_ROWS:
+                out.append(("too_fine", f"line {start + 1}: table has {len(rows)} rows (limit {REF_TABLE_MAX_ROWS}"
+                                        f"; time down to sections, frequency down to bands)"))
+            width = max([len(header)] + [len(r) for r in rows])
+            if width > REF_TABLE_MAX_COLS:
+                out.append(("too_fine", f"line {start + 1}: table has {width} columns (limit {REF_TABLE_MAX_COLS})"))
+            for col in range(width):
+                name = header[col] if col < len(header) else ""
+                if col > 0 and not _AXIS_HEADER_RE.search(name):
+                    continue                  # value columns may happen to be evenly spaced
+                vals = []
+                for r in rows:
+                    cell = r[col] if col < len(r) else ""
+                    m = re.fullmatch(r"([-+−]?\d+(?:\.\d+)?)\s*[A-Za-z%]*", cell)
+                    if m:
+                        vals.append(float(m.group(1).replace("−", "-")))
+                if _evenly_spaced(vals):
+                    out.append(("too_fine", f"line {start + 1}: column {col + 1} is an evenly spaced series of "
+                                            f"{len(vals)} values (a frame or bin series)"))
+                    break
+            continue
+        nums = _numbers(line)
+        if len(nums) > REF_LINE_MAX_NUMBERS:
+            out.append(("too_fine", f"line {i + 1}: {len(nums)} numbers on one line (limit {REF_LINE_MAX_NUMBERS})"))
+        words = len(line.split())
+        if len(nums) >= 3 and len(nums) * 2 >= words:
+            if run == 0:
+                run_start = i
+            run += 1
+            if run == REF_NUMERIC_LINES_MAX + 1:
+                out.append(("too_fine", f"line {run_start + 1}: more than {REF_NUMERIC_LINES_MAX} consecutive "
+                                        f"lines of numbers outside a table"))
+        else:
+            run = 0
+        i += 1
+    return out
+
+
+def _work_refs(meta: dict, body: str, path: Path, root: Path) -> list[str]:
+    """Work ids an engineer card refers to: 'works', work ids in the text, links to works/<slug>/work.md."""
+    refs = [str(w) for w in _as_list(meta.get("works"))]
+    refs += re.findall(r"(?<![A-Za-z0-9_])work_" + SLUG_RE, body)
+    for m in _LINK_RE.finditer(body):
+        target = m.group(2)
+        if _is_external(target):
+            continue
+        q = _resolve(root, path, target)
+        if q is not None and q.name == "work.md" and q.parent.parent.name == "works":
+            refs.append("work_" + q.parent.name)
+    return sorted(set(refs))
+
+
+def lint(root: str | Path, *, public: bool | None = None) -> dict:
+    """Check every Markdown file of a kb root.
+
+    ``public`` selects the publication stop (b) (public kb: own works only). None decides from the root:
+    a root inside a '_private' folder is private, any other root is the public kb (is_private_root).
+    """
     root = Path(root)
     errors: list[dict] = []
 
@@ -354,6 +698,9 @@ def lint(root: str | Path) -> dict:
         return {"ok": False, "files": 0, "cards": 0, "errors": [{"file": ".", "code": "no_root",
                                                                   "message": "kb root not found"}]}
     files = markdown_files(root)
+    public_kb = (not is_private_root(root)) if public is None else bool(public)
+    work_rights = {str(c["meta"].get("id")): c["meta"].get("rights") for c in load_cards(root)
+                   if c["meta"].get("kind") == "work"}
     ids: dict[str, str] = {}
     n_cards = 0
     for p in files:
@@ -377,10 +724,14 @@ def lint(root: str | Path) -> dict:
                     err(rel, "absolute_link", f"line {n}: link must be relative: {target}")
                 elif not q.exists():
                     err(rel, "broken_link", f"line {n}: link target not found: {target}")
-        if p.name in EXEMPT_NAMES:
+        # machine-generated reference documents: section / band granularity only
+        if is_reference_document(p.name):
+            for code, msg in granularity_errors(text):
+                err(rel, code, msg)
+        if is_exempt(p.name):
             continue
         try:
-            meta, _ = parse_front_matter(text)
+            meta, body = parse_front_matter(text)
         except FrontMatterError as e:
             err(rel, "front_matter", str(e))
             continue
@@ -418,6 +769,20 @@ def lint(root: str | Path) -> dict:
                 err(rel, "duplicate_id", f"id {cid} is also used by {ids[cid]}")
             else:
                 ids[cid] = rel
+            for code, msg in _location_errors(kind, cid, rel):
+                err(rel, code, msg)
+        # new kinds: required fields and values, materials, copying limits, publication stops
+        for code, msg in _required_errors(meta):
+            err(rel, code, msg)
+        if kind == "work":
+            for code, msg in _material_errors(meta.get("materials")):
+                err(rel, code, msg)
+        if kind == "theory":
+            for code, msg in _theory_body_errors(body):
+                err(rel, code, msg)
+        refs = _work_refs(meta, body, p, root) if kind == "engineer" else []
+        for code, msg in _publication_errors(meta, public_kb, work_rights, refs):
+            err(rel, code, msg)
         if ev in BACKED_EVIDENCE:
             backing = meta.get("backing")
             if isinstance(backing, str):
@@ -441,4 +806,64 @@ def lint(root: str | Path) -> dict:
     elif idx.read_text(encoding="utf-8") != build_index(root):
         err(INDEX_NAME, "index_stale", "INDEX.md is not up to date (run: mankomix kb index)")
     errors.sort(key=lambda e: (e["file"], e["code"], e["message"]))
-    return {"ok": not errors, "files": len(files), "cards": n_cards, "errors": errors}
+    return {"ok": not errors, "files": len(files), "cards": n_cards, "scope": "public" if public_kb else "private",
+            "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# search / show
+# ---------------------------------------------------------------------------
+
+def _genres(meta: dict) -> list[str]:
+    out = [str(g) for g in _as_list(meta.get("genre"))]
+    applies = meta.get("applies_to")
+    if isinstance(applies, dict):
+        out += [str(g) for g in _as_list(applies.get("genre"))]
+    return out
+
+
+def _entry(c: dict) -> dict:
+    m = c["meta"]
+    return {"id": m.get("id"), "kind": m.get("kind"), "title": m.get("title"), "path": c["path"],
+            "status": m.get("status"), "evidence": m.get("evidence"), "visibility": m.get("visibility"),
+            "applies_to": format_applies(m.get("applies_to")), "summary": c["summary"]}
+
+
+def search(root: str | Path, *, kind: str | list[str] | None = None, genre: str | list[str] | None = None,
+           text: str | None = None) -> dict:
+    """Cards matching every given filter, in index order.
+
+    kind: card kind(s). genre: matches the card's 'genre' list or applies_to.genre (case-insensitive).
+    text: case-insensitive substring of the id, title or body.
+    """
+    root = Path(root)
+    kinds = [str(k) for k in _as_list(kind)]
+    genres = [str(g).lower() for g in _as_list(genre)]
+    needle = text.casefold() if text else None
+    hits = []
+    for c in sorted_cards(root):
+        m = c["meta"]
+        if kinds and m.get("kind") not in kinds:
+            continue
+        if genres and not ({g.lower() for g in _genres(m)} & set(genres)):
+            continue
+        if needle is not None:
+            hay = "\n".join([str(m.get("id") or ""), str(m.get("title") or ""), c["body"]]).casefold()
+            if needle not in hay:
+                continue
+        hits.append(_entry(c))
+    return {"kind": "kb_search", "filters": {"kind": kinds, "genre": genres, "text": text},
+            "count": len(hits), "cards": hits}
+
+
+def show(root: str | Path, card_id: str) -> dict | None:
+    """The card with this id (front matter and body), or None. With duplicate ids the first in index order."""
+    matches = [c for c in sorted_cards(root) if str(c["meta"].get("id")) == str(card_id)]
+    if not matches:
+        return None
+    c = matches[0]
+    out = {"kind": "kb_card", "id": c["meta"].get("id"), "path": c["path"], "front_matter": c["meta"],
+           "body": c["body"]}
+    if len(matches) > 1:
+        out["duplicates"] = [x["path"] for x in matches[1:]]
+    return out

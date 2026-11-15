@@ -69,6 +69,19 @@ TIME_VARYING = ("compressor", "dynamic_eq", "deesser", "aw.pressure4")
 RAMP_S = 0.02
 _FENCE_RE = re.compile(r"^```json[ \t]+direction[ \t]*\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
 _P_RE = re.compile(r"^P-\d{2}(:[a-z][a-z0-9_]*)?$")   # P-nn or P-nn:<qualifier> (e.g. P-02:vs_lead)
+# optional fields of the reference (原液) path (UPDATE_PROPOSAL §1.4); the form only, not the kb contents
+ORIGINS = ("catalog", "case", "new", "reference")
+_SLUG = r"[a-z0-9][a-z0-9_-]*"
+_WORK_RE = re.compile(rf"^work_{_SLUG}$")
+_LIKE_RE = re.compile(rf"^(work|eng)_{_SLUG}$")
+# Only the slug characters right after "ref:" are taken, so the free-text basis may go on with any
+# delimiter ("ref:work_x、§4", "（ref:work_x）の読み", "ref:work_x§4"). A non-work id is bad_ref.
+# Only a "ref:" directly followed by at least one slug character is checked: "ref: work_x §4",
+# "cf. ref: none" or a bare "ref:" are prose, not a reference basis (GATE_R2 N-a).
+# The front boundary is ASCII-only: Python's \b treats Japanese letters as word characters, so
+# "の読みref:eng_x" would escape the check; "xref:" / "_ref:" stay out of scope as before.
+_REF_BASIS_RE = re.compile(r"(?<![A-Za-z0-9_])ref:([A-Za-z0-9_-]+)")
+_SHA_RE = re.compile(r"^[0-9a-f]{16,64}$")
 
 
 class DirectionError(ValueError):
@@ -294,6 +307,42 @@ def _holder_stage(target: str) -> str:
     return "bus" if str(target).startswith("bus_") else "track"
 
 
+def _validate_reference_fields(b: dict, err) -> None:
+    """The optional fields of the reference path: request.like, sources.references.
+
+    Only the form is checked (ids look like work_<slug> / eng_<slug>, hashes are hex); whether the
+    cards exist in a kb is not checked, and an empty or missing list is never reported (U-17)."""
+    req = b.get("request")
+    if isinstance(req, dict) and "like" in req:
+        like = req["like"]
+        if not isinstance(like, list):
+            err("request.like", "bad_value", "request.like must be a list of work_<slug> / eng_<slug> ids")
+        else:
+            for i, x in enumerate(like):
+                if not isinstance(x, str) or not _LIKE_RE.match(x):
+                    err(f"request.like[{i}]", "bad_ref", f"{x!r} is not a work_<slug> / eng_<slug> id")
+    src = b.get("sources")
+    if isinstance(src, dict) and "references" in src:
+        refs = src["references"]
+        if not isinstance(refs, list):
+            err("sources.references", "bad_value", "sources.references must be a list")
+            return
+        for i, r in enumerate(refs):
+            where = f"sources.references[{i}]"
+            if not isinstance(r, dict):
+                err(where, "bad_value", "each reference is an object {work, study_sha256, refsheet_sha256}")
+                continue
+            if not isinstance(r.get("work"), str) or not _WORK_RE.match(r["work"]):
+                err(f"{where}.work", "bad_ref", f"work must be a work_<slug> id (got {r.get('work')!r})")
+            for k in ("study_sha256", "refsheet_sha256"):
+                v = r.get(k)
+                if v is not None and (not isinstance(v, str) or not _SHA_RE.match(v)):
+                    err(f"{where}.{k}", "bad_value", f"{k} must be a lowercase hex SHA-256 (16 to 64 digits) or null")
+            extra = sorted(set(r) - {"work", "study_sha256", "refsheet_sha256"})
+            if extra:
+                err(where, "bad_value", f"unknown keys in a reference: {', '.join(extra)}")
+
+
 def validate(doc: dict, project: str | Path | None = None) -> dict:
     """Validate a parsed direction. ``project``: the project it will be applied to (targets, replaces, sections)."""
     b = doc["block"]
@@ -357,6 +406,9 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         sec = o.get("section", "all")
         if isinstance(sec, str) and sec != "all" and proj and sec not in sections:
             err(f"observations.{oid}", "unknown_section", f"unknown section '{sec}'")
+        if "ref_value" in o and o["ref_value"] is not None and _scalar(o["ref_value"]) is None:
+            err(f"observations.{oid}.ref_value", "bad_value", "ref_value must be a finite number (or null)")
+    _validate_reference_fields(b, err)
 
     def check_quantity(where: str, q: dict):
         qty = q.get("quantity")
@@ -425,8 +477,11 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "missing_field", f"'{k}' is required on every move")
         if m.get("aim") and m.get("aim") not in aims:
             err(where, "bad_ref", f"aim '{m.get('aim')}' is not in aims")
-        if m.get("origin") and m.get("origin") not in ("catalog", "case", "new"):
-            err(where, "bad_value", "origin must be catalog, case or new")
+        if m.get("origin") and m.get("origin") not in ORIGINS:
+            err(where, "bad_value", "origin must be catalog, case, new or reference")
+        for ref in _REF_BASIS_RE.findall(str(m.get("basis") or "")):
+            if not _WORK_RE.match(ref):
+                err(f"{where}.basis", "bad_ref", f"'ref:{ref}': a reference basis names a work card (ref:work_<slug> §n)")
         for q in (m.get("expect") or []) + (m.get("safeguard") or []):
             check_quantity(where, q)
         target = m.get("target")
@@ -505,7 +560,9 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "missing_field", "master_target needs params.target_lufs")
             elif win and not win[0] <= float(tl) <= win[1]:
                 err(where, "invariant", f"target_lufs {tl} is outside the profile window {win}")
-        # review tier (assigned here, not self-declared)
+        # review tier (assigned here, not self-declared). E1 is only the catalog range check: a move
+        # taken from another work (origin: reference) is E2 or above (another song's facts are no
+        # guarantee here), and citing a theory card (KT-nnnn) never makes a move E1
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
         if m.get("origin") == "catalog" and cited and cited <= rule_ids:
@@ -895,6 +952,32 @@ def _judge(q: dict, floor_v: float | None, test_v: float | None, *, p_floor: dic
     return res
 
 
+def reference_distance(block: dict, obs_vals: dict) -> dict | None:
+    """Distance of the floor and of the result from the reference value, per observation with a
+    ``ref_value`` (reference only: U-7). None when no observation carries one (the outcome then has
+    no such field and stays byte-identical to the format without it).
+
+    Never read by any verdict: claims, expectations, safeguards and the summary are judged against the
+    floor exactly as before, and ``--calibrate`` does not read ``ref_value`` either."""
+    with_ref = [o for o in block.get("observations") or []
+                if isinstance(o, dict) and _scalar(o.get("ref_value")) is not None]
+    if not with_ref:
+        return None
+    rows = {}
+    for o in with_ref:
+        ref = float(o["ref_value"])
+        ov = obs_vals.get(o.get("id")) or {}
+        f, r = _scalar((ov.get("floor") or {}).get("value")), _scalar((ov.get("result") or {}).get("value"))
+        df = None if f is None else round(abs(f - ref), 4)
+        dr = None if r is None else round(abs(r - ref), 4)
+        rows[o.get("id")] = {"ref_value": ref, "floor": df, "result": dr,
+                             "change": None if df is None or dr is None else round(dr - df, 4)}
+    return {"note": "reference only (U-7): |value - ref_value| for the floor and the result, measured as the "
+                    "observation is (result level-matched to the floor); change < 0 = the result is nearer. "
+                    "Not part of any verdict: the claims are judged against the floor",
+            "by_observation": rows}
+
+
 def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, variant: str | None = None,
           delivery: str = "hires_native") -> dict:
     root, froot = Path(project), Path(floor)
@@ -934,6 +1017,9 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
             rt = rf = {"status": "error", "reason": str(e)}
         obs_vals[o.get("id")] = {"floor": rf, "result": rt}
     out["observations"] = obs_vals
+    rd = reference_distance(b, obs_vals)
+    if rd is not None:
+        out["reference_distance"] = rd
     tterms, fterms = _terms(root, vid), _terms(froot, fv.get("id"))
 
     def value(qty: str) -> tuple[float | None, float | None, dict | None, dict | None]:

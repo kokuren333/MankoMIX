@@ -430,9 +430,12 @@ def cmd_direction_dossier(a):
         raise InputError("no project.json in the project folder")
     try:
         res = dossier.build_dossier(root, variant=a.variant, song=a.song, kb_root=a.kb_root,
-                                    section_audio=not a.no_section_audio)
+                                    section_audio=not a.no_section_audio, refs=a.refs or None,
+                                    ref_kb_root=a.ref_kb)
     except KeyError as e:
         raise InputError(str(e).strip("'\"")) from None
+    except ValueError as e:
+        raise InputError(str(e)) from None
     if a.out:
         out = Path(a.out)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -488,6 +491,47 @@ def cmd_direction_query(a):
     return {"kind": "observations", "file": Path(a.audio).name, "observations": out}
 
 
+def _ref_errors(fn, *args, **kw):
+    from mankomix.core.errors import EnvironmentProblem
+    from mankomix.director import refsheet as RSH
+    from mankomix.director import refstudy as RS
+    try:
+        return fn(*args, **kw)
+    except RS.SeparationUnavailable as e:
+        raise EnvironmentProblem(f"--separate: {e}") from None
+    except (RS.RefStudyError, RSH.RefSheetError) as e:
+        raise InputError(str(e)) from None
+
+
+def cmd_direction_ref_study(a):
+    from mankomix.director import refstudy as RS
+    res = _ref_errors(RS.study_command, a.work, master=a.master, stems=a.stems, sections=a.sections,
+                      roles=a.roles, separate=a.separate, kb_root=a.kb)
+    res["kb"] = _shown_path(Path(a.kb))
+    return res
+
+
+def cmd_direction_ref_compare(a):
+    from mankomix.director import refsheet as RSH
+    res = _ref_errors(RSH.compare_command, _project(a), a.work, a.out, variant=a.variant, kb_root=a.kb)
+    res["out"] = _shown_path(Path(a.out))
+    return res
+
+
+def cmd_direction_ref_credit(a):
+    from mankomix.director import refstudy as RS
+    res = _ref_errors(RS.credit_command, a.person, kb_root=a.kb)
+    res["kb"] = _shown_path(Path(a.kb))
+    return res
+
+
+def cmd_direction_ref_list(a):
+    from mankomix.director import refstudy as RS
+    res = RS.list_command(a.kb)
+    res["kb"] = _shown_path(Path(a.kb))
+    return res
+
+
 def cmd_kb_index(a):
     from mankomix.director import kb
     root = Path(a.root)
@@ -503,6 +547,28 @@ def cmd_kb_lint(a):
     res = kb.lint(Path(a.root))
     res["root"] = _shown_path(Path(a.root))
     res["exit_code"] = 0 if res["ok"] else 1
+    return res
+
+
+def cmd_kb_search(a):
+    from mankomix.director import kb
+    root = Path(a.root)
+    if not root.is_dir():
+        raise InputError(f"kb root not found: {_shown_path(root)}")
+    res = kb.search(root, kind=a.kind, genre=a.genre, text=a.text)
+    res["root"] = _shown_path(root)
+    return res
+
+
+def cmd_kb_show(a):
+    from mankomix.director import kb
+    root = Path(a.root)
+    if not root.is_dir():
+        raise InputError(f"kb root not found: {_shown_path(root)}")
+    res = kb.show(root, a.id)
+    if res is None:
+        raise InputError(f"no kb card with id {a.id}", details={"id": a.id, "root": _shown_path(root)})
+    res["root"] = _shown_path(root)
     return res
 
 
@@ -898,6 +964,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--kb-root", dest="kb_root", help="kb folder for the excerpt (default: kb/ of the repository)")
     sp.add_argument("--no-section-audio", dest="no_section_audio", action="store_true",
                     help="skip the per-section loudness table (it reads the cleaned stem audio)")
+    sp.add_argument("--ref", dest="refs", action="append", metavar="WORK_ID",
+                    help="a work card named for this job (work_<slug>; repeatable): section 10.3 lists its id, "
+                         "title and refstudy hash only")
+    sp.add_argument("--ref-kb", dest="ref_kb",
+                    help="second kb folder searched for the --ref work cards (default: _private/kb of the repository)")
     sp = add("validate", cmd_direction_validate,
              "check a direction document: block shape, ops, processor ranges, the invariant area, quantity "
              "references and the review tier E1-E3 (exit 1 on any error); --project also checks targets", gsub)
@@ -922,7 +993,40 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("audio", help="audio file")
     sp.add_argument("spec", help="observation JSON (object or list) or @file")
 
-    grp = add("kb", None, "experience store kb/: index and lint")
+    # raw-reference path (原液): measures user-supplied references for the director; never the core yardstick
+    grp_ref = add("ref", None, "raw references (原液): refstudy of a work, refsheet against this project, engineer "
+                               "credit aggregate, list; the core yardstick 'reference add' is separate", gsub)
+    rsub = grp_ref.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")
+    rsub.required = True
+    kb_help = "kb folder (default: _private/kb; third-party works stay private, UD-1)"
+    sp = add("study", cmd_direction_ref_study,
+             "measure a reference master and/or stems in memory (no audio kept) and write "
+             "<kb>/references/works/<slug>/refstudy.md (and a work card template when absent)", rsub)
+    sp.add_argument("--work", required=True, help="work slug (the card id is work_<slug>)")
+    sp.add_argument("--master", help="reference master (2-mix) audio file")
+    sp.add_argument("--stems", help="folder of reference stems (roles from the file names)")
+    sp.add_argument("--sections", help="sections JSON [{id, start_s, end_s}], inline or a file "
+                                       "(default: the loudest / quietest regions)")
+    sp.add_argument("--roles", help="role overrides JSON {file name: role}, inline or a file")
+    sp.add_argument("--separate", action="store_true",
+                    help="pseudo stems from --master with the registered separation model (origin: separated, "
+                         "confidence at most medium); error when no model is usable here")
+    sp.add_argument("--kb", default="_private/kb", help=kb_help)
+    sp = add("compare", cmd_direction_ref_compare,
+             "write the refsheet: the work's refstudy next to this project's master and stems with the same "
+             "definitions (reference / this / difference / conditions; read-only)", rsub)
+    sp.add_argument("--work", required=True, help="work slug")
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--out", required=True, help="Markdown file to write (outside the project folder)")
+    sp.add_argument("--kb", default="_private/kb", help=kb_help)
+    sp = add("credit", cmd_direction_ref_credit,
+             "regenerate the aggregate part of an engineer card from the credited works' refstudies "
+             "(median, IQR, n; n < 3 is shown as cases, not a trend)", rsub)
+    sp.add_argument("--person", required=True, help="engineer slug (the card id is eng_<slug>)")
+    sp.add_argument("--kb", default="_private/kb", help=kb_help)
+    add("list", cmd_direction_ref_list, "works and engineers of the kb with refstudy freshness", rsub)         .add_argument("--kb", default="_private/kb", help=kb_help)
+
+    grp = add("kb", None, "experience store kb/: index, lint, search and show")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
     gsub.required = True
     add("index", cmd_kb_index, "regenerate kb/INDEX.md from the front matter of every card", gsub) \
@@ -930,6 +1034,14 @@ def build_parser() -> argparse.ArgumentParser:
     add("lint", cmd_kb_lint, "check front matter, backing links, forbidden content, broken links and index "
                              "freshness (exit 1 on any violation)", gsub) \
         .add_argument("--root", default="kb", help="kb folder (default: kb)")
+    sp = add("search", cmd_kb_search, "find cards by kind, genre and text (index order; read-only)", gsub)
+    sp.add_argument("--kind", action="append", help="card kind (repeatable), e.g. theory, work, lesson")
+    sp.add_argument("--genre", action="append", help="genre in the card's genre list or applies_to (repeatable)")
+    sp.add_argument("--text", help="case-insensitive text in the id, title or body")
+    sp.add_argument("--root", default="kb", help="kb folder (default: kb)")
+    sp = add("show", cmd_kb_show, "front matter and body of one card by id (read-only)", gsub)
+    sp.add_argument("id", help="card id, e.g. KT-0001, work_<slug>, KL-0001")
+    sp.add_argument("--root", default="kb", help="kb folder (default: kb)")
 
     sp = add("serve", cmd_serve, "local server for the GUI (HTTP + Server-Sent Events, loopback only by default)")
     sp.add_argument("--root", help="workspace folder the server may access (default: --project or current folder)")
@@ -993,7 +1105,8 @@ def main(argv: list[str] | None = None) -> int:
             if not hasattr(args, k):
                 setattr(args, k, v)
         fmt, debug = args.format, args.debug
-        command = " ".join(x for x in (getattr(args, "command", None), getattr(args, "subcommand", None)) if x)
+        command = " ".join(x for x in (getattr(args, "command", None), getattr(args, "subcommand", None),
+                                       getattr(args, "refcommand", None)) if x)
         result = args.func(args)
         _emit(result, fmt, command)
         if command == "doctor" and result.get("status") == "error":

@@ -26,6 +26,8 @@ Contents
   :func:`add_shimmer`, :func:`add_head_click`, :func:`add_noise_floor`,
   :func:`add_lowmid_buildup`, :func:`make_overlimited`, :func:`add_dc`,
   :func:`inject_nan`, :func:`antiphase_low`
+* known processing for a reference master: :func:`tilt_eq`, :func:`peak_limit`,
+  :func:`reference_master_set`
 * :func:`stem_sum`, :func:`write_wav`, :func:`read_wav`
 """
 
@@ -954,6 +956,53 @@ def antiphase_low(x: FloatArray, sr: int, below_hz: float = 120.0) -> FloatArray
     out = x2.copy()
     out[:, 1] = (right - low) - low
     return out
+
+
+# ---------------------------------------------------------------------------
+# Reference master with known processing (raw-reference path, route 2 material A)
+# ---------------------------------------------------------------------------
+
+
+def tilt_eq(x: FloatArray, sr: int, db_per_oct: float, pivot_hz: float = 1000.0) -> FloatArray:
+    """Zero-phase spectral tilt: gain ``db_per_oct * log2(f / pivot_hz)`` dB (f clamped to 20 Hz..Nyquist)."""
+    x2 = _as_2d(x)
+    n = x2.shape[0]
+    f = np.fft.rfftfreq(n, 1.0 / sr)
+    fc = np.clip(f, 20.0, sr / 2.0)
+    g = 10.0 ** (float(db_per_oct) * np.log2(fc / float(pivot_hz)) / 20.0)
+    return np.fft.irfft(np.fft.rfft(x2, axis=0) * g[:, None], n=n, axis=0)
+
+
+def peak_limit(x: FloatArray, sr: int, ceiling_dbfs: float = -1.0, lookahead_s: float = 0.005) -> FloatArray:
+    """Look-ahead peak limiter (linked stereo): the sample peak never exceeds ``ceiling_dbfs``.
+
+    The needed gain is min-filtered over +-lookahead and then averaged over a
+    window no wider than that, so every smoothed gain stays at or below the
+    gain needed at each sample (deterministic, no state)."""
+    from scipy import ndimage
+    x2 = _as_2d(x)
+    ceil = db_to_amp(ceiling_dbfs)
+    peak = np.max(np.abs(x2), axis=1)
+    need = np.minimum(1.0, ceil / np.maximum(peak, 1e-12))
+    la = max(1, int(round(lookahead_s * sr)))
+    g = ndimage.minimum_filter1d(need, size=2 * la + 1, mode="nearest")
+    g = ndimage.uniform_filter1d(g, size=la + 1, mode="nearest")
+    g = np.minimum(g, ndimage.minimum_filter1d(need, size=la + 1, mode="nearest"))
+    return x2 * g[:, None]
+
+
+def reference_master_set(sr: int = DEFAULT_SR, seconds: float = SONG_SECONDS, seed: int = 0,
+                         tilt_db_per_oct: float = 1.5, drive_db: float = 10.0,
+                         ceiling_dbfs: float = -1.0) -> dict:
+    """A "master" with known processing and the stems it was made from (arrays, nothing written).
+
+    master = peak_limit(tilt_eq(stem_sum(song_stems)) normalised to 0 dBFS peak + drive_db).
+    Returns {"master", "stems", "sr", "tilt_db_per_oct", "drive_db", "ceiling_dbfs"}."""
+    stems = song_stems(sr=sr, seconds=seconds, seed=seed)
+    eq = tilt_eq(stem_sum(stems), sr, tilt_db_per_oct)
+    master = peak_limit(normalize_peak(eq, 0.0) * db_to_amp(drive_db), sr, ceiling_dbfs)
+    return {"master": master, "stems": stems, "sr": sr, "tilt_db_per_oct": float(tilt_db_per_oct),
+            "drive_db": float(drive_db), "ceiling_dbfs": float(ceiling_dbfs)}
 
 
 # ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,9 +35,10 @@ from mankomix.dsp import processors as P
 
 from . import kb as kbmod
 
-DOSSIER_VERSION = 1
+DOSSIER_VERSION = 2
 ABSENT_LUFS = -60.0           # a stem counts as absent in a section below this integrated loudness
-MAX_KB_CARDS = 8
+MAX_KB_CARDS = 8               # §10.1 only; the theory shelf (§10.2) lists every active theory card
+_WORK_ID_RE = re.compile(r"^work_[a-z0-9][a-z0-9_-]*$")
 
 HEADINGS = (
     "1. 依頼・媒体・床の指定",
@@ -153,6 +155,8 @@ class _Ctx:
         self.kb_root = kb_root
         self.section_audio = section_audio
         self.omitted: list[str] = []
+        self.refs: list[str] = []
+        self.ref_kb_root: Path | None = None
         self.sources: dict[str, str] = {}
         pj = root / "project.json"
         self.project = _read_json(pj)
@@ -801,11 +805,8 @@ def _s9(ctx: _Ctx) -> list[str]:
 _EVIDENCE_RANK = {e: i for i, e in enumerate(kbmod.EVIDENCE)}
 
 
-def _s10(ctx: _Ctx) -> list[str]:
-    if ctx.kb_root is None or not Path(ctx.kb_root).is_dir():
-        ctx.omitted.append("kb の抜粋（kb が見つからない）")
-        return ["- kb が見つからない"]
-    cards = kbmod.load_cards(ctx.kb_root)
+def _s10_experience(ctx: _Ctx, cards: list[dict]) -> list[str]:
+    """10.1: lesson / move / research cards and the song's own cards (unchanged from v1)."""
     picked = []
     for c in cards:
         m = c["meta"]
@@ -833,6 +834,60 @@ def _s10(ctx: _Ctx) -> list[str]:
             out.append("  - 適用条件（本文）: " + " ".join(cond.split())[:300])
     if len(picked) > MAX_KB_CARDS:
         ctx.omitted.append(f"kb の抜粋: {len(picked) - MAX_KB_CARDS} 枚は上限 {MAX_KB_CARDS} 枚を超えたため省略")
+    return out
+
+
+def _s10_theory(cards: list[dict]) -> list[str]:
+    """10.2: every active theory card, id and title only (no body; not counted in MAX_KB_CARDS)."""
+    shelf = sorted((str(c["meta"].get("id")), str(c["meta"].get("title") or "")) for c in cards
+                   if c["meta"].get("kind") == "theory" and c["meta"].get("status") == "active")
+    if not shelf:
+        return ["- 理論カードなし"]
+    out = [f"active な理論カード（kind: theory）の ID と題だけを全件、ID 順に載せる（{len(shelf)} 枚。本文は載せない。"
+           "10.1 の上限とは別枠）。引くときは `mankomix kb show <ID>`。使うかどうかは指揮者の裁量で、使わなくてよい。", ""]
+    out += [f"- {cid} {' '.join(title.split())}" for cid, title in shelf]
+    return out
+
+
+def _s10_references(ctx: _Ctx) -> list[str]:
+    """10.3: the work cards named for this job: id, title and the refstudy hash only (no numbers)."""
+    if not ctx.refs:
+        return ["- 指定なし"]
+    roots = []
+    for label, r in (("kb", ctx.kb_root), ("非公開 kb", ctx.ref_kb_root)):
+        if r is not None and Path(r).is_dir() and all(Path(r).resolve() != Path(x).resolve() for _, x in roots):
+            roots.append((label, Path(r)))
+    found: dict[str, tuple[str, dict, Path]] = {}
+    for label, r in roots:
+        for c in kbmod.load_cards(r):
+            cid = c["meta"].get("id")
+            if c["meta"].get("kind") == "work" and cid in ctx.refs and cid not in found:
+                found[cid] = (label, c, r)
+    out = ["案件で指定された作品（work カード）の ID・題・測定資料 refstudy の sha256（先頭 16 桁）だけを載せる。"
+           "数値の対照は曲資料に入れない（`direction ref compare` の対照表 refsheet）。", ""]
+    for wid in ctx.refs:
+        if wid not in found:
+            out.append(f"- {wid}: kb にカードが無い（音源の持ち込みを利用者に求める。U-2）")
+            continue
+        label, c, r = found[wid]
+        study = (r / c["path"]).parent / "refstudy.md"
+        sha = hashlib.sha256(study.read_bytes()).hexdigest()[:16] if study.is_file() else None
+        title = " ".join(str(c["meta"].get("title") or "").split())
+        out.append(f"- {wid} {title}（{label}）: refstudy " + (f"`{sha}`" if sha else "なし（`direction ref study` で作る）"))
+    return out
+
+
+def _s10(ctx: _Ctx) -> list[str]:
+    have_kb = ctx.kb_root is not None and Path(ctx.kb_root).is_dir()
+    if not have_kb:
+        ctx.omitted.append("kb の抜粋（kb が見つからない）")
+    cards = kbmod.load_cards(ctx.kb_root) if have_kb else []
+    out = ["### 10.1 経験", ""]
+    out += _s10_experience(ctx, cards) if have_kb else ["- kb が見つからない"]
+    out += ["", "### 10.2 理論の棚", ""]
+    out += _s10_theory(cards) if have_kb else ["- kb が見つからない"]
+    out += ["", "### 10.3 リファレンス", ""]
+    out += _s10_references(ctx)
     return out
 
 
@@ -909,12 +964,27 @@ def _s11(ctx: _Ctx) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def build_dossier(project_path: str | Path, *, variant: str | None = None, song: str | None = None,
-                  kb_root: str | Path | None = None, section_audio: bool = True) -> dict:
+                  kb_root: str | Path | None = None, section_audio: bool = True,
+                  refs: list[str] | None = None, ref_kb_root: str | Path | None = None) -> dict:
+    """``refs``: work card ids named for this job (§10.3); looked up in ``kb_root`` and then in
+    ``ref_kb_root`` (default: the private kb ``_private/kb`` of the repository, where third-party works
+    live by default). Only the id, the title and the refstudy hash are printed."""
     root = Path(project_path)
     if kb_root is None:
         cand = repo_data_root() / "kb"
         kb_root = cand if cand.is_dir() else None
+    wanted: list[str] = []
+    for r in refs or []:
+        if not isinstance(r, str) or not _WORK_ID_RE.match(r):
+            raise ValueError(f"--ref needs a work card id work_<slug> (got {r!r})")
+        if r not in wanted:
+            wanted.append(r)
+    if ref_kb_root is None:
+        cand = repo_data_root() / "_private" / "kb"
+        ref_kb_root = cand if cand.is_dir() else None
     ctx = _Ctx(root, variant, song, Path(kb_root) if kb_root is not None else None, section_audio)
+    ctx.refs = wanted
+    ctx.ref_kb_root = Path(ref_kb_root) if ref_kb_root is not None else None
     sa = _section_audio(ctx)
     body: list[str] = []
     builders = (lambda: _s1(ctx), lambda: _s2(ctx, sa), lambda: _s3(ctx, sa), lambda: _s4(ctx), lambda: _s5(ctx),
@@ -958,5 +1028,6 @@ def build_dossier(project_path: str | Path, *, variant: str | None = None, song:
         "chars": len(md),
         "headings": list(HEADINGS),
         "omitted": ctx.omitted,
+        "references": ctx.refs,
         "markdown": md,
     }
