@@ -134,6 +134,7 @@ mankomix serve -p my_song.mmx
 ## ドキュメント
 
 - [docs/SPEC.md](docs/SPEC.md) — 全体仕様
+- [docs/DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) — 設計思想（規則でもゲートでもない、指揮者が読む文脈）
 - [docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) — 指揮書の形式と `direction` コマンド
 - [docs/RESEARCH_PROTOCOL.md](docs/RESEARCH_PROTOCOL.md) — 調査プロトコル（調査ファーストの既定）
 - [docs/REQUIREMENTS_NOTES.md](docs/REQUIREMENTS_NOTES.md) — 決定事項の記録
