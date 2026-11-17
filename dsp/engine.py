@@ -331,6 +331,7 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
         P.check_runtime(exec_t, exec_p, sr)
         in_peak = _peak_db(audio)
         n_in = audio.shape[0]
+        fn = _xchain.seed_implementation(fn, exec_t, sid)
         if s.get("channel", "stereo") != "stereo":
             fn = _xchain.channel_implementation(fn, s)
         y, sr_out, stats = fn(audio, sr, exec_p, seed=seed)

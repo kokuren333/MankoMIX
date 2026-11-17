@@ -1,6 +1,8 @@
 """Deterministic discovery of extension declarations and implementations.
 
-Modules expose SPECS, IMPLS and optionally TIME_VARYING and COMPOSITES.
+Modules expose SPECS, IMPLS and optionally TIME_VARYING, COMPOSITES and
+CROSS_VALIDATE. Each CROSS_VALIDATE function accepts resolved params and raises
+ParamError for invalid relationships; its return value is ignored.
 Each COMPOSITES value takes validated params and returns a list of chain items.
 Definition modules must not import dsp.processors (use dspx.params instead).
 """
@@ -16,7 +18,7 @@ _TABLES = None
 def _collect():
     global _TABLES
     if _TABLES is None:
-        definitions, impls, tv, expansions = [], {}, set(), {}
+        definitions, impls, tv, expansions, validators = [], {}, set(), {}, {}
         names = set()
         for path in sorted((Path(__file__).parent / "procs").glob("*.py"), key=lambda p: p.name):
             if path.name == "__init__.py":
@@ -28,7 +30,8 @@ def _collect():
                     raise ImportError(f"duplicate DSP extension type: {name}")
                 names.add(name)
                 definitions.append(copy.deepcopy(spec))
-            for target, source in ((impls, mod.IMPLS), (expansions, getattr(mod, "COMPOSITES", {}))):
+            for target, source in ((impls, mod.IMPLS), (expansions, getattr(mod, "COMPOSITES", {})),
+                                   (validators, getattr(mod, "CROSS_VALIDATE", {}))):
                 overlap = target.keys() & source.keys()
                 if overlap:
                     raise ImportError(f"duplicate DSP extension registration: {sorted(overlap)}")
@@ -36,7 +39,7 @@ def _collect():
                     raise ImportError(f"non-callable DSP implementation in {path.name}")
                 target.update(source)
             tv.update(getattr(mod, "TIME_VARYING", ()))
-        if (impls.keys() | expansions.keys() | tv) - names:
+        if (impls.keys() | expansions.keys() | validators.keys() | tv) - names:
             raise ImportError("DSP extension metadata refers to an undeclared type")
         for spec in definitions:
             name = spec["type"]
@@ -44,7 +47,7 @@ def _collect():
                 raise ImportError(f"composite declaration/expander mismatch: {name}")
             if name in expansions and name in impls:
                 raise ImportError(f"composite cannot also have an implementation: {name}")
-        _TABLES = definitions, impls, frozenset(tv), expansions
+        _TABLES = definitions, impls, frozenset(tv), expansions, validators
     return _TABLES
 
 
@@ -73,3 +76,8 @@ def time_varying_types() -> frozenset:
 
 def composites() -> dict:
     return dict(_tables()[3])
+
+
+def cross_validators() -> dict:
+    """Return type-specific validators called after base parameter validation."""
+    return dict(_tables()[4])

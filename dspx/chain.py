@@ -1,4 +1,4 @@
-"""Composite expansion and channel targeting for the unchanged engine loop."""
+"""Composite expansion, channel targeting and item seeds for engine extensions."""
 from __future__ import annotations
 
 import copy
@@ -8,7 +8,7 @@ import numpy as np
 from mankomix.dsp.errors import ChainError, NumericError, ParamError
 
 CHANNELS = ("stereo", "mid", "side", "left", "right")
-CHANNEL_DENIED = frozenset(("pan", "stereo", "limiter", "loudness_gain", "resample", "dither"))
+CHANNEL_DENIED = frozenset(("pan", "stereo", "limiter", "reverb", "delay", "loudness_gain", "resample", "dither"))
 
 
 def _check_channel(kind, channel):
@@ -17,7 +17,7 @@ def _check_channel(kind, channel):
         raise ParamError(f"unknown channel target: {channel!r}")
     if channel != "stereo":
         definition = P.PROCESSORS[kind]
-        if kind in CHANNEL_DENIED or "export" in definition["stages"] or definition.get("channel_ok") is False:
+        if kind in CHANNEL_DENIED or kind.startswith("aw.") or "export" in definition["stages"] or definition.get("channel_ok") is False:
             raise ParamError(f"processor {kind!r} does not support channel targeting")
 
 
@@ -113,6 +113,33 @@ def channel_implementation(fn, step):
                 side = y[:, 0]
             result = np.column_stack((mid + side, mid - side))
         return result, sr_out, stats
+
+    return run
+
+
+def item_seed(project_seed, sid):
+    """SHA-256 of canonical project seed / item ID, first 64 bits unsigned.
+
+    Like engine.seed_from_hash, consume the first sixteen hex digits; retain
+    all 64 bits here. Expanded composite IDs are used verbatim.
+    """
+    from mankomix.core.hashing import canonical_hash
+    digest = canonical_hash({'project_seed': int(project_seed), 'item_id': str(sid)})
+    return int(digest[:16], 16)
+
+
+def seed_implementation(fn, kind, sid):
+    """Bind the item ID only for registry extensions, after backend selection.
+
+    The processor combines this seed with its seed parameter before PCG64.
+    Legacy implementations are returned unchanged, including legacy fallbacks.
+    """
+    from .registry import implementations
+    if kind not in implementations():
+        return fn
+
+    def run(audio, sr, params, *, seed):
+        return fn(audio, sr, params, seed=item_seed(seed, sid))
 
     return run
 

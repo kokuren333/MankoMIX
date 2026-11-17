@@ -31,6 +31,10 @@ def validate_params(type, params, legacy):
                 points.append([x, y])
                 previous = x
             out[pid] = points
+    from .registry import cross_validators
+    validator = cross_validators().get(type)
+    if validator is not None:
+        validator(out)
     return out
 
 

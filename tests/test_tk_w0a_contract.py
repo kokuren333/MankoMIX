@@ -175,10 +175,19 @@ def test_channel_rejects_mono_input(channel, bypass):
 
 
 @pytest.mark.parametrize("kind,stage", [("pan", "track"), ("stereo", "track"), ("limiter", "master"),
+    ("reverb", "track"), ("delay", "track"),
+    *[(kind, "track") for kind in P.PROCESSORS if kind.startswith("aw.")],
     ("loudness_gain", "export"), ("resample", "export"), ("dither", "export")])
-def test_channel_rejected_type_list(kind, stage):
+@pytest.mark.parametrize("channel", ["mid", "side", "left", "right"])
+def test_channel_rejected_type_list(kind, stage, channel):
     with pytest.raises(ParamError, match="channel targeting"):
-        E.validate_chain([{"type": kind, "channel": "mid"}], stage)
+        E.validate_chain([{"type": kind, "channel": channel}], stage)
+
+
+def test_channel_denies_future_aw_types(register):
+    kind = register(_spec("aw.w0a_future"))
+    with pytest.raises(ParamError, match="channel targeting"):
+        E.validate_chain([{"type": kind, "channel": "left"}], "track")
 
 
 def test_channel_custom_restrictions_invalid_values_and_bypass(register):
@@ -353,7 +362,8 @@ def _mock_modules(tmp_path, monkeypatch, modules):
 
 def test_registry_filename_order_metadata_and_copy_isolation(tmp_path, monkeypatch):
     fn = lambda *a, **kw: None
-    modules = {"a": SimpleNamespace(SPECS=[_spec("w0a_a")], IMPLS={"w0a_a": fn}, TIME_VARYING={"w0a_a"}),
+    modules = {"a": SimpleNamespace(SPECS=[_spec("w0a_a")], IMPLS={"w0a_a": fn}, TIME_VARYING={"w0a_a"},
+                                    CROSS_VALIDATE={"w0a_a": fn}),
                "z": SimpleNamespace(SPECS=[_spec("w0a_z", composite=True)], IMPLS={}, COMPOSITES={"w0a_z": fn})}
     calls = _mock_modules(tmp_path, monkeypatch, modules)
     result = registry.specs()
@@ -361,11 +371,16 @@ def test_registry_filename_order_metadata_and_copy_isolation(tmp_path, monkeypat
     assert registry.implementations() == {"w0a_a": fn}
     assert registry.time_varying_types() == frozenset({"w0a_a"})
     assert registry.composites() == {"w0a_z": fn}
+    validators = registry.cross_validators()
+    assert validators == {"w0a_a": fn}
+    validators.clear()
+    assert registry.cross_validators() == {"w0a_a": fn}
     result[0]["params"].append({})
     assert registry.specs()[0]["params"] == []
 
 
-@pytest.mark.parametrize("case", ["existing", "duplicate", "duplicate_impl", "missing_spec", "missing_expander"])
+@pytest.mark.parametrize("case", ["existing", "duplicate", "duplicate_impl", "missing_spec", "missing_expander",
+                                  "duplicate_validator", "unknown_validator", "noncallable_validator"])
 def test_registry_rejects_collisions_and_invalid_metadata(tmp_path, monkeypatch, case):
     fn = lambda *a, **kw: None
     a = SimpleNamespace(SPECS=[_spec("w0a_a")], IMPLS={"w0a_a": fn})
@@ -379,8 +394,36 @@ def test_registry_rejects_collisions_and_invalid_metadata(tmp_path, monkeypatch,
         b.IMPLS = a.IMPLS
     elif case == "missing_spec":
         b.IMPLS = {"unknown": fn}
+    elif case == "duplicate_validator":
+        a.CROSS_VALIDATE = b.CROSS_VALIDATE = {"w0a_a": fn}
+    elif case == "unknown_validator":
+        b.CROSS_VALIDATE = {"unknown": fn}
+    elif case == "noncallable_validator":
+        b.CROSS_VALIDATE = {"w0a_b": None}
     else:
         a.SPECS[0]["composite"] = True
     _mock_modules(tmp_path, monkeypatch, {"a": a, "b": b})
     with pytest.raises(ImportError):
         registry.specs()
+
+
+def test_cross_validation_receives_resolved_params_after_base_checks(register, monkeypatch):
+    kind = register(_spec("w0a_cross", [XP._f("value", None, 0, 2, 1, "Test value.")]))
+    calls = []
+
+    def check(p):
+        calls.append(p.copy())
+        if p["value"] > 1:
+            raise ParamError("test relationship")
+
+    monkeypatch.setattr(registry, "cross_validators", lambda: {kind: check})
+    assert P.validate_params(kind, None) == {"value": 1}
+    assert calls == [{"value": 1}]
+    with pytest.raises(ParamError, match="test relationship"):
+        P.validate_params(kind, {"value": 1.5})
+    for bad in ({"value": 3}, {"unknown": 1}):
+        with pytest.raises(ParamError):
+            P.validate_params(kind, bad)
+    assert len(calls) == 2  # Base validation rejects before invoking the hook.
+    P.validate_params("gain", {})
+    assert len(calls) == 2  # Original types have no hook.
