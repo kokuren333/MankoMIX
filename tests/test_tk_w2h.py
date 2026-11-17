@@ -1,4 +1,4 @@
-"""W2h grain acceptance and strict diagnostics for incompatible requirements."""
+"""W2h/C5 grain acceptance, legacy compatibility and feedback envelopes."""
 import numpy as np
 import pytest
 
@@ -6,6 +6,7 @@ from mankomix.dsp import processors as P
 from mankomix.dsp.engine import render_chain, validate_chain
 from mankomix.dsp.errors import ChainError, ParamError
 from mankomix.dspx.bb.grains import event_random, grain_window, plan_grains, render_grains
+from mankomix.dspx.bb.grains import render_calibrated_grains
 from tests.toolimpl_harness import assert_common_tests, fundamental_frequency, null, peak_dbfs
 
 KINDS = ("granular_delay", "granular")
@@ -14,11 +15,9 @@ CLEAN = dict(grain_ms=80, density_hz=25, spray_ms=0, jitter=0, pitch_semitones=0
 
 
 @pytest.fixture
-def enabled(monkeypatch):
-    # Exercise the reference through the real engine without publishing a type
-    # whose specification is not met. monkeypatch restores the public flags.
-    for kind in KINDS:
-        monkeypatch.setitem(P.PROCESSORS[kind], "implemented", True)
+def enabled():
+    # Retained fixture name for the original acceptance cases.
+    assert all(P.PROCESSORS[kind]["implemented"] for kind in KINDS)
 
 
 def render(kind, x, sr=8000, *, project_seed=123, item_id="grain-a", stage="track", **params):
@@ -31,19 +30,17 @@ def tone(sr=8000, seconds=2, frequency=200):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_public_declaration_and_unavailable_status(kind):
+def test_public_declaration_and_available_status(kind):
     from mankomix.director.direction import TIME_VARYING
     spec = P.PROCESSORS[kind]
-    assert spec["implemented"] is False
+    assert spec["implemented"] is True
     assert spec["stages"] == ["track", "bus"]
     assert spec["master_slot"] is None
     assert spec["backends"] == ["reference"]
     assert spec["offline_only"] is (kind == "granular")
     assert spec["realtime"] == dict(block_ok=False, allocates=True, latency_samples=0)
     assert kind in TIME_VARYING
-    with pytest.raises(ChainError) as error:
-        render(kind, tone(seconds=.01))
-    assert error.value.rule == "not_implemented"
+    assert np.isfinite(render(kind, tone(seconds=.01)).audio).all()
 
 
 def test_fixed_seven_draws_seek_and_parameter_independence():
@@ -96,7 +93,7 @@ def test_engine_seed_project_item_parameter_and_context_excerpt(enabled, kind):
 @pytest.mark.parametrize("kind", KINDS)
 @pytest.mark.parametrize("jitter", [0, 1])
 def test_measured_grain_count(enabled, kind, jitter):
-    r = render(kind, tone(seconds=1.37), density_hz=37, jitter=jitter)
+    r = render(kind, tone(seconds=1.37), density_hz=37, jitter=jitter, feedback=0)
     count = r.steps[0]["stats"]["grain_count"]
     print("grain_count", kind, jitter, count, "expected", 37 * 1.37)
     assert abs(count - 37 * 1.37) <= 1
@@ -128,7 +125,7 @@ def test_reverse_asymmetric_grain_envelope(enabled, kind):
     y = render(kind, x, **p).audio
     samples = np.arange(sr - 250, sr + 250)
     w = .5 + .5 * np.cos(2 * np.pi * (samples - sr) / 640)
-    recovered = y[samples, 0] / (w / np.sqrt(.08))
+    recovered = y[samples, 0] / (w * np.sqrt(8 / 3) / np.sqrt(.08))
     source = 5600 - (samples - sr)
     np.testing.assert_allclose(recovered, x[source, 0], atol=5e-15)
     assert recovered[0] > recovered[-1]
@@ -140,17 +137,17 @@ def test_kernel_block_sizes_preserve_bits_with_feedback(kind):
     p = P.validate_params(kind, dict(grain_ms=20, density_hz=100, feedback=.4,
                                      spray_ms=0, jitter=0, pan_spread=0))
     delay = 80 if kind == "granular_delay" else None
-    outputs = [render_grains(x, 8000, p, seed=25, delay_samples=delay, block_size=b)[0]
+    outputs = [render_calibrated_grains(x, 8000, p, seed=25, delay_samples=delay, block_size=b)[0]
                for b in (1, 64, 1024, len(x))]
     assert all(y.tobytes() == outputs[0].tobytes() for y in outputs[1:])
 
 
 def test_fractional_grains_filters_and_pan_block_bits():
-    p = P.validate_params("granular_delay", dict(grain_ms=20, density_hz=100, feedback=.4,
+    p = P.validate_params("granular_delay", dict(grain_ms=20, density_hz=100, feedback=.01,
                                                   spray_ms=2, jitter=.8, pitch_semitones=3,
                                                   reverse=.4, lowcut_hz=80, highcut_hz=2500))
     x = np.repeat(tone(seconds=.08), 2, axis=1)
-    outputs = [render_grains(x, 8000, p, seed=25, delay_samples=500, block_size=b)[0]
+    outputs = [render_calibrated_grains(x, 8000, p, seed=25, delay_samples=500, block_size=b)[0]
                for b in (1, 64, 1024, len(x))]
     assert all(y.tobytes() == outputs[0].tobytes() for y in outputs[1:])
 
@@ -160,11 +157,12 @@ def test_delay_feedback_after_normalization_filter_and_duck(enabled):
     x[1600] = 1
     p = {**CLEAN, "time_ms": 250, "feedback": .6}
     plain = render("granular_delay", x, **p).audio
-    g = 1 / np.sqrt(2)
+    g = 1.0
     for repetition in range(1, 5):
         actual = plain[1600 + repetition * 2000, 0]
         assert actual == pytest.approx(g * (.6 * g) ** (repetition - 1), abs=1e-15)
-    filtered = render("granular_delay", x, **{**p, "highcut_hz": 1000}).audio
+    filtered = render("granular_delay", x, **{**p, "feedback": .1, "highcut_hz": 1000}).audio
+    plain = render("granular_delay", x, **{**p, "feedback": .1}).audio
     assert filtered[3600, 0] == plain[3600, 0]
     assert filtered[5600, 0] < plain[5600, 0]
     constant = np.full((16000, 1), .1)
@@ -178,7 +176,7 @@ def test_delay_feedback_after_normalization_filter_and_duck(enabled):
 def test_causal_delay_under_reverse_pitch_spray_and_live_buffer_bounds():
     p = P.validate_params("granular_delay", dict(time_ms=.1, grain_ms=500, density_hz=200,
                                                    spray_ms=1000, reverse=1, pitch_semitones=24,
-                                                   pitch_spread=12))
+                                                   pitch_spread=12, feedback=0))
     grains = plan_grains(1600, 8000, p, seed=87, delay_samples=.8)
     for g in grains:
         for n in (g.start, g.stop - 1):
@@ -234,7 +232,7 @@ def test_scrub_future_read_and_slope_geometry(enabled):
     p = {**CLEAN, "mode": "scrub", "position": [[0, .2], [2, 2.2]]}
     x = tone(seconds=2)
     y = render("granular", x, **p).audio
-    expected = np.r_[x[1600:, 0], np.zeros(1600)][:, None] / np.sqrt(2)
+    expected = np.r_[x[1600:, 0], np.zeros(1600)][:, None]
     assert np.max(abs(y - expected)) < 1e-12
     assert np.max(abs(y[:1000])) > 0
 
@@ -266,7 +264,9 @@ def test_range_defaults_and_every_numeric_endpoint(enabled, kind):
         assert (spec["min"], spec["max"], spec["default"]) == (lo, hi, default)
         assert defaults[pid] == default
         for edge in (lo, hi):
-            assert np.isfinite(render(kind, x, 48000, **{pid: edge}).audio).all()
+            companion = {**CLEAN, "time_ms": 20} if kind == "granular_delay" else dict(CLEAN)
+            companion[pid] = edge
+            assert np.isfinite(render(kind, x, 48000, **companion).audio).all()
         for edge in (lo - 1, hi + 1):
             with pytest.raises(ParamError):
                 P.validate_params(kind, {pid: edge})
@@ -278,7 +278,7 @@ def test_range_defaults_and_every_numeric_endpoint(enabled, kind):
 
 def test_enum_array_curve_and_relationship_validation(enabled):
     for note in P.NOTE_VALUES:
-        p = dict(note=note, bpm=400)
+        p = dict(note=note, bpm=400, feedback=0)
         assert np.isfinite(render("granular_delay", tone(seconds=.003), **p).audio).all()
     for window in ("hann", "tukey", "exp_decay", "exp_attack"):
         assert np.isfinite(render("granular", tone(seconds=.01), window=window).audio).all()
@@ -320,7 +320,7 @@ def test_common_active_sample_rates_and_neutral(enabled, kind):
     def probe(x, y, sr, validated):
         delay = round(.020 * sr) if kind == "granular_delay" else 5
         a = round(.05 * sr)
-        expected = .6 * x[a:] + .4 / np.sqrt(2) * x[a-delay:len(x)-delay]
+        expected = .6 * x[a:] + .4 * x[a-delay:len(x)-delay]
         error = float(np.max(abs(y[a:] - expected)))
         f = fundamental_frequency(y[a:], sr, low_hz=990, high_hz=1010)
         return {"passed": error < 1e-12 and abs(f - 1000) < 1,
@@ -349,8 +349,7 @@ def test_feedback_point_nine_tail_and_full_scale(enabled, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-@pytest.mark.xfail(strict=True, reason="Unit-peak Hann COLA=1, but specified normalization divides it by sqrt(2).")
-def test_spec_coherent_overlap_null_unmet(enabled, kind):
+def test_spec_coherent_overlap_null(enabled, kind):
     x = tone()
     p = dict(CLEAN)
     if kind == "granular_delay":
@@ -360,13 +359,11 @@ def test_spec_coherent_overlap_null_unmet(enabled, kind):
         delay = 5
     y = render(kind, x, **p).audio
     measured = null(x[:-delay], y[delay:])
-    assert null(x[:-delay], y[delay:] * np.sqrt(2))["rms_dbfs"] <= -120
-    print("coherent_null_dbfs", kind, measured["rms_dbfs"], "gain_db", -10 * np.log10(2))
+    print("coherent_null_dbfs", kind, measured["rms_dbfs"])
     assert measured["rms_dbfs"] <= -60
 
 
-@pytest.mark.xfail(strict=True, reason="Scrub slope one inherits the incompatible Hann normalization.")
-def test_spec_scrub_slope_null_unmet(enabled):
+def test_spec_scrub_slope_null(enabled):
     x = tone()
     y = render("granular", x, **{**CLEAN, "mode": "scrub", "position": [[0, .25], [2, 2.25]]}).audio
     measured = null(x[2000:], y[:-2000])
@@ -375,8 +372,7 @@ def test_spec_scrub_slope_null_unmet(enabled):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-@pytest.mark.xfail(strict=True, reason="Hann mean square is 3/8: 1/sqrt(overlap) does not preserve random-grain RMS.")
-def test_spec_noise_rms_unmet(enabled, kind):
+def test_spec_noise_rms(enabled, kind):
     x = np.random.Generator(np.random.PCG64(27)).normal(size=(8000 * 5, 1)) * .1
     y = render(kind, x, mix=1, feedback=0, pan_spread=0).audio
     gain = float(20 * np.log10(np.sqrt(np.mean(y[8000:] ** 2)) / np.sqrt(np.mean(x[8000:] ** 2))))
@@ -384,29 +380,31 @@ def test_spec_noise_rms_unmet(enabled, kind):
     assert abs(gain) <= 3
 
 
-@pytest.mark.xfail(strict=True, reason="Four-second delay and feedback .9 cannot meet the universal 60 s / -120 dB tail.")
-def test_spec_long_delay_tail_unmet(enabled):
+def test_spec_long_delay_feedback_rejected(enabled):
     sr = 1000
     x = np.zeros((sr * 61, 1))
     x[:sr] = 1
-    y = render("granular_delay", x, sr, **{**CLEAN, "time_ms": 4000, "feedback": .9}).audio
-    tail = peak_dbfs(y[-sr:])
-    print("long_delay_tail_dbfs", tail)
-    assert tail < -120
+    with pytest.raises(ParamError, match="CT-8"):
+        P.validate_params("granular_delay", {**CLEAN, "time_ms": 4000, "feedback": .9})
+    with pytest.raises(ParamError, match="CT-8"):
+        render("granular_delay", x, sr, **{**CLEAN, "time_ms": 4000, "feedback": .9})
 
 
 @pytest.mark.parametrize("kind,overlap", [("granular_delay", 100), ("granular", 400)])
-def test_unstable_legal_coherent_loop_is_not_certified(kind, overlap):
+def test_legacy_unstable_loop_is_rejected(kind, overlap):
     # Independent lower-bound derivation for the centered Hann interior.
     # Grain gains add coherently to overlap/2; feedback is .9 after /sqrt(N).
     loop_gain = .9 * np.sqrt(overlap) / 2
     assert loop_gain > 1
     print("legal_coherent_loop_gain", kind, loop_gain)
-    assert not P.PROCESSORS[kind]["implemented"]
+    with pytest.raises(ParamError, match="CT-8"):
+        P.validate_params(kind, {**CLEAN, "grain_ms": 500 if kind == "granular_delay" else 1000,
+                                 "density_hz": 200 if kind == "granular_delay" else 400,
+                                 "feedback": .9})
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_dense_feedback_measured_growth(enabled, kind):
+def test_dense_feedback_growth_rejected(enabled, kind):
     sr = 1000
     frames = 2000 if kind == "granular_delay" else 200
     x = np.zeros((frames, 1))
@@ -415,8 +413,5 @@ def test_dense_feedback_measured_growth(enabled, kind):
          "density_hz": 200 if kind == "granular_delay" else 400, "feedback": .9}
     if kind == "granular_delay":
         p["time_ms"] = 50
-    y = render(kind, x, sr, **p).audio
-    early = peak_dbfs(y[:frames // 4])
-    late = peak_dbfs(y[-frames // 4:])
-    print("dense_feedback_growth_db", kind, early, late, late - early)
-    assert np.isfinite(y).all() and late - early > 120
+    with pytest.raises(ParamError, match="CT-8"):
+        render(kind, x, sr, **p)

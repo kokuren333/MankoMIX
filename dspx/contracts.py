@@ -11,7 +11,8 @@ def validate_params(type, params, legacy):
         pid, kind = spec["id"], spec["type"]
         if kind == "asset":
             from .assets import resolve
-            resolve(spec["registry"], out[pid])
+            if not (spec.get("allow_empty", False) and out[pid] == ""):
+                resolve(spec["registry"], out[pid])
         elif kind == "curve":
             limit = spec["max_points"]
             if isinstance(limit, bool) or not isinstance(limit, int) or not 0 <= limit <= 65536:

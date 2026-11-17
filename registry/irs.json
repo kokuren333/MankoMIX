@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "irs": [
+    {
+      "id": "synth_room_a",
+      "sha256": "9396b36d64df871bc2fadc3aeafd0ddb82ff681c35b6cdbee8fa1a8c465e0439",
+      "sr": 44100,
+      "channels": 2,
+      "length_s": 2.0,
+      "kind": "room",
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "tools/generate_synthetic_irs.py",
+        "args": {
+          "sr": 44100,
+          "seed": 208
+        },
+        "rt60_s": 0.8
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "tools/generate_synthetic_irs.py",
+            "note": "Original mathematical synthesis; no third-party audio. Generator and output released under the repository Apache-2.0 license."
+          }
+        ]
+      }
+    },
+    {
+      "id": "synth_cab_a",
+      "sha256": "55c058a2112c6beaad9817b132e0cce672631867082cc1d4365a5546dd264c7a",
+      "sr": 44100,
+      "channels": 1,
+      "length_s": 0.2,
+      "kind": "cabinet",
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "tools/generate_synthetic_irs.py",
+        "args": {
+          "sr": 44100,
+          "seed": 208
+        },
+        "rt60_s": null
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "tools/generate_synthetic_irs.py",
+            "note": "Original mathematical synthesis; no third-party audio. Generator and output released under the repository Apache-2.0 license."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ SPECS = [N.specification('loudness_shaper', [
     _f('output_db', 'dB', -12, 0, 0, 'Output gain.'),
     _e('oversample', [1, 2, 4, 8], 4, 'Oversampling factor.', unit='x')],
     'Monotone odd polynomial loudness shaping.', slot=5)]
+SPECS[0]['implemented'] = True
 
 
 def loudness_shaper(x, sr, p, *, seed=0):

@@ -28,3 +28,11 @@ def resolve(registry: str, asset_id: str):
     if record is None:
         raise ParamError(f"unregistered asset {asset_id!r} in {registry!r}")
     return record
+
+
+def _resolve_ir(asset_id):
+    from .bb.ir import IRS
+    return IRS.resolve(asset_id)
+
+
+register("irs", _resolve_ir)

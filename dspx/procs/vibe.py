@@ -2,12 +2,18 @@
 
 Structural reference: Darabundit et al., DAFx-19, sections 2.2/3,
 https://www.dafx.de/paper-archive/2019/DAFx2019_paper_31.pdf .
-This is the specification's ideal allpass abstraction, not the paper's
-measured unbalanced circuit. Thermal constants are user parameters. Normalized
-capacity ratios and power-law sensitivities below are original design choices.
+The phase stages are ideal allpasses; the chorus summing conductances are
+unequal (dry:wet = 11:9). This original abstraction of an unbalanced circuit
+is authorized by D-16, not a fit to measured hardware. Thermal constants are
+user parameters; capacity ratios and sensitivities are original choices.
 """
 import numpy as np
 from mankomix.dspx.params import _e, _f
+
+# Normalized conductances of the dry/wet summing branches. For |H|=1,
+# |.55+.45H| >= .10 at every frequency, with unity gain when H=1.
+CHORUS_DRY = .55
+CHORUS_WET = .45
 
 
 def lamp_response(target, sr, up_ms, down_ms):
@@ -48,7 +54,7 @@ def vibe(x, sr, p, *, seed=0):
         source = oversampled(x, 4, lambda v: np.tanh(gain*v)/gain)
     corners = corner_frequencies(1 if p['depth'] == 0 else len(x), sr, p, x.shape[1], seed=seed)
     wet = allpass_cascade(source, sr, corners)
-    y = (source+wet)/2 if p['mode'] == 'chorus' else wet
+    y = CHORUS_DRY*source+CHORUS_WET*wet if p['mode'] == 'chorus' else wet
     if p['output_db']:
         y = y*10**(p['output_db']/20)
     return y, sr, spatial_stats(y, sr)
@@ -58,7 +64,7 @@ def _params():
     from mankomix.dspx.bb.modulation import mod_params
     common = mod_params(3, .7, 0, None)
     next(v for v in common if v['id'] == 'rate_hz').update(min=.3, max=12)
-    return common + [_e('mode', ['chorus', 'vibrato'], 'chorus', 'Equal dry/wet or allpass only.'),
+    return common + [_e('mode', ['chorus', 'vibrato'], 'chorus', 'Unbalanced dry/wet sum or allpass only.'),
                      _f('lamp_ms_up', 'ms', 5, 100, 20, 'Light heating time constant.'),
                      _f('lamp_ms_down', 'ms', 20, 400, 120, 'Light cooling time constant.'),
                      _f('asym', None, 0, 1, .5, 'Photoconductor power-law sensitivity.'),
@@ -66,7 +72,7 @@ def _params():
                      _f('output_db', 'dB', -12, 12, 0, 'Output level.')]
 
 
-SPECS = [dict(type='vibe', implemented=False, description='Thermal-light-controlled four-section scattered allpass modulation.',
+SPECS = [dict(type='vibe', implemented=True, description='Thermal-light-controlled four-section scattered allpass modulation.',
               params=_params(), stages=['track', 'bus'], master_slot=None, channel_ok=True,
               offline_only=False, backends=['reference'],
               realtime=dict(block_ok=False, allocates=True, latency_samples=0))]

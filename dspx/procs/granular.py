@@ -4,19 +4,22 @@ from mankomix.dspx.params import _a, _e, _f, _i
 
 def cross_validate(p):
     from mankomix.dsp.errors import ParamError
+    from mankomix.dspx.bb.grains import validate_grain_feedback
     if p["mode"] == "scrub":
         if not p["position"]:
             raise ParamError("scrub mode requires a position curve")
         if p["feedback"] != 0:
             raise ParamError("feedback is available in live mode only")
+    else:
+        validate_grain_feedback(p)
 
 
 def granular(x, sr, p, *, seed=0):
-    from mankomix.dspx.bb.grains import render_grains
+    from mankomix.dspx.bb.grains import render_calibrated_grains
     cross_validate(p)
     if p["mix"] == 0:
         return x.copy(), sr, {"latency_samples": 0, "grain_count": 0}
-    wet, stats = render_grains(x, sr, p, seed=seed)
+    wet, stats = render_calibrated_grains(x, sr, p, seed=seed)
     return (1 - p["mix"]) * x + p["mix"] * wet, sr, stats
 
 
@@ -45,7 +48,7 @@ SPECS = [{"type": "granular", "description": "Offline granular live buffer and s
               _i("seed", None, 0, 65535, 0, "Deterministic parameter seed."),
           ], "stages": ["track", "bus"], "master_slot": None,
           "realtime": {"block_ok": False, "allocates": True, "latency_samples": 0},
-          "offline_only": True, "backends": ["reference"], "implemented": False,
+          "offline_only": True, "backends": ["reference"], "implemented": True,
           "channel_ok": False}]
 IMPLS = {"granular": granular}
 TIME_VARYING = {"granular"}

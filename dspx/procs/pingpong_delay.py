@@ -3,7 +3,7 @@ import numpy as np
 
 from mankomix.dspx.params import _e, _f
 from mankomix.dspx.bb.delayline import (
-    DelayLine, LoopFilter, definition, delay_ms, dl_params, duck_wet, spatial_stats,
+    DelayLine, LoopFilter, definition, delay_ms, dl_params, spatial_stats,
     validate_feedback,
 )
 
@@ -14,6 +14,7 @@ def cross_validate(p):
 
 
 def pingpong_delay(x, sr, p, *, seed=0):
+    from mankomix.dspx.bb.selfduck import duck_wet
     cross_validate(p)
     ms = delay_ms(p)
     delays = np.array([max(1, round(ms * sr / 1000)), max(1, round(ms * p["ratio"] * sr / 1000))])

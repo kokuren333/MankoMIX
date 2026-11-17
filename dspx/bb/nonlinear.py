@@ -282,3 +282,43 @@ def precision_oversampling_info(factor):
     return dict(oversample=factor, internal_oversample=factor, latency_samples=0,
                 uncompensated_latency_samples=(352 if factor > 2 else 320 if factor == 2 else 0),
                 latency_compensated=True)
+
+
+def transformer_flux(x, sr, drive_db, lf_corner_hz=20, core=.5, lf_emphasis=.7):
+    """Leaky flux integrator -> memoryless magnetization -> differentiator.
+
+    Whole-context float64 audio (frames, channels), at the *operating* sr;
+    the caller supplies oversampling and dry/wet mix. Both arms reject DC
+    after settling; finite records can retain an initial-condition transient.
+    Initial flux is zero. Independent derivation from the T07-03 structure:
+    dphi/dt = wr*x - wc*phi, wr=2*pi*200, wc=2*pi*lf_corner_hz.
+    phi uses a trapezoidal integrator. Magnetization is biased tanh normalized
+    at zero: M(phi)=[tanh(k*g*phi+b)-tanh(b)]/[k*g*sech(b)^2].
+    Differentiate by the chain rule, y=M'(phi)*(x-wc/wr*phi). Thus no unstable
+    numerical differentiator or iterative solver is required. Linearization
+    is s/(s+wc). The direct arm is a weak, frequency-independent normalized
+    tanh followed by the same highpass; lf_emphasis blends the two arms.
+    k=.15+.85*core, b=.002*core, direct k=.03*k are explicit generic choices,
+    not physical measurements or parameters copied from a circuit.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    if (x.ndim != 2 or sr <= 0 or not np.isfinite(sr) or
+            not np.isfinite([drive_db, lf_corner_hz, core, lf_emphasis]).all() or
+            not 0 <= drive_db <= 24 or not 5 <= lf_corner_hz <= 80 or
+            not 0 <= core <= 1 or not 0 <= lf_emphasis <= 1):
+        raise ParamError('invalid transformer flux configuration')
+    if not len(x):
+        return x.copy()
+    wc, wr = 2*np.pi*lf_corner_hz, 2*np.pi*200
+    den = 2*sr+wc
+    pole = (2*sr-wc)/den
+    phi = signal.lfilter([wr/den, wr/den], [1, -pole], x, axis=0)
+    k = (.15+.85*core)*10.0**(drive_db/20)
+    bias = .002*core
+    slope0 = 1-np.tanh(bias)**2
+    t = np.tanh(k*phi+bias)
+    flux = (1-t*t)/slope0*(x-wc/wr*phi)
+    kd = .03*k
+    direct = (np.tanh(kd*x+bias)-np.tanh(bias))/(kd*slope0)
+    direct = signal.lfilter([2*sr/den, -2*sr/den], [1, -pole], direct, axis=0)
+    return lf_emphasis*flux+(1-lf_emphasis)*direct

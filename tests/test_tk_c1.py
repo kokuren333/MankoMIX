@@ -142,4 +142,4 @@ def test_maximum_drive_aliasing(monkeypatch, kind, params, limit):
 def test_c1_public_flags():
     for kind in ('exciter', 'fuzz', 'mb_distortion', 'loudness_shaper', 'mb_saturator'):
         spec = importlib.import_module('mankomix.dspx.procs.'+kind).SPECS[0]
-        assert spec['implemented'] is (kind in ('exciter', 'fuzz', 'mb_distortion'))
+        assert spec['implemented'] is True

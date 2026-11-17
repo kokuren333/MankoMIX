@@ -14,6 +14,7 @@ SPECS = [N.specification('mb_saturator', PARAMS + [
     _e('oversample', [1, 2, 4, 8], 4, 'Oversampling factor.', unit='x'),
     _f('output_db', 'dB', -36, 12, 0, 'Output gain.')],
     'Independent saturation before band summation; generated harmonics are not re-split.')]
+SPECS[0]['implemented'] = True
 
 
 def validate(p):
@@ -44,6 +45,11 @@ def mb_saturator(x, sr, p, *, seed=0):
     C.validate_mb(p, sr)
     bp = C.expand_band_params(p, dict(drive_db=0, level_db=0, mix=1))
     info = N.oversampling_info(p['oversample'])
+    # The asymmetric reference mixes scalar/vector tanh rounding at the
+    # origin. Preserve exact silence without changing any nonzero render;
+    # the reference null remains far below -120 dBFS for silent input too.
+    if not np.any(x):
+        return x.copy(), sr, info
     if not any(bp['drive_db']):
         return N.mix_output(x, x, 0, p['output_db']), sr, info
     bands, meta = C.split_mb(x, sr, p)

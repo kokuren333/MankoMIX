@@ -13,12 +13,6 @@ from tests import toolimpl_harness as H
 KINDS = ('autopan', 'doppler', 'ring_mod', 'freq_shifter', 'vibe', 'rotary')
 
 
-@pytest.fixture(autouse=True)
-def enable_pending_diagnostics(monkeypatch):
-    for kind in KINDS:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
-
-
 def p(kind, **kw):
     return P.validate_params(kind, kw)
 
@@ -362,7 +356,7 @@ def test_vibe_static_allpass_notches_and_linear_thd():
     for cutoff in corners:
         k=(np.tan(np.pi*cutoff/sr)-1)/(np.tan(np.pi*cutoff/sr)+1)
         response*=signal.freqz([k,1],[1,k],worN=f,fs=sr)[1]
-    chorus=abs((1+response)/2)
+    chorus=abs(.55+.45*response)
     minima=signal.find_peaks(-chorus)[0]
     assert len(minima) <= 2
     # Independent matching four-section phaser, all corners at 800 Hz.
@@ -374,18 +368,19 @@ def test_vibe_static_allpass_notches_and_linear_thd():
     assert db(chorus.min()) > db(phaser.min())
 
 
-def test_pending_autopan_legacy_symmetry_conflict():
+def test_autopan_legacy_symmetry_tolerance():
     from mankomix.dsp.reference.basic import pan
     x=np.array([[.13,.27],[.47,-.55]])
     a=direct('autopan',x,depth=0,center=.3)
     b=direct('autopan',x[:,::-1],depth=0,center=-.3)
     assert a.tobytes()==pan(x,48000,dict(position=.3,center_db=-3))[0].tobytes()
     difference=float(np.max(abs(a[:,::-1]-b)))
-    assert a[:,::-1].tobytes()!=b.tobytes()
-    record('autopan_unmet_ST3_peak_difference',difference)
+    # 統括の判断 D-16 による: retain legacy pan bits; mirror <= -240 dBFS.
+    assert db(difference) <= -240
+    record('autopan_ST3_peak_difference_dbfs',db(difference))
 
 
-def test_pending_vibe_continuous_notch_depth_conflict():
+def test_vibe_continuous_notch_depth():
     from scipy.optimize import brentq
     from mankomix.dspx.procs.vibe import corner_frequencies
     sr=48000
@@ -396,13 +391,23 @@ def test_pending_vibe_continuous_notch_depth_conflict():
             return -2*np.sum(np.arctan(np.tan(np.pi*f/sr)/np.tan(np.pi*corners/sr)))
         roots=[brentq(lambda f: phase(f)+target,1e-8,sr/2-1e-8,xtol=1e-11)
                for target in (np.pi,3*np.pi)]
-        residual=[abs((1+np.exp(1j*phase(f)))/2) for f in roots]
-        assert max(residual)<1e-12
+        dry,wet=(.55,.45) if label=='vibe' else (.5,.5)
+        residual=[abs(dry+wet*np.exp(1j*phase(f))) for f in roots]
         values[label]=dict(notch_hz=roots,residual=residual)
-    # Four ideal sections wind through -pi and -3pi whatever their spacing.
-    # Equal dry/wet therefore has exact zeros in BOTH designs. Grid depth
-    # differences above cannot establish the requested intrinsic shallowness.
-    record('vibe_unmet_continuous_notch_comparison',values)
+    # |dry+wet*H|^2=(dry-wet)^2+2*dry*wet*(1+cos(phase)).
+    # Since phase decreases strictly from 0 to -4pi, these are ALL continuous
+    # minima. The .1 lower bound holds even between frequency-grid points.
+    np.testing.assert_allclose(values['vibe']['residual'], [.1,.1], atol=1e-14)
+    assert max(values['phaser']['residual']) < 1e-12
+    assert min(values['vibe']['residual']) > max(values['phaser']['residual'])
+    # Measure the implemented audio path at the exact roots, not only a
+    # response formula: 5 s contains the tail of the lowest 2.55 Hz section.
+    pulse=np.zeros((5*sr,1)); pulse[0]=1
+    ir=run('vibe',pulse,sr,depth=0)[:,0]
+    for f in values['vibe']['notch_hz']:
+        measured=abs(np.dot(ir,np.exp(-2j*np.pi*f*np.arange(len(ir))/sr)))
+        assert abs(measured-.1) < 1e-10
+    record('vibe_continuous_notch_comparison',values)
 
 
 def test_vibe_thermal_phase_and_bandwidth():
@@ -575,16 +580,12 @@ def test_dynamic_defaults_silence_and_full_scale():
         assert np.isfinite(run(kind,x,12000)).all()
 
 
-def test_release_flags_and_pending_rejection(monkeypatch):
-    from mankomix.dsp.errors import ChainError
+def test_release_flags():
     for kind in KINDS:
-        released=kind not in ('autopan','vibe')
         module=importlib.import_module('mankomix.dspx.procs.'+kind)
-        assert module.SPECS[0]['implemented'] is released
-        monkeypatch.setitem(P.PROCESSORS[kind],'implemented',released)
-        if not released:
-            with pytest.raises(ChainError,match='not implemented'):
-                run(kind,tone(seconds=.01))
+        assert module.SPECS[0]['implemented'] is True
+        assert P.PROCESSORS[kind]['implemented'] is True
+        assert np.isfinite(run(kind,tone(seconds=.01))).all()
 
 
 @pytest.mark.parametrize('kind',KINDS)

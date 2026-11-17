@@ -60,7 +60,7 @@ def autopan(x, sr, p, *, seed=0):
     return y, sr, spatial_stats(y, sr)
 
 
-SPECS = [dict(type='autopan', implemented=False, description='Absolute-clock equal-power autopan and stereo balance.',
+SPECS = [dict(type='autopan', implemented=True, description='Absolute-clock equal-power autopan and stereo balance.',
               params=_params(), stages=['track', 'bus'], master_slot=None, channel_ok=False,
               offline_only=False, backends=['reference'],
               realtime=dict(block_ok=False, allocates=True, latency_samples=0))]

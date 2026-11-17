@@ -4,7 +4,7 @@ import numpy as np
 from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _a, _e, _f
 from mankomix.dspx.bb.delayline import (
-    DelayLine, LoopFilter, definition, dl_params, duck_wet, fractional_delay,
+    DelayLine, LoopFilter, definition, dl_params, fractional_delay,
     integer_feedback, spatial_stats, validate_feedback,
 )
 
@@ -36,6 +36,7 @@ def cross_validate(p):
 
 
 def multitap_delay(x, sr, p, *, seed=0):
+    from mankomix.dspx.bb.selfduck import duck_wet
     cross_validate(p)
     times = tap_times(p)
     delays = [max(1, round(t * sr / 1000)) for t in times]

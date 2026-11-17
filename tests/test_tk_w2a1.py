@@ -1,4 +1,4 @@
-"""W2a1 acceptance, explicit unmet criteria, and measured harmonic vectors."""
+"""W2a1 acceptance after D-16 and measured harmonic vectors."""
 import importlib
 import json
 import math
@@ -23,14 +23,6 @@ NEUTRAL = dict(exciter=dict(amount_db=-60), loudness_shaper=dict(effect=0),
                fuzz=dict(drive_db=0), bitcrush=dict(bits=24, rate_hz=192000),
                mb_saturator=dict(drive_db=[]),
                mb_distortion=dict(kind_1='off', kind_2='off', kind_3='off', kind_4='off'))
-
-
-@pytest.fixture(autouse=True)
-def enable_candidates_only_during_acceptance(monkeypatch):
-    # The public flag remains False until all acceptance criteria pass.
-    # Exercise candidates through the real engine without exposing them to users.
-    for kind in TYPES:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
 
 
 def render(kind, x, p=None, sr=48000, seed=0, stage='track'):
@@ -304,27 +296,31 @@ def test_exciter_one_octave_below():
     assert level <= -80
 
 
-@pytest.mark.xfail(strict=True, reason='T07-07 exact polynomial finite-amplitude gain differs from its derivative at zero.')
 def test_loudness_minus20_gain():
     x = tone(db=-20)
     y = render('loudness_shaper', x, dict(effect=1, curve=.5))
     measured = db(amplitude(y, 1000)/amplitude(x, 1000))
-    expected = 20*math.log10(1.75)
+    # 統括の判断 D-16 による: exact finite-amplitude fundamental G(A).
+    a, c, A = 1, .5, .1
+    expected = db(1+a*(1-c/2)-8*a*(1-c)*A/(3*math.pi)-3*a*c*A*A/8)
     print('LOUDNESS_MINUS20_DB', measured, 'EXPECTED', expected)
     assert abs(measured-expected) <= .05
 
 
-@pytest.mark.xfail(strict=True, reason='T07-07 specified f(x)>x inside (0,1) increases the sample peak.')
-def test_loudness_pink_sample_peak():
-    x = H.pink_noise(-12, sr=48000, seconds=1, channels=2, seed=4)
-    x *= 10**(-1/20)/np.max(abs(x))
-    y = render('loudness_shaper', x, dict(effect=1))
-    assert np.max(abs(y)) <= np.max(abs(x))
+def test_loudness_curve_unit_boundary():
+    # 統括の判断 D-16 による: curve boundary, not reconstructed sample peaks.
+    x = np.r_[-1., np.random.Generator(np.random.PCG64(4)).uniform(-1, 1, 100000), 1.]
+    for a in (0, .5, 1):
+        for c in (0, .5, 1):
+            y = N.loudness_curve(x, a, c)
+            assert np.max(abs(y)) <= 1
+            np.testing.assert_array_equal(y[[0, -1]], [-1, 1])
 
 
-@pytest.mark.xfail(strict=True, reason='T07-07: both 19/20 kHz inputs remain in the same 2400 Hz high band.')
-def test_loudness_band_split_difference_tone():
-    x = tone(19000, -12)+tone(20000, -12)
+def test_loudness_band_split_intermodulation():
+    # 統括の判断 D-16 による: 200/1400 Hz occupy different bands.
+    # The odd polynomial produces the third-order IM tone 1400-2*200=1000 Hz.
+    x = tone(200, -12)+tone(1400, -12)
     single = amplitude(render('loudness_shaper', x, dict(effect=1, band_split=False)), 1000)
     multi = amplitude(render('loudness_shaper', x, dict(effect=1, band_split=True)), 1000)
     difference = db(multi/single)
@@ -345,7 +341,6 @@ def test_bitcrush_snr():
     ('exciter', dict(amount_db=-6), -80),
     ('loudness_shaper', dict(effect=1), -80),
     ('fuzz', {}, -60),
-    pytest.param('mb_saturator', dict(drive_db=[12]*3), -80, marks=pytest.mark.xfail(strict=True, reason='NT2: original-compatible saturator/resampler exceeds -80 dBc.')),
     ('mb_distortion', dict(crossovers_hz=[], kind_1='hard', drive_db=[24]), -60),
     ('mb_distortion', dict(crossovers_hz=[], kind_1='fold', drive_db=[24]), -60)])
 def test_nt2_active_alias_limit(kind, settings, limit):
@@ -391,21 +386,45 @@ def test_spec_defaults_independently():
 def test_public_implementation_flags():
     for kind in TYPES:
         module = importlib.import_module('mankomix.dspx.procs.'+kind)
-        assert module.SPECS[0]['implemented'] is (kind in ('bitcrush', 'exciter', 'fuzz', 'mb_distortion'))
+        assert module.SPECS[0]['implemented'] is True
 
 
-@pytest.mark.parametrize('kind', ['exciter', 'loudness_shaper',
-    pytest.param('mb_saturator', marks=pytest.mark.xfail(strict=True,
-        reason='NT5: matching original asymmetric saturator retains a finite-record startup DC residual.')),
-    'mb_distortion'])
+@pytest.mark.parametrize('kind', ['exciter', 'loudness_shaper', 'mb_distortion'])
 def test_output_dc(kind):
     p = dict(ACTIVE[kind])
-    if kind == 'mb_saturator': p['mode'] = 'asymmetric'
     if kind == 'mb_distortion': p['kind_2'] = 'rectify'
     y = render(kind, tone(), p)
     dc = db(abs(np.mean(y)))
     print('NT5_DC_DBFS', kind, dc)
     assert dc <= -80
+
+
+@pytest.mark.parametrize('mode', ['tanh', 'asymmetric'])
+def test_mb_saturator_nt2_original_relative(mode):
+    # 統括の判断 D-16 による: <= original saturator +0.5 dB, same NT2 meter.
+    values = {}
+    for f in (5000, 10000, 15000):
+        x = tone(f, seconds=1.5)
+        y = render('mb_saturator', x, dict(drive_db=[12]*3, mode=mode))
+        z = original.saturator(x, 48000, P.validate_params('saturator', dict(drive_db=12, mode=mode)))[0]
+        actual, baseline = alias_db(y, f), alias_db(z, f)
+        assert actual <= baseline+.5
+        values[f] = dict(actual_dbc=actual, baseline_dbc=baseline, delta_db=actual-baseline)
+    print('D16_MB_NT2', mode, values)
+
+
+@pytest.mark.parametrize('mode', ['tanh', 'asymmetric'])
+def test_mb_saturator_nt5_original_relative(mode):
+    # 統括の判断 D-16 による: steady 100..500 ms in BOTH DC measurements.
+    # The .6 s source also supplies 100 ms of trailing FIR context; including
+    # the zero-padded end would measure a termination transient, not steady DC.
+    x = tone()
+    y = render('mb_saturator', x, dict(drive_db=[12]*3, mode=mode))
+    z = original.saturator(x, 48000, P.validate_params('saturator', dict(drive_db=12, mode=mode)))[0]
+    actual, baseline = [db(abs(np.mean(v[4800:24000]))) for v in (y, z)]
+    print('D16_MB_NT5', mode, dict(actual_dbfs=actual, baseline_dbfs=baseline, delta_db=actual-baseline))
+    assert actual <= baseline+.5
+    assert not np.any(render('mb_saturator', np.zeros_like(x), dict(drive_db=[12]*3, mode=mode)))
 
 
 def test_fuzz_default_gate_small_signal():

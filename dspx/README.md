@@ -116,3 +116,27 @@ API documentation:
 - https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirpeak.html
 - https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.fftconvolve.html
 - https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+
+## Vintage EQ and transformer (W2a2) sources
+
+
+No third-party implementation was copied or vendored. Existing NumPy 2.5.3
+(BSD-3-Clause) and SciPy 1.18.1 (BSD-3-Clause) are the only external APIs used.
+The existing BB-13 polyphase implementation is reused unchanged.
+
+- SciPy `signal.bilinear`, `tf2sos`, `sosfilt`, `lfilter`, `sosfreqz`, and
+  `freqz`: public filter design, evaluation and filtering API.
+  [SciPy signal documentation](https://docs.scipy.org/doc/scipy/reference/signal.html).
+- General shelf/peak background: Välimäki and Reiss, *All About Audio
+  Equalization: Solutions and Frontiers*, Applied Sciences 6(5), 129 (2016),
+  sections 3 and 6.1, [paper](https://doi.org/10.3390/app6050129).
+  Source code linked by that paper was not consulted.
+- EQ equations are derived from normalized RC and series RLC nodal equations
+  in `dspx/bb/analog_eq.py`. These are generic buffered networks; component
+  ratios and control laws are chosen explicitly in that module. Historical
+  circuit drawings and provisional switch frequencies have not been verified.
+- Transformer equations are an independent derivation of the specification's
+  leaky integration / memoryless saturation / differentiation structure.
+  `dspx/bb/nonlinear.py:transformer_flux` documents the ODE, chain rule and
+  chosen constants. The specified transformer paper's full text was not
+  available; none of its equations or implementation code is claimed here.
