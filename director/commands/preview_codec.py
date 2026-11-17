@@ -88,14 +88,15 @@ def run(args):
         if val is not None:
             W.number(val, -30, -8, '--normalize-lufs')
         norms.append(val)
-    p, v = W.project(args, preflight=not bool(args.audio))
+    standalone = args.audio and not args.project and not Path('project.json').is_file()
+    p, v = (None, None) if standalone else W.project(args, preflight=not bool(args.audio))
     pid = (v or {}).get('master', {}).get('profile') or (v or {}).get('profile')
     profile = config.get_profile(pid) if pid else {}
-    codecs = list(dict.fromkeys(args.codec or profile.get('codec_checks') or []))
+    codecs = list(dict.fromkeys(args.codec or profile.get('codec_checks') or (list(DEFAULT_BITRATES) if standalone else [])))
     # Load once, then extract from the full context using project sections.
     fullargs = type('SourceArgs', (), dict(project=args.project, audio=args.audio, target='master', section=None))()
     full, sr, _, _, meta = W.source(fullargs)
-    ranges = [W.interval(full, sr, p.root, s) for s in (args.excerpt or [args.section])]
+    ranges = [W.interval(full, sr, p.root if p else None, s) for s in (args.excerpt or [args.section])]
     result = {'kind': 'direction_preview_codec', **meta, 'confidence': 'medium',
               'note': 'Same aligned S-02 round trip. Bandwidth/pre-echo are descriptive estimates.',
               'rows': [], 'files': [], 'available': False}
@@ -165,4 +166,4 @@ def run(args):
 
 
 COMMANDS = [{'path': ('preview', 'codec'), 'help': 'Preview the existing verification codec round trip',
-             'add_args': add_args, 'run': run, 'writes': 'out_only'}]
+             'add_args': add_args, 'run': run, 'writes': 'out_only', 'project': 'optional'}]

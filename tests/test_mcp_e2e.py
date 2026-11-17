@@ -857,7 +857,7 @@ def _subcommands(help_text: str, metavar: str) -> list[str]:
             if line.strip() and not line.startswith(" "):
                 break
             continue
-        m = re.match(r"^    ([a-z][a-z0-9-]*)(\s|$)", line)
+        m = re.match(r"^    ([a-z][a-z0-9_-]*)(\s|$)", line)
         if m:
             names.append(m.group(1))
     return names

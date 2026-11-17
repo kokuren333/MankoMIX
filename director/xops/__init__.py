@@ -101,6 +101,14 @@ class ClipPlan:
     record: dict = field(default_factory=dict)
 
 
+@dataclass
+class ClipBundle:
+    """One frozen group mapping and a clip-only plan per affected track."""
+    plans: dict[str, ClipPlan]
+    mapping: dict
+    record: dict = field(default_factory=dict)
+
+
 OPS: dict[str, OpSpec] = {}
 _loaded = False
 
@@ -169,14 +177,22 @@ def apply_edit(root, doc, move, spec, *, actor):
                 for kind in ('derived', 'clip_edits') for row in ledger.get(kind, {}).values()):
             raise ValueError('track still holds another direction extension edit; revert it first')
     plan = spec.derive(root, copy.deepcopy(move))
-    if not isinstance(plan, (ClipPlan, DerivedPlan, DerivedBundle)) or not isinstance(plan.record, dict):
+    if not isinstance(plan, (ClipPlan, DerivedPlan, DerivedBundle, ClipBundle)) or not isinstance(plan.record, dict):
         raise ValueError(f"{move['op']}: expected an edit plan with a JSON record")
+    if isinstance(plan, ClipBundle):
+        with derived.transaction(root, actor=actor):
+            return _apply_plan(root, doc, move, spec, plan, targets, actor=actor)
+    return _apply_plan(root, doc, move, spec, plan, targets, actor=actor)
+
+
+def _apply_plan(root, doc, move, spec, plan, targets, *, actor):
+    from .. import derived, edit
     details = json.loads(derived._json(plan.record))
-    if isinstance(plan, DerivedBundle):
+    if isinstance(plan, (DerivedBundle, ClipBundle)):
         from . import _group
         row = _group.apply(root, doc, move, spec, plan, actor=actor)
     elif len(targets) > 1:
-        raise ValueError('group edits require a DerivedBundle')
+        raise ValueError('group edits require a DerivedBundle or ClipBundle')
     elif isinstance(plan, ClipPlan):
         row = _apply_clips(root, doc, move, spec, plan, actor)
     else:
@@ -186,11 +202,11 @@ def apply_edit(root, doc, move, spec, *, actor):
     # Record cross-kind order so interleaved clip-only and derived edits revert safely.
     path = edit.ledger_path(root, doc['id'])
     ledger = derived._ledger(root, doc['id'])
-    group = 'derived_groups' if isinstance(plan, DerivedBundle) else 'clip_edits' if isinstance(plan, ClipPlan) else 'derived'
+    group = 'derived_groups' if isinstance(plan, (DerivedBundle, ClipBundle)) else 'clip_edits' if isinstance(plan, ClipPlan) else 'derived'
     ledger[group][move['id']]['details'] = details
     ledger.setdefault('xop_order', []).append(move['id'])
     derived._save(path, ledger)
-    if isinstance(plan, DerivedBundle):
+    if isinstance(plan, (DerivedBundle, ClipBundle)):
         return {**details, **{k: copy.deepcopy(row[k]) for k in
                 ('kind', 'op', 'track', 'members', 'mapping', 'mapping_sha256', 'status')},
                 'ledger': f"directions/{doc['id']}.edits.json"}
@@ -212,6 +228,20 @@ def _apply_clips(root, doc, move, spec, plan, actor):
     project = Project.open(root)
     ti = next(i for i, t in enumerate(project.data['tracks']) if t['id'] == move['target'])
     clips = project.data['tracks'][ti]['clips']
+    entry = _clip_entry(clips, move, spec, plan)
+    after = entry['after_clips']
+    # The core still validates ranges/types and journals the ordinary clip fields.
+    result = api.patch(root, [{'op': 'replace', 'path': f'/tracks/{ti}/clips', 'value': after}], actor=actor,
+                       reason=f"direction {doc['id']} move {move['id']}: clip edit")
+    entry['journal_seq'] = result.get('journal_seq')
+    ledger.setdefault('clip_edits', {})[move['id']] = entry
+    ledger['reverted'] = False
+    derived._save(edit.ledger_path(root, doc['id']), ledger)
+    return entry
+
+
+def _clip_entry(clips, move, spec, plan):
+    from .. import derived
     after = copy.deepcopy(clips)
     if not isinstance(plan.changes, dict) or not isinstance(plan.params, dict):
         raise ValueError('ClipPlan needs changes and params dictionaries')
@@ -223,19 +253,21 @@ def _apply_clips(root, doc, move, spec, plan, actor):
     entry = {'kind': 'clip_edit', 'op': move['op'], 'track': move['target'], 'params': plan.params,
              'code_version': spec.code_version, 'before_clips': copy.deepcopy(clips), 'after_clips': after,
              'status': 'applied'}
-    entry = json.loads(derived._json(entry))
-    # The core still validates ranges/types and journals the ordinary clip fields.
-    result = api.patch(root, [{'op': 'replace', 'path': f'/tracks/{ti}/clips', 'value': after}], actor=actor,
-                       reason=f"direction {doc['id']} move {move['id']}: clip edit")
-    entry['journal_seq'] = result.get('journal_seq')
-    ledger.setdefault('clip_edits', {})[move['id']] = entry
-    ledger['reverted'] = False
-    derived._save(edit.ledger_path(root, doc['id']), ledger)
-    return entry
+    return json.loads(derived._json(entry))
 
 
 def revert_edits(root, direction, move=None, *, actor='human'):
     """Revert registered edit kinds in reverse order, retaining BB-18 stale checks."""
+    from .. import derived
+    ledger = derived._ledger(root, direction)
+    if any(row.get('plan_kind') == 'clip' and row.get('status') == 'applied'
+           and (move is None or mid == move) for mid, row in ledger.get('derived_groups', {}).items()):
+        with derived.transaction(root, actor=actor):
+            return _revert_edits(root, direction, move, actor=actor)
+    return _revert_edits(root, direction, move, actor=actor)
+
+
+def _revert_edits(root, direction, move=None, *, actor='human'):
     from mankomix.core import api, journal
     from mankomix.core.project import Project
     from .. import derived, edit

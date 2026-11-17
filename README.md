@@ -47,6 +47,12 @@ mankomix doctor
 
 コマンドは `mankomix`（短縮名 `mmx`）。全コマンドが JSON を出力し、終了コードで成否を返す（0 成功 / 1 検証不合格 / 2 入力エラー / 3 環境エラー）。
 
+音声ファイルだけのコーデック下見は、プロジェクト外でも
+`mmx direction preview codec --audio input.wav --codec aac` で実行できる。
+入力は変更せず、`--out listen` を指定した場合だけ試聴ファイルを保存する。
+拡張コマンドの任意プロジェクト宣言は [commands の README](director/commands/README.md)、
+派生音声を作らない group 編集計画 `ClipBundle` は [xops の README](director/xops/README.md) を参照。
+
 ### 一括実行
 
 ```

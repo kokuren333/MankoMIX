@@ -45,8 +45,29 @@ tables automatically. Their existing entries and coverage checks stay intact.
 
 ## Write contracts
 
-Only `writes=False` and `writes="out_only"` are accepted. Every extension requires
-a project context (explicit `--project`, or the current project directory).
+Only `writes=False` and `writes="out_only"` are accepted. By default an extension
+requires a project context (explicit `--project`, or the current project directory).
+The optional declaration `project="optional"` also permits standalone file input;
+`project="none"` never invokes the project resolver, even inside a project.
+An optional command uses the project guard when a project is supplied or found in
+cwd. Its callback still receives the original CLI args and must handle absent
+project context. Declare input argument names with `inputs=("audio",)` (the
+default); multiple-file arguments may contain a list/tuple of paths.
+
+Without a project, the wrapper snapshots cwd and each input's directory (including
+symlink targets). With `--out`, it also watches the nearest existing output parent
+so newly created parents cannot hide sibling writes. Only the output subtree and
+missing parent directories may change; inputs must remain byte-identical and
+`--out` may not overlap them or cwd project state. These checks also run on errors.
+With a project, optional commands additionally protect declared input files outside
+the project. This remains a mutation detector over those scopes, not a filesystem
+sandbox. Callbacks must not write elsewhere.
+
+`direction preview codec --audio FILE` uses this optional context. Outside a
+project it checks AAC, Opus, MP3 and Ogg Vorbis by default, or just `--codec` choices;
+the existing verification backend determines availability. Numeric excerpts work
+without a project; named project sections require a project. Omitting `--out`
+returns JSON only, and supplying it saves the listening files there.
 
 * `False`: the wrapper hashes every project file before/after execution, including
   `project.json`, `journal.jsonl` and every `directions/` ledger/document. Added,

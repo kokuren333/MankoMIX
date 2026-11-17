@@ -239,6 +239,30 @@ layouts, restores all members through one core patch, then updates statuses.
 A stale peer prevents the whole revert. Later single/group edits sharing any
 member must revert first; whole-direction revert walks mixed kinds backwards.
 
+### Group clip-only plans
+
+Return `ClipBundle(plans={track_id: ClipPlan(...)}, mapping={...}, record={})`
+when the entire group needs no derived audio. Include exactly target and every
+unique peer, up to 16 peers plus target, using a nonempty finite shared mapping.
+All members must be ClipPlans; mixing DerivedPlans into this bundle is refused.
+Only existing clip fade_in/fade_out/gain_db fields can change. Empty changes on
+every member express a measured no-op, with its reason/evidence in record.
+
+The wrapper preflights all foreign edits before calling the planner, freezes
+`group_mapping` in every member's params and submits all clip changes in one
+validated core patch. A failed member or ledger save restores the entire group;
+journal attempts/compensation remain. No audio assets, derived caches or replacement
+clips are created, including for a no-op.
+
+The parent remains in `derived_groups` with optional `plan_kind="clip"`; children
+live in `clip_edits`, and only the parent enters `xop_order`. Member before/after
+layout and params hashes, source asset hashes, code version, owner/move_ref and mapping links are checked against the
+apply record. Check follows later extension layouts in memory. Revert preflights
+every member and restores all layouts in one patch, respecting the same mixed-kind
+reverse order. Use ordinary `direction edit revert`, never child IDs.
+`derived.regenerate_group` returns `{}` for these groups because no files exist
+to regenerate. Existing DerivedBundle declarations and records are unchanged.
+
 `time_varying=True` on a lead mix op gives E3, as for existing time-varying ops.
 Every lead edit is E3 regardless of this flag. Other extension moves are at least
 E2; existing listen_for warnings apply. Extension parameters are not automatic

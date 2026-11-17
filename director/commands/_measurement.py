@@ -132,7 +132,7 @@ def interval(x, sr, root, section):
         except ValueError:
             raise InputError('section/excerpt requires t0,t1 within the audio') from None
     try:
-        a, b = Q.section_range(section, _Project(root).sections(), len(x)/sr)
+        a, b = Q.section_range(section, _Project(root).sections() if root is not None else [], len(x)/sr)
     except Q.QueryError as e:
         raise InputError(str(e)) from None
     if len(x) < .4*sr:
@@ -143,7 +143,8 @@ def interval(x, sr, root, section):
 def source(args, target=None):
     target = target or getattr(args, 'target', 'master')
     audio = getattr(args, 'audio', None)
-    p, v = project(args, preflight=not bool(audio))
+    standalone = audio and not args.project and not Path('project.json').is_file()
+    p, v = (None, None) if standalone else project(args, preflight=not bool(audio))
     if audio:
         x, sr = audio_io.read(Path(audio))
         signal = 'audio'
@@ -163,7 +164,7 @@ def source(args, target=None):
     x = Q._stereo(x)
     if not np.isfinite(x).all():
         raise InputError('audio must be finite')
-    a, b = interval(x, sr, p.root, getattr(args, 'section', None))
+    a, b = interval(x, sr, p.root if p else None, getattr(args, 'section', None))
     return x, sr, a, b, {'target': target, 'signal': signal, 'sample_rate': int(sr),
                          'range_s': [a/sr, b/sr]}
 

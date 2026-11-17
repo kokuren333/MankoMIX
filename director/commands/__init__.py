@@ -49,6 +49,11 @@ def _validate(rows):
             raise ImportError(f'{path}: help, add_args and run are required')
         if row.get('writes') is not False and row.get('writes') != 'out_only':
             raise ImportError(f'{path}: writes must be False or out_only')
+        if row.get('project', 'required') not in ('required', 'optional', 'none'):
+            raise ImportError(f'{path}: project must be required, optional or none')
+        if not isinstance(row.get('inputs', ('audio',)), tuple) or not all(
+                isinstance(name, str) and name for name in row.get('inputs', ('audio',))):
+            raise ImportError(f'{path}: inputs must be a tuple of argument names')
         if not isinstance(row.get('mcp_planned', '_'.join(('direction', *path))), str):
             raise ImportError(f'{path}: mcp_planned must be a string')
     return sorted(rows, key=lambda r: r['path'])
@@ -90,10 +95,21 @@ def _snapshot(root):
 
 def execute(row, args, project):
     """Detect project writes, including on exceptions; out_only permits just --out."""
+    if project is None:
+        return _execute_files(row, args)
     root = Path(project).resolve()
+    inputs = []
+    if row.get('project', 'required') != 'required':
+        for name in row.get('inputs', ('audio',)):
+            value = getattr(args, name, None)
+            inputs.extend(Path(p).absolute() for p in (value if isinstance(value, (list, tuple)) else [value])
+                          if p is not None)
+    input_before = {p: _snapshot(p) for p in inputs}
     output = None
     if row['writes'] == 'out_only' and getattr(args, 'out', None):
         output = Path(args.out).resolve()
+        if any(output == p.resolve() or output in p.resolve().parents or p.resolve() in output.parents for p in inputs):
+            raise InputError('--out overlaps input files')
         protected = [root / name for name in ('project.json', 'journal.jsonl', 'directions')]
         if output == root or any(output == p or output in p.parents or p in output.parents for p in protected):
             raise InputError('--out overlaps project state or the directions ledger')
@@ -110,6 +126,8 @@ def execute(row, args, project):
         # Round-trip fixes key order and rejects nonfinite/non-JSON results.
         return json.loads(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
     finally:
+        if any(_snapshot(p) != old for p, old in input_before.items()):
+            raise InputError('direction command violated its input file write contract')
         after = _snapshot(root)
         changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
         if output is not None:
@@ -128,6 +146,53 @@ def execute(row, args, project):
                 or output_parent / key in output.parents and key not in outside_before)}
             if outside_changed:
                 raise InputError('direction command wrote outside --out', details={'paths': sorted(outside_changed)})
+
+
+def _execute_files(row, args):
+    """Guard standalone inputs, cwd and input/output siblings without a project."""
+    inputs = []
+    for name in row.get('inputs', ('audio',)):
+        value = getattr(args, name, None)
+        for item in value if isinstance(value, (list, tuple)) else [value]:
+            if item is not None:
+                inputs.append(Path(item).absolute())
+    output = (Path(args.out).resolve() if row['writes'] == 'out_only'
+              and getattr(args, 'out', None) else None)
+    cwd = Path.cwd().resolve()
+    if output is not None and (output == cwd or any(
+            output == p or output in p.parents or p in output.parents
+            for p in [*(p.resolve() for p in inputs), *(cwd / n for n in ('project.json', 'journal.jsonl', 'directions'))])):
+        raise InputError('--out overlaps input files or project state')
+    scopes = {cwd, *(p.parent for p in inputs), *(p.resolve().parent for p in inputs)}
+    if output is not None:
+        # Watch the nearest existing ancestor so missing output parents cannot
+        # hide sibling writes.
+        parent = output.parent
+        while not parent.exists() and parent != parent.parent:
+            parent = parent.parent
+        scopes.add(parent)
+    scopes = sorted(p for p in scopes if not any(q in p.parents for q in scopes))
+    before = {p: _snapshot(p) for p in scopes}
+    try:
+        result = row['run'](args)
+        if not isinstance(result, dict):
+            raise InputError('direction commands must return a JSON object')
+        return json.loads(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
+    finally:
+        changed = set()
+        for root, old in before.items():
+            new = _snapshot(root)
+            for key in old.keys() | new.keys():
+                path = root / key
+                if old.get(key) == new.get(key):
+                    continue
+                if output is not None and (path == output or output in path.parents
+                                          or path in output.parents and key not in old):
+                    continue
+                changed.add(key)
+        if changed:
+            raise InputError('direction command violated its write contract',
+                             details={'paths': sorted(changed), 'writes': row['writes']})
 
 
 def _subparsers(parser):
@@ -174,7 +239,10 @@ def register(direction_parser, common, project):
                     raise ImportError(f'{row["path"]}: out_only requires --out')
 
                 def run(args, row=row):
-                    return execute(row, args, project(args))
+                    mode = row.get('project', 'required')
+                    root = (project(args) if mode == 'required' or mode == 'optional'
+                            and (getattr(args, 'project', None) or Path('project.json').is_file()) else None)
+                    return execute(row, args, root)
 
                 child.set_defaults(func=run)
             else:
