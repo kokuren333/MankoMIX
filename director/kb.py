@@ -1059,6 +1059,19 @@ def lint(root: str | Path, *, public: bool | None = None) -> dict:
             err(rel, code, msg)
         for code, msg in _source_type_errors(meta, body):
             err(rel, code, msg)
+        # Optional context fields: validate shape only, and only when present.
+        if "stance" in meta:
+            stance = meta["stance"]
+            if not isinstance(stance, dict):
+                err(rel, "bad_stance", "stance must be a map")
+            else:
+                for key, value in stance.items():
+                    if key not in ("who", "music", "era"):
+                        err(rel, "bad_stance", f"unknown stance key '{key}'")
+                    elif not isinstance(value, str):
+                        err(rel, "bad_stance", f"stance.{key} must be a string")
+        if kind == "work" and "aim_note" in meta and not isinstance(meta["aim_note"], str):
+            err(rel, "bad_aim_note", "aim_note must be a string")
         refs = _work_refs(meta, body, p, root) if kind == "engineer" else []
         for code, msg in _publication_errors(meta, public_kb, work_rights, refs):
             err(rel, code, msg)
