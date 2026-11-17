@@ -690,3 +690,29 @@ def graph_schema() -> dict:
         "type": "array",
         "items": {"oneOf": variants},
     }
+
+
+# Additive extension registration and BB-00 contracts; original definitions stay intact.
+from mankomix.dspx import contracts as _xcontracts, registry as _xregistry
+
+for _spec in _xregistry.specs():
+    if _spec["type"] in PROCESSORS:
+        raise ImportError(f"duplicate processor type: {_spec['type']}")
+    _spec["schema_version"] = SCHEMA_VERSION
+    PROCESSORS[_spec["type"]] = _spec
+
+_validate_params_base = validate_params
+_param_schema_base = _param_schema
+_graph_schema_base = graph_schema
+
+
+def validate_params(type: str, params: dict | None) -> dict:
+    return _xcontracts.validate_params(type, params, _validate_params_base)
+
+
+def _param_schema(spec: dict) -> dict:
+    return _xcontracts.param_schema(spec, _param_schema_base)
+
+
+def graph_schema() -> dict:
+    return _xcontracts.graph_schema(_graph_schema_base)

@@ -41,3 +41,10 @@ def version() -> dict:
 
 __all__ = ["IMPLEMENTATIONS", "BACKEND", "version", "peak_per_sample", "true_peak_dbtp",
            "true_peak_linear", "sample_peak_dbfs"]
+
+from mankomix.dspx.registry import implementations as _extension_implementations
+
+for _type, _fn in _extension_implementations().items():
+    if _type in IMPLEMENTATIONS:
+        raise ImportError(f"duplicate reference implementation: {_type}")
+    IMPLEMENTATIONS[_type] = _fn

@@ -298,6 +298,7 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
     audio = _prepare(x)
     sr = int(sr)
     steps = validate_chain(chain, stage)
+    _xchain.check_channel_input(steps, audio)
     reg = _backends()
     warnings: list[str] = []
     records: list[dict] = []
@@ -308,6 +309,7 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
         if s["bypass"]:
             records.append({"id": sid, "type": t, "backend": None, "params": p, "bypass": True,
                             "stats": {}, "in_peak": _peak_db(audio), "out_peak": _peak_db(audio)})
+            _xchain.record_metadata(records[-1], s)
             continue
         fn, backend = _select(t, s["backend"], backend_preference, reg, warnings, sid)
         exec_t, exec_p, fb_rec = t, p, None
@@ -329,6 +331,8 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
         P.check_runtime(exec_t, exec_p, sr)
         in_peak = _peak_db(audio)
         n_in = audio.shape[0]
+        if s.get("channel", "stereo") != "stereo":
+            fn = _xchain.channel_implementation(fn, s)
         y, sr_out, stats = fn(audio, sr, exec_p, seed=seed)
         y = np.asarray(y, dtype=np.float64)
         if y.ndim == 1:
@@ -351,6 +355,7 @@ def render_chain(x, sr: int, chain: list[dict], *, stage: str, seed: int = 0,
         if s.get("note"):
             rec["note"] = s["note"]
         records.append(rec)
+        _xchain.record_metadata(rec, s)
         warnings += _step_warnings(stage, exec_t, exec_p, stats, sid)
         audio, sr = y, int(sr_out)
         if t == "dither":
@@ -565,3 +570,11 @@ def export_audio(x, sr: int, delivery: dict | str, out_path: str | Path, *, seed
 
 __all__ = ["render_chain", "validate_chain", "export_audio", "RenderResult", "DitheredAudio",
            "seed_from_hash", "load_delivery_formats", "wav_format_tag"]
+
+from mankomix.dspx import chain as _xchain
+
+_validate_chain_base = validate_chain
+
+
+def validate_chain(chain: list[dict], stage: str) -> list[dict]:
+    return _xchain.validate_chain(chain, stage, _validate_chain_base)

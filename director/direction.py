@@ -90,7 +90,9 @@ FORBIDDEN_KEYS = ("plan_margin_db", "ceiling_dbtp", "window_lufs_i", "target_luf
 GATE_DEFINITIONS = ("knowledge/thresholds.json", "knowledge/rules.json", "knowledge/objective_metrics.json",
                     "profiles/media_profiles.json", "knowledge/mix_rules.json")
 LEAD = "trk_vocals"
-TIME_VARYING = ("compressor", "dynamic_eq", "deesser", "aw.pressure4")
+from mankomix.dspx.registry import time_varying_types
+
+TIME_VARYING = frozenset(("compressor", "dynamic_eq", "deesser", "aw.pressure4")) | time_varying_types()
 RAMP_S = 0.02
 _FENCE_RE = re.compile(r"^```json[ \t]+direction[ \t]*\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
 _P_RE = re.compile(r"^P-\d{2}(:[a-z][a-z0-9_]*)?$")   # P-nn or P-nn:<qualifier> (e.g. P-02:vs_lead)
@@ -232,9 +234,33 @@ def _profile(pid: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 # processor parameters whose value is a list (stereo crossovers_hz / widths): a 2-item list of numbers is
-# such a value, never a range [lo, hi], so they are passed through as written and cannot be calibrated
-ARRAY_PARAM_IDS = frozenset(p["id"] for spec in P.PROCESSORS.values() for p in spec.get("params") or []
-                            if p.get("type") == "float_array")
+# such a value, never a range [lo, hi], so they are passed through as written and cannot be calibrated.
+# Computed over the built-in types only, so extension types cannot change how built-in moves resolve.
+from mankomix.dspx.registry import specs as _dspx_specs
+
+_DSPX_TYPES = frozenset(d["type"] for d in _dspx_specs())
+ARRAY_PARAM_IDS = frozenset(p["id"] for t, spec in P.PROCESSORS.items() if t not in _DSPX_TYPES
+                            for p in spec.get("params") or [] if p.get("type") == "float_array")
+_BUILTIN_TYPES = frozenset(t for t in P.PROCESSORS if t not in _DSPX_TYPES)
+
+
+def _array_param_ids(ptype: str | None) -> frozenset:
+    """List/curve parameter IDs for a move's processor type. Built-in types, unknown types and moves
+    without a type keep the original global set (byte-identical behaviour for existing directions);
+    an extension type uses only its own declared list and curve parameters."""
+    if ptype is None or ptype in _BUILTIN_TYPES or ptype not in P.PROCESSORS:
+        return ARRAY_PARAM_IDS
+    return frozenset(p["id"] for p in P.PROCESSORS[ptype].get("params") or []
+                     if p.get("type") in ("float_array", "curve"))
+
+
+def _move_processor(move: dict, proj=None) -> str | None:
+    ptype = move.get("processor") or move.get("type")
+    if ptype is None and move.get("op") == "chain_param" and proj is not None:
+        holder = {**proj.tracks(), **proj.buses()}.get(move.get("target")) or {}
+        item = next((c for c in holder.get("chain") or [] if c.get("id") == move.get("replaces")), {})
+        ptype = item.get("type")
+    return ptype
 
 
 def _is_range(v: Any) -> bool:
@@ -252,14 +278,23 @@ def _select_of(move: dict, key: str) -> str:
 
 
 def resolve_params(move: dict, params: dict | None, sel: dict | None = None,
-                   prefix: str | None = None) -> tuple[dict, list[str]]:
+                   prefix: str | None = None, *, ptype: str | None = None) -> tuple[dict, list[str]]:
     """Ranges [lo, hi] -> one value by ``select`` (mid / min / max; sweep:* falls back to mid in v0).
 
     ``sel``: values chosen by calibration, keyed ``<prefix>.<param>`` (prefix: the move id, or
-    ``<move id>.chain<i>`` for a bus_add chain item); a chosen value must lie inside the range."""
+    ``<move id>.chain<i>`` for a bus_add chain item); a chosen value must lie inside the range.
+    ``ptype`` supplies processor context for nested chain items or chain_param moves.
+    Without it the move's processor (or its original bus child) supplies the type."""
     out, notes = {}, []
+    if ptype is None:
+        ptype = _move_processor(move)
+        if ptype is None and move.get("op") == "bus_add":
+            child = next((c for c in (move.get("params") or {}).get("chain") or []
+                          if c.get("params") is params), {})
+            ptype = child.get("type") or child.get("processor")
+    array_ids = _array_param_ids(ptype)
     for k, v in (params or {}).items():
-        if _is_range(v) and k not in ARRAY_PARAM_IDS:
+        if _is_range(v) and k not in array_ids:
             lo, hi = float(min(v)), float(max(v))
             kid = f"{prefix or move.get('id')}.{k}"
             if sel is not None and kid in sel:
@@ -301,17 +336,18 @@ def _rule_ids() -> set[str]:
     return ids
 
 
-def _ends(params: dict) -> list[dict]:
+def _ends(params: dict, ptype: str | None = None) -> list[dict]:
     """The parameter sets at both ends of every range (both ends must be inside the declared range)."""
-    if not any(_is_range(v) and k not in ARRAY_PARAM_IDS for k, v in params.items()):
+    array_ids = _array_param_ids(ptype)
+    if not any(_is_range(v) and k not in array_ids for k, v in params.items()):
         return [params]
-    lo = {k: (min(v) if _is_range(v) and k not in ARRAY_PARAM_IDS else v) for k, v in params.items()}
-    hi = {k: (max(v) if _is_range(v) and k not in ARRAY_PARAM_IDS else v) for k, v in params.items()}
+    lo = {k: (min(v) if _is_range(v) and k not in array_ids else v) for k, v in params.items()}
+    hi = {k: (max(v) if _is_range(v) and k not in array_ids else v) for k, v in params.items()}
     return [lo, hi]
 
 
 def _check_proc_params(ptype: str, params: dict, stage: str, where: str, errors: list) -> dict | None:
-    ends = _ends(params)
+    ends = _ends(params, ptype)
     if len(ends) > 1:
         res = None
         for e in ends:
@@ -1022,7 +1058,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             elif isinstance(sec, dict) and not ({"t0_s", "t1_s"} <= set(sec)):
                 err(where, "bad_value", "a time section needs t0_s and t1_s")
         params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if op == "gain_curve" \
-            else resolve_params(m, m.get("params") or {})
+            else resolve_params(m, m.get("params") or {}, ptype=_move_processor(m, proj))
         notes += rnotes
         # targets
         if op in ("chain_add", "chain_param", "chain_remove", "gain", "pan", "send") and proj:
@@ -1303,7 +1339,8 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
         notes += n
         chain = []
         for i, c in enumerate(params.get("chain") or []):
-            cp, cn = resolve_params(m, c.get("params") or {}, sel, f"{m['id']}.chain{i}")
+            cp, cn = resolve_params(m, c.get("params") or {}, sel, f"{m['id']}.chain{i}",
+                                    ptype=c.get("type") or c.get("processor"))
             notes += cn
             ptype = c.get("type") or c.get("processor")
             chain.append(_item(dir_id, m, ptype, P.validate_params(ptype, cp), m["target"], f".{i + 1}"))
@@ -1407,7 +1444,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             notes.extend(dp["notes"])
 
     for m in b.get("moves") or []:
-        params, n = resolve_params(m, m.get("params") or {}, sel)
+        params, n = resolve_params(m, m.get("params") or {}, sel, ptype=_move_processor(m, proj))
         notes += n
         if m.get("op") == "bus_add":
             continue
