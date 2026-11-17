@@ -230,3 +230,6 @@
 | U-11g | primitive `onsets`、`direction query onsets`、`direction extract midi` | U-11a、U-08i の音符化 | S＋M | Codex |
 | U-11h | op `edit_quantize` | U-11a、BB-11、BB-18 | M | Codex |
 | U-11i | BB-24 のうち `samples` レジストリ、op `drum_replace` | U-11a、U-11b、BB-14 | S＋M | Codex |
+### 実装時の確定（統括の判断 D-24・D-29）
+
+観察量 `onsets` と `direction query onsets` は測定用。direction層の新コマンドはCLI専用で、MCPの計画名はツール公開を意味しない。この規則は本カテゴリのsuggest align・extract midi・query align_timeにも適用する。下見の実施・順序を新しいゲートにしない。

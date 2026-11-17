@@ -91,6 +91,10 @@ op `edit_pitch` の `params`：
 - テスト：(1) `notes` コマンドが読み取り専用・再現一致 (2) 合成の旋律（音符 8 個、既知の音高・長さ）：検出した音符の境界 ±20 ms、音高 ±5 セント (3) `shift_cents=+100` の音符だけ +100 ±5 セント、他の音符は派生前とヌル ≤ −60 dBFS（変わり目の外） (4) `flatten=1`：音符内の音程の標準偏差が 20 % 以下に (5) `move_ms=+50`：その音符の頭が +50 ±5 ms、曲の尺とその後の音符の位置は不変 (6) 全項目 0 の `notes` は派生クリップを作らない（元と同一と記録） (7) `edit_pitch` を含まない指揮書はバイト同一（G0-4）
 - 依存：BB-11、BB-12、BB-18、BB-19、T08-14
 
+### 実装時の確定（統括の判断 D-28）
+
+音符表示GUIはOQ-3で保留。`direction pitch notes`・`edit_pitch`・`pitch_curve` の数値指定を利用する。GUIバックエンドへのAPI追加はcore差分0と両立しないため、この判断ではcoreを変更しない。
+
 ## T08-03 ハーモニー生成
 
 `harmony_voices`｜B｜W3｜M（T08-01 の後。同じ追跡と音階の扱い）｜Codex｜TV｜`offline_only: True`｜`stages: ["track"]`
@@ -131,6 +135,10 @@ op `edit_pitch` の `params`：
 - テスト（PT に加えて）：(1) 全声部 −60 dB・`dry_db=0` でビット一致 (2) 440 Hz：声部の周波数が 440·2^(半音/12) ±PT2 (3) `feedback=0.5`・`delay_ms=250`：n 回目の反復が n 倍のずれ、レベルが −6n dB ±0.5 (4) `feedback=0.9` で有界（CT-8） (5) 声部数に依らず乾音がビット一致で通る
 - 依存：BB-09、BB-11、BB-19
 
+### 実装時の確定（統括の判断 D-13）
+
+`harmonizer` の能動帰還は声部ごとに遅延＋grainと声部利得を含めて60秒減衰を交差検査する（W3b）。旧feedback0.9・delay1000 ms・grain200 ms・level−6 dBは末尾 −84.2904093520269 dBFSで未達、この条件の上限は0.7397269505182111。delay250/grain40/level−6の上限0.9251434100034163では0.9を許す。単項目の範囲・既定を変更しない。
+
 ## T08-05 ピッチシフター（高品質）
 
 `pitch_shift`｜B｜W3｜M（核の BB-11 が L・Opus 中。本型はその窓口）｜Codex｜`stages: ["track","bus"]`
@@ -151,6 +159,10 @@ op `edit_pitch` の `params`：
 - 正典：カテゴリの正典／Röbel「A New Approach to Transient Processing in the Phase Vocoder」DAFx-03（過渡）／Driedger, Müller & Ewert「Improving Time-Scale Modification of Music Signals Using Harmonic-Percussive Separation」IEEE SPL 2014（併用する場合）
 - テスト：PT1〜6 の全部が本型の合格条件（BB-11 の受け入れ試験を兼ねる）。加えて (1) ずれ 0 でビット一致 (2) ステレオ：左右同一の入力で左右同一の出力、広い素材で左右相関の変化 ≤ 0.05（`stereo_link`） (3) ±12 半音で 100 Hz〜8 kHz の対数掃引：瞬時周波数が目標 ±5 セント (4) 上向きでナイキストを超える成分の折り返し ≤ −70 dB (5) CT-5
 - 依存：BB-06、BB-09、BB-11、BB-19
+
+### 実装時の確定（統括の判断 D-13）
+
+C8a で本型の standard はWSOLAから位相ボコーダ経路へ変更した。他型のstandardと共有部品の既定WSOLAは維持する。highのwindowは宣言バッファ長・フォルマント補正窓に保持し、追従解析窓は48 kHz基準2048を上限とする。fastの新解析経路は全文脈バッファ処理であり、宣言遅延0をゼロ先読みの保証とはしない。公開値・PT/CTの合格数値は不変。
 
 ## T08-06 ポリフォニック再調律
 

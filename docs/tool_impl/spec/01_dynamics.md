@@ -234,6 +234,10 @@ MB ブロック＋帯域別配列 `attack_db`（−12〜12、→ 0）、`sustain
 - テスト：(1) `wet_db=−90, dry_db=0` で入力とビット一致（飽和無効時） (2) `dry_db=−90, wet_hpf_hz=0, wet_drive_db=0` で既存 `compressor`＋ゲインとのヌル ≤ −120 dBFS (3) 乾・湿の時間ずれ 0 サンプル（インパルスの相互相関） (4) バースト：先頭ピーク変化 ≤ +1 dB、減衰部 RMS 増加 ≥ +3 dB（既定値）
 - 依存：BB-03、BB-13
 
+### 実装時の確定（統括の判断 D-14）
+
+`parallel_comp` の既定を `wet_makeup_db: 0→17 dB`、`wet_db: −12→−6 dB`、`dry_db: 0→−6 dB`、`attack_ms: 1→0.1 ms`、`detector: rms→peak` と確定した。ID・単項目の範囲は不変。旧 attack/rms のまま makeup だけ18 dBにした比較はピーク +4.2529 dB、減衰部 +3.9547 dBで先頭の条件を満たさず、検出・時定数・乾湿を組として決めた（W1g 実測）。現行値は `describe()` を正とする。
+
 ## T01-09 ボリュームシェイパー（描画カーブ周期変調）
 
 `volume_shaper`｜A｜W2｜M｜Codex｜TV｜slot なし（`stages: ["track","bus"]`）
@@ -293,6 +297,10 @@ op `duck_curve` の `params`（`duck` と同じ ID は同じ意味・同じ既�
 - 正典：既存 `director/duck.py` と `dynamic_eq`（社内の先行実装が正典）
 - テスト：(1) `gain=[]` でビット一致 (2) 帯域中心の正弦で、曲線どおりのゲイン（±0.2 dB） (3) 帯域外 2 オクターブの正弦の変化 ≤ 0.2 dB (4) op：合成キック列をキーに、打点数・手前の開始時刻・回復完了時刻が指定どおり (5) `duck_curve` を含まない指揮書の全出力がバイト同一（G0-4） (6) 全帯域・直線形・同一パラメータで、既存 `duck` と同じオートメーション点列
 - 依存：BB-00、BB-03、BB-05、BB-14
+
+### 実装時の確定（統括の判断 D-18）
+
+`duck_curve` の全帯域バス対象には補助型 `gain_automation` を使う。トラックの全帯域は既存のゲイン列、帯域限定は `band_automation` に展開する。補助型はカタログの件数を増やさない。既存 `duck` のパラメータ・検出・出力は変更しない。
 
 ## T01-11 ゲインライダー
 
@@ -396,3 +404,6 @@ op `duck_curve` の `params`（`duck` と同じ ID は同じ意味・同じ既�
 | U-01f | `adaptive_limiter` | 調査レッグ、BB-03 | L | Opus 中 |
 | U-01g | `limiter_chain` | BB-00、U-01f | S | Codex |
 | U-01h | op `ride` | BB-14、FB2 確定 | M | Codex |
+### 実装時の確定（統括の判断 D-21）
+
+`limiter_chain` は `describe()` のとおり track/bus 限定。全段 on の順序は slot 2→5→2→5となり、既存のマスターの非減少順検査と両立しないため master には置かない（W3d）。全 off は D-21(b) に従い空展開 `expansion: []` を監査用 bypass 記録1件で表し、素通しする。旧報告の代替 gain 段は最終形では使わない。子の捏造・順序検査の変更はしない。

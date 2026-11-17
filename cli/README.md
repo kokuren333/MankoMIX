@@ -133,3 +133,41 @@ mankomix run ./stems --objective bass_heavy:0.7 --profile club --out ./out
 mankomix serve --project song.mmx
 python -m mankomix.cli doctor
 ```
+
+ツール実装の追補（direction層はCLI専用。MCPの計画名と公開済みツールは別）。下見は採用・適用を行わず、`--out` があるコマンドも省略時はJSONだけを返す。詳しくは [DIRECTION_FORMAT](../docs/DIRECTION_FORMAT.md) §9.15〜§9.20。
+
+<!-- tool-cli:begin -->
+| コマンド | 内容 |
+|---|---|
+| `direction suggest eq --target TRK [--against ID] [--refsheet MD\|--ref-kb ID...]` | EQ候補・測定根拠・confidence。適用しない |
+| `direction ref matcheq --target ID --ref AUDIO_OR_WORK [--smooth-oct N] [--max-db N] [--band-hz LO HI] [--points N]` | 参照との平滑した差の曲線とfir_eq候補。書き込みなし |
+| `direction suggest lowend [--target ID] (--refsheet MD\|--ref-kb ID...) [--max-db N]` | 低域の分布と候補。target省略時はマスター前のミックスバス |
+| `direction ref balance [--audio FILE] (--refsheet MD\|--ref-kb ID...\|--ref FILE...) [--bands 4\|third\|sixth] [--normalize lufs\|mid_band] [--over-time S]` | 参照とこちらの帯域分布・偏差・時系列。目標や合否は出さない |
+| `direction suggest align --tracks IDS [--reference ID] [--max-ms N] [--mode delay\|delay_polarity\|phase] [--preset drums]` | 遅れ・極性・位相の測定とtime_align候補。tracksはカンマ区切り |
+| `direction query align_time --target TRK --guide TRK [--section ID\|JSON] [--anchors JSON] [--tightness N]` | ガイドに対する単調な時間写像・処理前後の測定とedit_align_time候補。適用しない |
+| `direction extract midi --target TRK --kind drums\|mono [--bpm N] [--quantize NOTE] [--bend on\|off] [--out FILE]` | 打点／単音の音符列。明示outだけSMFも書く |
+| `direction pitch notes --target TRK [--section ID\|JSON] [--lo-hz N] [--hi-hz N] [--a4 N]` | 音符ID・時刻・音高・confidence。GUI音符表示はOQ-3で保留 |
+| `direction query onsets [--target ID] [--kind percussive\|soft] [--band full\|low\|mid\|high] [--threshold N] [--min-interval-ms N] [--grid-note NOTE --bpm N] [--against ID]` | 打点ID・強さ・数・グリッドや相手との差。targetの既定master |
+| `direction query mono [--target ID] [--section ID\|JSON] [--by-track] [--worst N]` | 帯域・時間ごとの符号付きモノ合算差。by-trackはmasterのstem_mix経路で各トラックを外した比較 |
+| `direction query limiter_headroom` | drive0〜12 dBの仮描画によるLUFS・GR・TP等。低域残差比は音楽の調波THDではない。正本を変えない |
+| `direction query meters [--target ID] [--what ITEMS...] [--step-ms N] [--max-points N] [--points N] [--octave 3\|6\|12]` | メータの数値。点数を超えると実効刻みと間引きを表示しピーク最大値を保持。GUIはOQ-3で保留 |
+| `direction query breaths --target TRK [--sensitivity N] [--min-ms N] [--max-ms N]` | ブレス候補ID・特徴・スコア。較正は合成素材のみで、実録音の検出率を保証しない |
+| `direction suggest ambience --target TRK [--find-quiet] [--region T0,T1] [--points N] [--smooth-oct N]` | 静かな候補区間の列挙、明示したノイズ区間の測定とnoise_bed候補。書き込みなし |
+| `direction preview codec [--audio FILE] [--codec ITEMS...] [--bitrate-kbps N...] [--normalize-lufs N...] [--section ID\|JSON\|--excerpt T0,T1] [--match on\|off] [--out DIR]` | 符号化往復の測定。音声指定ならプロジェクトなしでも使用可能。明示outだけ試聴ファイルを書く |
+<!-- tool-cli:end -->
+
+上表は共通の `--project`・`--format` 等も使える。下見はプロジェクト・kb・指揮書台帳を変更しない。必要な整音cacheがない・古いときは描画で補修せず入力エラーにする。入力エラーは終了コード2。`preview codec` と `extract midi` はout省略ならファイルを書かず、指定時も明示出力だけを書く。下見を実施したか、読んだか、候補を採用したかは検査しない。使わない場合、既存コマンドの出力は従来とバイト同一。
+
+独立したファイル間の空間変換（プロジェクト不要、MCPには出さない）:
+
+<!-- tool-spatial:begin -->
+| コマンド | 内容 |
+|---|---|
+| `spatial ambi encode --in FILE --out FILE.wav [--order 1\|2\|3] [--azimuth DEG] [--elevation DEG]` | mono/stereo点音源をACN/SN3Dへ。次数既定1、方位・仰角既定0。stereo入力は算術平均 |
+| `spatial ambi rotate --in FILE --out FILE.wav [--yaw DEG] [--pitch DEG] [--roll DEG]` | 右手系の能動回転roll→pitch→yaw。角度既定0 |
+| `spatial ambi decode --in FILE --out FILE.wav --to stereo\|binaural [--angle DEG] [--hrtf ID]` | stereoは左右±angleのカーディオイド対（既定90度）、binauralは登録HRTFを使う |
+| `spatial ambi convert --in FILE --out FILE.wav --from fuma\|ambix --to fuma\|ambix` | 1次の形式間変換 |
+| `spatial ambi info --in FILE` | 次数・各成分のRMS/peak。音声だけでは並び・正規化を特定できないのでunknownと仮定を区別 |
+<!-- tool-spatial:end -->
+
+座標はx前/y左/z上、正方位は左。info以外は明示されたfloat64 WAVだけを書く。sr・フレーム数を保ち、プロジェクトのミックスグラフには入れない。使わない場合、既存コマンドの結果は従来とバイト同一。変換を使ったか・次数をどう選んだかは検査しない。

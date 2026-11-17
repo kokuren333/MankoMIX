@@ -1433,3 +1433,137 @@ SPEC §4.6 の「EQ マッチで写さない」「一度に比べる問いは 1 
 | 時間で動くパン、区間ごとの処理・パンの切替 | §8.7 のまま | 静的配置、区間ゲイン、`duck`、`edit_gate`、`gain_curve`（§9.10） |
 | 聴き比べの再生・ABX・聴取結果の集計と重みの較正 | §8.7 の「道具でなく運用の話」のまま（§9.2 の範囲外） | 聴取記録に残す（§9.2） |
 | 追補 4 のコマンドの MCP への公開 | 今回は CLI だけ | CLI で使う |
+
+### 9.15 実装追補の読み方
+
+この追補はツール実装で追加された表面を記す。§9.14までの記述は当時の範囲として残し、追加分は以下を優先する。型の現在の真偽は [実装状況](tool_impl/README.md) の生成表、パラメータの宣言は `describe()`、op・コマンドの在否は登録表を正とする。未登録の予定名を、実行可能な手として使ってはならない。
+
+direction 層のコマンドは CLI 専用（統括の判断 D-24）。MCP の計画名はツールの公開を意味しない。提案・観察値の出力と適用は別操作で、数値の到達は音が良くなったことの確認ではない（DESIGN_PHILOSOPHY §5.2）。GUI の音符表示・領域選択・メータ画面は、API追加がcore差分0と両立しないため OQ-3（D-28）で保留。数値をCLI・プロセッサへ渡す経路を使う。
+
+使わない場合：新しい型・op・コマンド・観察量を使わない入力の結果は従来とバイト同一。下見の実施・順序・回数や、出力を読んだかは検査しないこと。新しい音質ゲートや必須の手順を足さない。
+
+### 9.16 曲線ダッキング（`duck_curve`）
+
+`duck` を残したまま別opとして追加する。`stage: mix`、`target` はトラックまたはバス、`params.key` は別のトラック。masterは不可。`section` は指定しない。キーの検出条件・attack・release・release_noteは既存 `duck` と同じで、加えて次を指定する。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `depth_db` | 0.5〜12 dB、既定3。範囲とselectも使える |
+| `hold_ms` | 0〜500 ms、既定0 |
+| `shape` | 1〜32個の `[x,y]`、各0〜1、xは狭義増加、yは非減少。既定 `[[0,0],[1,1]]` |
+| `band_lo_hz` / `band_hi_hz` | 両方0（既定）は全帯域。それ以外はlo 20〜8000 Hz・hi 60〜20000 Hz、hi≥1.5×lo、描画時の帯域条件も満たすこと |
+
+全帯域トラックは既存のゲイン列へ合成し、床→区間gain→duck＋duck_curve→gain_curveの順に加算する。帯域限定は `band_automation`、全帯域バスは合成した1本の `gain_automation` をチェーン末尾へ置く。後者はカタログ外の補助型（D-18）。使わないバスのチェーンへは追加しない。
+
+適用記録にはshape・hold・帯域・打点一覧・戻りの記録と、対象の処理前後の測定を残す。測定のscopeは `combined_direction_on_target` で、同時に当てた全手の結果である。手1つの因果的な効果とは解釈しない。
+
+使わない場合：`duck_curve` を書かない入力の提案・適用結果は従来とバイト同一。既存 `duck` の意味は変わらない。検査しないこと：このopを採ったか、帯域限定を採ったか、数値を音質の改善と読んだか。検査するのは入力値と既存の適用契約である。
+
+### 9.17 追加opの登録と適用
+
+以下は追補のop名の一覧。`target` は手の直下、各処理の値は `params` に書く。「必須」は登録宣言上の必須欄であり、params内の条件は続く説明と各specによる。新opの範囲指定は各plannerが解決し、自動較正の新しいつまみにはしない。
+
+<!-- tool-ops:begin -->
+| op | 段 | 必須欄 | 登録状態 | 中身 |
+|---|---|---|---|---|
+| `duck_curve` | mix | target, params | 登録済み | §9.16 |
+| `breath` | mix | target | 登録済み | ブレス候補を検出しフェーダーの線を書く |
+| `drum_replace` | mix | target, params | 登録済み | 打点ごとのサンプルを足したトラックを作る |
+| `edit_debleed` | edit | target, params | 登録済み | 指定した被り元から除去用パワーを推定する |
+| `edit_isolate` | edit | target | 登録済み | 既存の分離モデルによる声／背景の抽出 |
+| `edit_pitch` | edit | target, params | 登録済み | 音符ごとの音高・揺れ・音色・時刻・ゲイン |
+| `level_phrases` | mix | target | 登録済み | 句内は一定、休止中に切り替わるゲイン列 |
+| `ride` | mix | target | 登録済み | レベルを追う有界・傾き制限つきゲイン列 |
+| `vocode` | mix | target, params | 登録済み | 外部キーの包絡で搬送トラックを処理する |
+| `edit_stretch` | edit | — | 未登録 | T08-10。W4dの受入待ち |
+| `edit_stretch_extreme` | edit | — | 未登録 | T08-11。W4dの受入待ち |
+| `edit_varispeed` | edit | — | 未登録 | T08-12。W4dの受入待ち |
+| `edit_reverse` | edit | — | 未登録 | T09-06。W4dの受入待ち |
+| `edit_fade` | edit | — | 未登録 | T12-04。形状・crossの共通口が未解決 |
+| `edit_normalize` | edit | — | 未登録 | T12-05。groupを含む受入待ち |
+| `edit_align_time` | edit | target, params | 登録済み | T11-01。ガイドに対する時間写像 |
+| `edit_align_pitch` | edit | target, params | 登録済み | T11-02。ガイドに対する音高と時間の写像 |
+| `edit_quantize` | edit | target, params | 登録済み | T11-07。一定テンポの打点の量子化 |
+<!-- tool-ops:end -->
+
+W4dの6 opは、フェード形状・crossの配置変更・groupの静的ゲインに必要な共通口の不足で製品opを追加せず停止した。未登録行は仕様上の予定名であり、上記の適用契約を満たした実装済み機能には数えない。
+
+`ride`・`level_phrases`・`breath` はトラックを対象に `section` を使える。処理前後の分布・選択した句や候補・適用量・作用しなかった理由を適用記録に残す。
+
+- `ride`：`mode: self|against`（既定self）。selfは活動中の中央値、againstは `params.against` の別トラック／バスに対するレベル差を使う。上げ／下げの範囲は各0〜6 dB・既定2、窓400 ms、平滑300 ms、最大傾き12 dB/秒が既定。無音の区間では線を保持し、section外は0。
+- `level_phrases`：`measure: lufs_phrase|lufs_short_max|rms`（既定lufs_phrase）、`amount` は0〜1・既定0.7、上げ／下げは各0〜18 dB・既定6。`to_lufs` 省略時は活動レベルから決める。短い句で短時間ラウドネスが測れなければ句の積分値へ、それも無ければゲイン0と理由を記録する。ノイズ床や休止のないsection端では上げない場合がある。
+- `breath`：`mode: reduce|target`、既定reduce、`reduce_db` は0〜24・既定6、`target_db` は−40〜−6・既定−24。`only`／`skip` は `query breaths` の安定ID配列。low候補は既定で作用せずonlyで選べる。固定特徴の重みは合成素材でのみ較正済みで、出力の `calibration: synthetic_only` を保つ。confidenceは実録音での検出確率ではない。
+
+`drum_replace` は `params.samples` に許諾・ハッシュを確認できる登録サンプルを指定する。最大8層、同一min_velocityの宣言順をround robinに使える。velocity曲線、only/skip、極性・位相合わせ、元音との比を記録する。適用は新しいトラック・音声資産・クリップを追加し、元資産は保持する。該当層のない弱打は理由を記録して配置しない。取り消し後の未使用資産・cache・履歴は残る。
+
+`vocode` はtargetが搬送、`params.key` が別のトラック。既定はbands16、lo100/hi8000 Hz、attack5/release40 ms、formant_shift0、depth1。キーのチャンネルごとの包絡を平均したmonoの制御資産を記録し、`band_envelope` へ渡す。mono和の位相打消しで包絡を消さない。両トラックの資産・パラメータ・版・ハッシュを再生成用に残す。
+
+編集opは原素材を上書きせず、派生資産または既存クリップ欄の変更計画として適用する。台帳は `directions/dir_<id>.edits.json`、処方には出典資産・パラメータ・コード版・ハッシュが入り、`direction edit revert` は適用順の逆に戻す。元資産や配置が変わった古い記録は拒否する。groupを返す場合は共有の写像と全メンバーの整合を検査する。
+
+- `edit_pitch`：`params.notes` の時刻t0/t1はクリップ内の秒。有効クリップ1個に限定し、音符は時刻順・非重複。中立はshift_cents0・flatten0・vibrato1・formant_cents0・move_ms0・gain_db0。結果が同一なら派生音声を作らない。GUIの音符表示は保留。
+- `edit_debleed`：`params.sources` はtarget以外の重複しない1〜8トラック。reduction_dbは0〜30・既定9、max_delay_msは0〜50・既定20。対象が静かで被り元が活動中の区間で伝達を推定し、資料不足なら作用せずlowとする。共有成分の推定値を実際の漏れ量や完全分離と同一視しない。
+- `edit_isolate`：`keep: voice|background`（既定voice）、strength0〜1（既定1）、residual_db −90〜0（既定−90）。vocals出力のある登録モデルを使う。モデルID・重みハッシュ・許諾・保持／除去／再構成誤差を記録し、取得は行わない。通常の重みなし試験は実モデルの品質検証ではない。
+- `edit_align_time`／`edit_align_pitch`：`params.guide` に別トラックを指定し、単調な共有時間写像を計算する。anchorsは選択区間に対するtarget秒／guide秒の組。groupは同じ写像を各トラックへ適用する。恒等・作用量0は派生を作らない計画で表す。pitch側は音高と時刻の変更を一度の処理で行う。計算結果と推定の留保を台帳に残す。
+- `edit_quantize`：一定テンポのbpm20〜400、grid_note（既定1/16）、strength0〜1（既定0.7）、mode:slice/stretch（既定slice）。検出元detect_fromとonly/skipを指定でき、同距離のグリッドは早い方。groupは共通の切り位置・写像を使う。テンポマップの追跡や打点が音楽的に正しいことは保証しない。
+
+使わない場合：新opを書かない入力の提案・適用・outcomeは従来とバイト同一。新しい記録・資産は使用時だけ作る。検査しないこと：特定opの採用・回数・順序、推定値を見てどう判断したか。既存のE2/E3・listen_forの扱いと入力・台帳の整合検査は維持する。
+
+### 9.18 追加した下見コマンド
+
+共通の `--project`・`--format` などは既存どおり。下表のコマンドは提案や測定を返すだけで、採用や適用はしない。`writes=False` は読み取り専用、`out_only` は `--out` を省略するとJSONだけ、指定すると明示出力だけを書く契約。プロジェクト・journal・指揮書台帳への書き込みを検出し、失敗時も検査する。出力先を指定しただけで正本を更新しない。
+
+<!-- tool-commands:begin -->
+| コマンド | 主な引数 | 書き込み契約 | 登録状態 | 出力・留保 |
+|---|---|---|---|---|
+| `direction suggest eq` | --target TRK [--against ID] [--refsheet MD または --ref-kb ID...] | False | 登録済み | 候補・測定根拠・confidence。候補を適用しない |
+| `direction ref matcheq` | --target ID --ref AUDIO_OR_WORK [--smooth-oct N] [--max-db N] | False | 登録済み | 平滑した差の曲線とfir_eq候補。波形の一致ではない |
+| `direction suggest lowend` | [--target ID] (--refsheet MD または --ref-kb ID...) | False | 登録済み | 低域の分布と限った量の候補。参照を目標値にはしない |
+| `direction ref balance` | [--audio FILE] (--refsheet MD または --ref-kb ID... または --ref FILE...) | False | 登録済み | 4帯域／細分帯域の分布、量をそろえた偏差・時系列 |
+| `direction suggest align` | --tracks IDS [--reference ID] [--mode delay または delay_polarity または phase] [--preset drums] | False | 登録済み | 遅れ・極性・根拠とtime_align候補 |
+| `direction extract midi` | --target TRK --kind drums または mono [--out FILE] | out_only | 登録済み | 音符・打点の数値。明示outだけSMFファイルも保存 |
+| `direction pitch notes` | --target TRK [--section ID_OR_JSON] [--lo-hz N] [--hi-hz N] [--a4 N] | False | 登録済み | 音符ID・時刻・音高・confidence。GUI表示は保留 |
+| `direction query onsets` | [--target ID] [--kind percussive または soft] [--against ID] [--grid-note NOTE --bpm N] | False | 登録済み | sample位置由来の安定ID・打点・強さ・グリッド偏差 |
+| `direction query mono` | [--target ID] [--by-track] [--worst N] | False | 登録済み | 帯域・400 ms窓・トラックを外した比較のモノ合算差 |
+| `direction query limiter_headroom` | 追加引数なし | False | 登録済み | 適応リミッターのdrive0〜12 dBの仮描画。最終limiterは維持 |
+| `direction query meters` | [--target ID] [--what ITEMS...] [--step-ms N] [--max-points N] | False | 登録済み | ラウドネス・ピーク・RMS/crest・スペクトル・相関等の数値 |
+| `direction query breaths` | --target TRK [--sensitivity N] [--min-ms N] [--max-ms N] | False | 登録済み | 候補ID・特徴・スコア・confidence。合成素材のみの較正 |
+| `direction suggest ambience` | --target TRK [--find-quiet] [--region T0,T1] | False | 登録済み | 静かな候補区間、明示ノイズ区間の測定とnoise_bed候補 |
+| `direction preview codec` | [--audio FILE] [--codec ITEMS...] [--bitrate-kbps N...] [--normalize-lufs N...] [--out DIR] | out_only | 登録済み | 符号化往復・レベル・ピーク・差。明示outだけ試聴ファイル保存 |
+| `direction query align_time` | --target TRK --guide TRK [--section ID_OR_JSON] [--anchors JSON] | False | 登録済み | 適用前のガイド時間写像、前後の測定とedit_align_time候補 |
+<!-- tool-commands:end -->
+
+`query` の既存 `direction query AUDIO SPEC` はそのまま使える。新しいquery下位名を第1引数に書くと下位コマンドとして解釈する。下見が音声を読む際は整音cacheの整合を確認し、無い・古い場合に正本やcacheを黙って書き換えない。masterの測定はコマンドによりメモリ上の仮描画を行うため、既存 `check` の描画済みoutcomeとは区別する。入力エラーは終了コード2。
+
+`query mono --by-track` は `--target master` かつstem_mix経路で、各トラックを外したマスターとの差を並べる。原因の分離ではなく再合成した比較である。`query limiter_headroom` の `low_thd_estimate` は20〜250 Hzの線形ゲインを差し引いた残差比で、音楽の調波THDではない（confidence low）。既存の最初の有効adaptive_limiterを使い、無ければ最終limiterの直前へ仮に挿す。
+
+`query meters` は既定100 ms刻み・最大2000点。点数を超えると実効刻み・間引き率・変更の有無を返し、ピークは最大値を保持する。`--what` は loudness/peak/rms_crest/spectrum/spectrogram/correlation/vectorscope/balance/dynamics。無音・短すぎる窓・未定義の値はnullや状態で表し、合否の代わりにしない。
+
+`suggest ambience --find-quiet` は候補の列挙だけ。候補生成には0.2秒以上のノイズだけの `--region T0,T1` を明示する。測定値がnoise_bedの範囲を外れた場合は丸めた別物を勧めず、候補なしの理由を返す。`preview codec` は明示音声ならプロジェクトなしでも使える。`--out` 省略では音声を保存しない。利用できない符号化器も状態として返す。
+
+使わない場合：新コマンドを呼ばない既存コマンドの出力は従来とバイト同一。呼んでも正本・kb・指揮書・outcomeへ観察結果を自動転記しない。検査しないこと：下見を実施したか、候補を採用したか、参照との差を縮めたか。confidenceは測定・推定の留保であり音質の等級ではない。
+
+### 9.19 追加観察量（`mono_loss`・`correlation_bands`・`onsets`）
+
+`observations` のprimitiveに次を追加する。既存のprimitive・viewの意味は変えない。master／mix／トラックなどの対象は既存の対象解決を使い、対応しない対象・viewは入力検査で拒否する。mono_lossとcorrelation_bandsはステレオの情報を要し、mono系viewでは使えない。side viewは既存のband_energy/crest/loudnessだけ。
+
+<!-- tool-primitives:begin -->
+| primitive | params | 出力 |
+|---|---|---|
+| `mono_loss` | band: full（既定）、20〜20000 Hzの中心、または[lo,hi] | P-06と同じ符号付きlevel_change_db（dB）。負は合算で小さくなった差。完全打消しはvalue:nullとcancelled、無音もフラグで区別 |
+| `correlation_bands` | なし | 0〜120/120〜500/500〜2000/2000〜8000/8000〜20000 Hzの400 ms窓。Nyquist内だけ。median/p05/negative_fraction/active_windowsと列。valueはnullの構造化量 |
+| `onsets` | kind:percussive/soft、band:full/low/mid/high、threshold、min_interval_ms、任意grid_note/bpm/origin_s | count・per_second・strength分布。grid指定時は偏差msの分布。valueはcount |
+<!-- tool-primitives:end -->
+
+onsetsの既定はpercussive/full/threshold0.3/min_interval_ms30。threshold0〜1、min_interval_ms5〜500、gridを使うときは音価とbpm20〜400を一緒に指定し、origin_sは0〜36000・既定0。同距離のグリッド点は早い方を取る。打点検出は全長の先行文脈を保持してからsectionを選び、安定IDを振り直さない。検出のconfidenceはヒューリスティックの留保である。
+
+correlation_bandsは無音窓を分位点・負の割合から除く。構造化量へ架空の単一スカラー判定を付けない。既存の主張比較がvalueを要する場合、構造化の補助列を自動で合否へ変換しない。観察量を新しい目的関数・較正つまみ・ゲートには入れない。
+
+使わない場合：新primitiveを書かない観察・validate・checkの結果は従来とバイト同一。検査しないこと：観察の実施や、相関・打点数・モノ損失を特定方向へ動かしたか。値は状態の記述であり、0や大きい値が常によいとは限らない。
+
+### 9.20 ファイル間の空間変換（`spatial ambi`）
+
+direction外の独立CLI。`encode`／`rotate`／`decode`／`convert`／`info` を提供する。入力は `--in FILE`、info以外は `--out FILE.wav` が必須でfloat64 WAVを書く。プロジェクトのミックスグラフには入れず、正本・指揮書・kbを更新しない。次数1〜3、ACN/SN3D、座標x前/y左/z上。回転はroll→pitch→yaw。encodeのstereo入力は `(L+R)/2`、decodeはstereoまたはbinaural、convertは1次のfuma/ambix間。
+
+infoは次数・成分別RMS/peakを返すが、音声だけから正規化や並びを推定できないためunknown/undeterminedとする。出力音声のsr・フレーム数を保ち、復号の末尾は入力長で切る。処理の数学的な性質と聴感上の配置の良し悪しは区別する。
+
+使わない場合：コマンドを呼ばない既存入力の結果は従来とバイト同一。検査しないこと：空間変換を使ったか、特定次数を選んだか。CLI専用であり、GUI・MCPの表面は追加しない。
