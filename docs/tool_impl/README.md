@@ -115,9 +115,9 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T08-07 | フォルマントシフター | 型 `formant_shift` | `formant_shift`: `true` | — |
 | T08-08 | ボコーダー | 型 `vocoder`、型 `band_envelope`、op `vocode` | `vocoder`: `true`、`band_envelope`: `true`、`vocode`: 登録済み | — |
 | T08-09 | トークボックス | 型 `talkbox` | `talkbox`: `true` | — |
-| T08-10 | タイムストレッチ（高品質） | op `edit_stretch` | `edit_stretch`: 未登録 | `edit_stretch` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
-| T08-11 | 極端タイムストレッチ | op `edit_stretch_extreme` | `edit_stretch_extreme`: 未登録 | `edit_stretch_extreme` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
-| T08-12 | ハーフスピード／バリスピード | 型 `halftime`、op `edit_varispeed` | `halftime`: `true`、`edit_varispeed`: 未登録 | `edit_varispeed` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
+| T08-10 | タイムストレッチ（高品質） | op `edit_stretch` | `edit_stretch`: 登録済み | — |
+| T08-11 | 極端タイムストレッチ | op `edit_stretch_extreme` | `edit_stretch_extreme`: 登録済み | — |
+| T08-12 | ハーフスピード／バリスピード | 型 `halftime`、op `edit_varispeed` | `halftime`: `true`、`edit_varispeed`: 登録済み | — |
 | T08-13 | テープストップ／スタート | 型 `tape_stop` | `tape_stop`: `true` | — |
 | T08-14 | ワーミー系ピッチベンド | 型 `pitch_curve` | `pitch_curve`: `true` | — |
 | T09-01 | グラニュラーエフェクト | 型 `granular` | `granular`: `true` | — |
@@ -125,7 +125,7 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T09-03 | スペクトル・フリーズ | 型 `spectral_freeze` | `spectral_freeze`: `true` | — |
 | T09-04 | スタッター／グリッチ（ステップ型） | 型 `stutter` | `stutter`: `true` | — |
 | T09-05 | ランダム・グリッチ | 型 `glitch` | `glitch`: `true` | — |
-| T09-06 | リバースエフェクト | 型 `reverse_chunks`、op `edit_reverse` | `reverse_chunks`: `true`、`edit_reverse`: 未登録 | `edit_reverse` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
+| T09-06 | リバースエフェクト | 型 `reverse_chunks`、op `edit_reverse` | `reverse_chunks`: `true`、`edit_reverse`: 登録済み | — |
 | T09-07 | フィルターシーケンサー | 型 `filter_seq` | `filter_seq`: `true` | — |
 | T09-08 | エンベロープフォロワー・フィルター（オートワウ） | 型 `env_filter` | `env_filter`: `true` | — |
 | T09-09 | ローファイ・マルチラック | 型 `lofi`、型 `noise_bed` | `lofi`: `true`、`noise_bed`: `true` | — |
@@ -160,8 +160,8 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T12-01 | 適応型マキシマイザー | 型 `adaptive_limiter` | `adaptive_limiter`: `true` | T01-13 と同一（重複） |
 | T12-02 | モノ互換チェック | 観察量 `mono_loss`、観察量 `correlation_bands`、コマンド `direction query mono` | `mono_loss`: 登録済み、`correlation_bands`: 登録済み、`direction query mono`: 登録済み | — |
 | T12-03 | DC オフセット除去 | 型 `dc_remove` | `dc_remove`: `true` | — |
-| T12-04 | フェード／クロスフェード編集 | 型 `fade`、op `edit_fade` | `fade`: `true`、`edit_fade`: 未登録 | `edit_fade` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
-| T12-05 | ノーマライズ | op `edit_normalize` | `edit_normalize`: 未登録 | `edit_normalize` は宣言未登録（W4d はフェード形状・cross・group の共通口不足で停止、製品op未追加） |
+| T12-04 | フェード／クロスフェード編集 | 型 `fade`、op `edit_fade` | `fade`: `true`、`edit_fade`: 登録済み | — |
+| T12-05 | ノーマライズ | op `edit_normalize` | `edit_normalize`: 登録済み | — |
 | T12-06 | レベラー／ラウドネスコントロール | op `level_phrases` | `level_phrases`: 登録済み | — |
 | T12-07 | コーデックプレビュー／配信シミュレーション | コマンド `direction preview codec` | `direction preview codec`: 登録済み | — |
 | T12-08 | 統合メータリング | コマンド `direction query meters`、GUI `メータ画面` | `direction query meters`: 登録済み、GUI: 保留 | GUI API の追加が core 差分0と両立しない（OQ-3、D-28） |

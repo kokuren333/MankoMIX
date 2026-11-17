@@ -20,6 +20,7 @@ class OpSpec:
     code_version: str = ""
     time_varying: bool = False
     section: bool = False
+    group_limit: int = 16
 
 
 @dataclass
@@ -95,7 +96,7 @@ class DerivedPlan:
 
 @dataclass
 class ClipPlan:
-    """Clip-only edit: clip id -> existing fade_in/fade_out/gain_db fields."""
+    """Clip-only edit: clip id -> existing fade/gain fields."""
     changes: dict[str, dict]
     params: dict
     record: dict = field(default_factory=dict)
@@ -127,6 +128,8 @@ def _checked(name, value):
         raise ImportError(f"{name}: required must be a tuple of keys")
     if not callable(value.validate) or not all(type(v) is bool for v in (value.time_varying, value.section)):
         raise ImportError(f"{name}: invalid validator or flags")
+    if type(value.group_limit) is not int or value.group_limit < 0:
+        raise ImportError(f"{name}: group_limit must be a nonnegative peer count")
     if value.stage == "mix" and (not callable(value.expand) or value.derive is not None):
         raise ImportError(f"{name}: mix ops need expand only")
     if value.stage == "edit" and (not callable(value.derive) or value.expand is not None
@@ -247,8 +250,10 @@ def _clip_entry(clips, move, spec, plan):
         raise ValueError('ClipPlan needs changes and params dictionaries')
     by_id = {c['id']: c for c in after}
     for cid, fields in plan.changes.items():
-        if cid not in by_id or not isinstance(fields, dict) or not fields or set(fields) - {'fade_in', 'fade_out', 'gain_db'}:
+        if cid not in by_id or not isinstance(fields, dict) or not fields or set(fields) - {'fade_in', 'fade_out', 'fade_curve', 'gain_db'}:
             raise ValueError('ClipPlan may change only existing clip fades/gain_db on its target')
+        if 'fade_curve' in fields and fields['fade_curve'] not in ('equal_power', 'linear'):
+            raise ValueError('ClipPlan fade_curve must be equal_power or linear')
         by_id[cid].update(copy.deepcopy(fields))
     entry = {'kind': 'clip_edit', 'op': move['op'], 'track': move['target'], 'params': plan.params,
              'code_version': spec.code_version, 'before_clips': copy.deepcopy(clips), 'after_clips': after,

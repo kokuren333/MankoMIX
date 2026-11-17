@@ -193,9 +193,10 @@ reverse application order. Single-move revert also dispatches by ledger kind.
 ### Clip-only plans
 
 The same `derive(root, move)` planner may return
-`ClipPlan(changes={clip_id: {"fade_in": samples, "fade_out": samples, "gain_db": dB}}, params=resolved)`
+`ClipPlan(changes={clip_id: {"fade_in": samples, "fade_out": samples, "fade_curve": "linear", "gain_db": dB}}, params=resolved)`
 instead. Only the listed existing fields of existing clips on the target track
 may change; an entry may contain a subset of these fields. The core validates
+fade_curve as equal_power or linear; the seam permits only these two values.
 and journals the patch. This supports the worklog's edit_fade/edit_normalize rule
 without manufacturing an audio asset. Do not implement those operations here;
 their modules supply the calculations and measurements.
@@ -211,8 +212,10 @@ is refused. Applying over another direction's active edit is also refused.
 
 A planner may return `DerivedBundle(plans={track_id: DerivedPlan(...)},
 mapping={...}, record={})`. Include target and exactly every unique peer in
-move.params.group. The seam supports 16 peers plus target; op validators must
-enforce their own 8/16-peer limits. Every member shares start/end,
+move.params.group. The default is 16 peers plus target. An optional OpSpec
+group_limit declares another nonnegative peer limit (edit_normalize uses 32);
+both bundle kinds honor it. Op validators enforce their own limits.
+Every member shares start/end,
 timeline_start and fit=keep_length. Mapping is a nonempty finite JSON object
 holding the common time map and/or reference-track cuts and integer shifts:
 calculate it once, never separately for each track.
@@ -243,9 +246,9 @@ member must revert first; whole-direction revert walks mixed kinds backwards.
 
 Return `ClipBundle(plans={track_id: ClipPlan(...)}, mapping={...}, record={})`
 when the entire group needs no derived audio. Include exactly target and every
-unique peer, up to 16 peers plus target, using a nonempty finite shared mapping.
+unique peer, up to OpSpec.group_limit peers plus target (default 16), using a nonempty finite shared mapping.
 All members must be ClipPlans; mixing DerivedPlans into this bundle is refused.
-Only existing clip fade_in/fade_out/gain_db fields can change. Empty changes on
+Only existing clip fade_in/fade_out/fade_curve/gain_db fields can change. Empty changes on
 every member express a measured no-op, with its reason/evidence in record.
 
 The wrapper preflights all foreign edits before calling the planner, freezes

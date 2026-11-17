@@ -22,8 +22,8 @@ def apply(root, doc, move, spec, bundle, *, actor):
     if (not isinstance(plans, dict) or set(plans) != set(expected) or len(expected) != len(set(expected))
             or not all(isinstance(p, ClipPlan if clip_only else DerivedPlan) for p in plans.values())):
         raise B.DerivedError('bundle must cover target and each unique group track exactly once')
-    # Individual op validators own their smaller limits; the seam supports 16 peers.
-    if len(expected) > 17 or not isinstance(bundle.mapping, dict):
+    # Existing declarations retain 16 peers; an op may declare its own capacity.
+    if len(expected) > getattr(spec, 'group_limit', 16) + 1 or not isinstance(bundle.mapping, dict):
         raise B.DerivedError('invalid group size or mapping')
     mapping = json.loads(B._json(bundle.mapping))
     if not mapping:
