@@ -61,6 +61,7 @@ OPS = {
     "edit_gate": ("edit", ("target", "params")),
     # cross-track ducking (UPGRADE2 §2): gain automation on the target keyed by another track's hits
     "duck": ("mix", ("target", "params")),
+    "duck_curve": ("mix", ("target", "params")),
     # placement (FBREVIEW FR-5): azimuth / width / distance -> pan, fader, air shelf and a room send,
     # expanded into the existing pan / gain / chain_add / send moves
     "place": ("mix", ("target", "params")),
@@ -1022,7 +1023,9 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         seen_ids.add(mid)
         op = m.get("op")
         if op not in OPS:
-            err(where, "bad_op", f"unknown op '{op}' (valid: {', '.join(OPS)})")
+            valid_ops = OPS if any(x.get("op") == "duck_curve" for x in b.get("moves") or []) else {
+                k: v for k, v in OPS.items() if k != "duck_curve"}
+            err(where, "bad_op", f"unknown op '{op}' (valid: {', '.join(valid_ops)})")
             continue
         stage, req = OPS[op]
         if m.get("stage", stage) != stage:
@@ -1057,7 +1060,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "unknown_section", f"unknown section '{sec}'")
             elif isinstance(sec, dict) and not ({"t0_s", "t1_s"} <= set(sec)):
                 err(where, "bad_value", "a time section needs t0_s and t1_s")
-        params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if op == "gain_curve" \
+        params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if op in ("gain_curve", "duck_curve") \
             else resolve_params(m, m.get("params") or {}, ptype=_move_processor(m, proj))
         notes += rnotes
         # targets
@@ -1134,6 +1137,11 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "unknown_target", f"unknown target '{target}'")
             K.check_params(raw, target, where, err, tracks=tracks, buses=buses,
                            bpm=K.floor_bpm(proj.floor_mxp) if proj else None, has_project=proj is not None)
+        elif op == "duck_curve":
+            from . import duck_curve as KC
+            from .duck import floor_bpm
+            KC.check_params(m, b.get("moves") or [], where, err, tracks=tracks, buses=buses,
+                            bpm=floor_bpm(proj.floor_mxp) if proj else None, has_project=proj is not None)
         elif op == "gain_curve":
             _check_gain_curve(m, where, err, tracks=tracks, buses=buses, has_project=proj is not None)
         elif op == "place":
@@ -1144,7 +1152,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
         if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck" \
-                and op != "place" and op != "gain_curve":
+                and op != "place" and op != "gain_curve" and op != "duck_curve":
             tier = "E1"
         if op == "master_target":
             prof = _profile((variants[0] if variants else {}).get("profile") or "")
@@ -1153,7 +1161,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 tier = "E3"
         if target == LEAD and ((op == "gain" and sec not in (None, "all"))
                                or (op == "chain_add" and proc in TIME_VARYING) or op in EDIT_OPS
-                               or op == "duck" or op == "gain_curve"):
+                               or op == "duck" or op == "gain_curve" or op == "duck_curve"):
             tier = "E3"
             lead_e3 = True
         if tier == "E3" and not b.get("listen_for"):
@@ -1331,6 +1339,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     seg_gain: dict[str, list] = {}
     ducks: dict[str, list] = {}
     curves: dict[str, list] = {}
+    keyed_bands: list = []
     # new buses first so sends can reach them
     for m in b.get("moves") or []:
         if m.get("op") != "bus_add":
@@ -1431,6 +1440,21 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
                                     "segments": [{**copy.deepcopy(s), "applied": not s.get("hold", False)}
                                                  for s in params["segments"]], "points": len(pts)}
             notes.append(f"{mid}: {curve.NOTE}")
+        elif op == "duck_curve":
+            from . import duck_curve as KC
+            from .duck import floor_bpm
+            try:
+                dp = KC.plan(proj.root, m, params, floor_bpm(proj.floor_mxp))
+            except ValueError as e:
+                raise DirectionError(f"{mid}: {e}") from None
+            if dp["band"] == [0, 0]:
+                base = cur.get(target, {}).get("automation") or {}
+                dp["record"]["floor_automation"] = {"points": len(base.get("gain_db") or []), "owner": base.get("owner")}
+                ducks.setdefault(target, []).append((mid, dp["points"]))
+            else:
+                keyed_bands.append((m, dp))
+            record["moves"][mid] = dp["record"]
+            notes.extend(dp["notes"])
         elif op == "duck":
             from . import duck as K
             try:
@@ -1463,6 +1487,20 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
                 "room": params.get("room"), "model": pd["model"], "derived": pd["derived"]}
             continue
         one(m, params)
+    for m, dp in keyed_bands:
+        from . import duck_curve as KC
+        target = m["target"]
+        if not dp["points"]:
+            continue
+        params = {"lo_hz": dp["band"][0], "hi_hz": dp["band"][1],
+                  "gain": [[at / dp["sr"], db] for at, db in dp["points"]]}
+        item = _item(dir_id, m, "band_automation", P.validate_params("band_automation", params), target)
+        if target in cur:
+            lst = track(target)["chain"]
+        else:
+            lst = KC.bus_chain(proj, ch, target)
+        lst.append(item)
+        record["moves"][m["id"]]["item"] = item["id"]
     for tid, segs in seg_gain.items():
         if tid in curves:
             continue
@@ -1475,9 +1513,16 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     for tid, dl in ducks.items():
         if tid in curves:
             continue
+        if tid not in cur:
+            from . import duck_curve as KC
+            KC.merge_bus_ducks(proj, ch, dir_id, tid, dl, b["moves"], record)
+            continue
         _merge_ducks(proj, dir_id, tid, dl, seg_gain.get(tid) or [], cur, track)
     for tid, cl in curves.items():
         _merge_curves(proj, dir_id, tid, cl, ducks.get(tid) or [], seg_gain.get(tid) or [], cur, track)
+    if any(m.get("op") == "duck_curve" for m in b.get("moves") or []):
+        from . import duck_curve as KC
+        KC.measure_proposal(proj, ch, record)
     mix_moves = [m for m in b.get("moves") or [] if OPS.get(m.get("op"), ("",))[0] == "mix"]
     if not mix_moves:
         return None, record, notes
@@ -1626,6 +1671,9 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
         r = api.plan_apply(str(root), prop["proposal_id"], actor=actor)
         if isinstance(r, dict) and r.get("error"):
             raise DirectionError(f"plan apply failed: {r.get('error')}")
+        if prop["changes"].get("bus_overrides"):
+            from .duck_curve import apply_bus_overrides
+            apply_bus_overrides(root, prop["changes"]["bus_overrides"], actor)
         out["mix_proposal"] = prop["proposal_id"]
         out["mix_changes_sha256"] = canonical_hash(prop["changes"])[:16]
     variant = (doc["block"].get("variants") or [{}])[0]
@@ -1889,7 +1937,7 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
         if op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
                 or (op == "gain" and m.get("section") not in (None, "all")) \
                 or op == "gain_curve" \
-                or (op == "duck" and (recorded.get(m.get("id")) or {}).get("hits") != 0):
+                or (op in ("duck", "duck_curve") and (recorded.get(m.get("id")) or {}).get("hits") != 0):
             if m.get("id") not in refs:
                 missing.append(m.get("id"))
         elif op == "place":

@@ -88,3 +88,31 @@ FDN decay uses `g_i = exp(-ln(1000) D_i / (sr T60))`. Orthogonal mixing is a
 normalised Sylvester matrix. Allpass recurrences and random pulse cells are
 independently expressed. No product output, firmware or GPL/AGPL source was
 consulted.
+
+## Time and creative building blocks (W2g) sources
+
+
+No third-party implementation source was copied or translated. Existing
+NumPy and SciPy 1.18.1 (BSD-3-Clause) public APIs provide iirpeak, butter,
+lfilter, sosfilt, fftconvolve and the FFT analysis used in acceptance tests.
+FIR design, fractional reads, envelopes, crossovers and note conversion reuse
+the repository's BB-02/03/05/07/09 APIs.
+
+The TPT state equations are independently derived by solving two trapezoidal
+integrators in a state-variable feedback loop. The parameter conversion solves
+the analog lowpass magnitude polynomial before prewarping; it is documented
+in `dspx/bb/svf.py`. The named textbook is Vadim Zavalishin, *The Art of VA
+Filter Design*. Its publisher PDF URLs returned 404 during this task, so no
+edition-specific equation or source-code attribution is claimed.
+
+The channel vocoder uses the specification's four-pole filter bank,
+rectification, one-pole followers, additive harmonic carrier and bank sum.
+Stop/start positions are analytic integrals of power-law speed curves.
+Noise colour uses frequency-sampled FIRs; shot-noise normalization follows
+variance = arrival-rate/sample-rate times impulse-response energy.
+
+API documentation:
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirpeak.html
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.fftconvolve.html
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
