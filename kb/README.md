@@ -21,6 +21,18 @@ MankoMIX の指揮レイヤー（director）が読み書きする Markdown の�
 - `evidence` が replicated／measured のカードは `backing`（kb 内の相対リンク。結果カードなど）が 1 つ以上必須
 - 任意: `applies_to`（`{ genre: [hiphop], profile: [club] }` の形）、`song`、`request`、`pattern`
 
+### 任意欄: 立場と作品の狙い（X-14）
+
+- 全カード共通の `stance` は立場の記述。`who`（役割の一般名）、`music`（どんな音楽での見方か）、`era`（年代）を持つマップで、3 つの子キーはすべて任意の文字列。空のマップや空文字列も使える。`stance.who` に個人名を書かないことは書式の規則で、lint は形だけを見る。
+- work カードの `aim_note` は作品の狙いを書く任意の文字列。発売年は既存の `release.year`、ジャンルは既存の `genre` を使い、年の未記入値 `null` とジャンルのリスト表記（`[]` を含む）は従来どおり扱う。
+- どちらも省略でき、未記入のエラー・警告は出さない。記入した `stance` がマップでない、未知の子キーがある、子の値が文字列でない場合は `bad_stance`、work の `aim_note` が文字列でない場合は `bad_aim_note`。既存の `release`／`genre` の検査と INDEX の列は変わらない。
+- front matter は入れ子も 1 行の flow 形式で書く。
+
+```yaml
+stance: { who: "ミックスの実務者", music: "歌が主役のポップス", era: "2020 年代" }
+aim_note: "歌の言葉と打楽器の輪郭を残す"
+```
+
 ## 禁止内容（`mankomix kb lint` が拒否する）
 
 - 絶対パス（ドライブ文字、ユーザーのホーム、file URL）

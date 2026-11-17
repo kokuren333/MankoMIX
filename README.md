@@ -99,6 +99,8 @@ mankomix direction edit scan --project my_song.mmx --track <trk> --op edit_gate 
 mankomix direction edit revert --project my_song.mmx --direction <dir_id>           # 編集で無音化した区間を戻す
 ```
 
+追補 4 では、枠の宣言 `frame`、部屋の宣言 `scene.room`、直さない出口 `triage`、名前を隠した聴き比べの書き出しと聴取記録（`direction listen pack|record`）、居場所の表（`direction stems placement`）、重なりの軸（`direction stems relate --axes`）、段階の測定（`direction stems stages`、観察量の対象 `mix`）、側成分の見方（観察量の `view: side`）、時間つきのゲイン列 `gain_curve`（下見は `direction stems phrases`）、編集の一覧と曲線と空白（`direction check --edit-list`／`--contour`）、配線の図（`direction wiring`）、kb のカードの立場の欄 `stance` が加わった。どれも任意で、使わなくても指揮書は従来どおり動き、不利にもならない。これらで音が良くなることは実証していない（[docs/DIRECTION_FORMAT.md](docs/DIRECTION_FORMAT.md) §9）。
+
 **持ち込む音源の入手と利用条件は、利用者の責任で確かめること。** 本ツールは持ち込まれた音源をその場で測るだけで、音源やその変換物を保存しない。第三者の作品の測定は、既定で非公開の `_private/kb/` に置かれる。
 素材の入手は利用者が公式の経路で行う。本ツールは素材を探しにも取りにも行かない（kb のカードに残せるのは所在メモと権利注記だけ）。
 
