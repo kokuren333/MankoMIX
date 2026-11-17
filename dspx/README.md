@@ -16,8 +16,13 @@ original processor definitions and DSP implementations remain in `dsp`.
 | `procs/` | One module per processor type, with declarations and reference implementations. |
 
 Processor modules expose `SPECS` (definition list) and `IMPLS` (type-to-function
-mapping). Optional declarations are `TIME_VARYING`, `COMPOSITES` and
-`CROSS_VALIDATE`. Composite functions accept resolved parameters and return a
+mapping). Optional declarations are `TIME_VARYING`, `COMPOSITES`, `RESOLVE_PARAMS`,
+`SCHEMA_PATCH` and `CROSS_VALIDATE`. The latter three map type names to functions.
+A parameter resolver accepts raw params (including `None`) before scalar defaults
+and returns a fresh dictionary, preserving explicitly supplied values. A schema
+patch receives its type's params schema and modifies it in place. Hooks are
+collected with duplicate, undeclared-type and callable checks; contract code
+does not dispatch on processor names. Composite functions accept resolved parameters and return a
 nonempty list of non-composite chain items. A cross-validator accepts a resolved
 parameter dictionary, raises `ParamError` for invalid relationships, and returns
 no result. Validators must not modify parameters or import `dsp.processors` at

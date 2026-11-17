@@ -50,9 +50,10 @@ At 44.1/48/96 kHz every cutoff is below 0.98*Nyquist. At lower sample
 rates existing child runtime frequency checks can reject a rack; this map
 does not silently clamp a child cutoff using an unknown sample rate.
 
-## Current integration limitation
+## Empty expansion
 
-Both expanders return [] at all-zero amounts, as their specifications
-require. Current BB-00 rejects empty composite expansion. The processors
-therefore remain implemented=False; no identity child is inserted to hide
-the contract conflict. Tape acceptance is also required for cassette.
+Both expanders return [] at all-zero amounts. BB-00 passes the input
+through bit for bit and retains one audit record at the source ID, with
+`composite_of` holding the source item and `expansion: []`. No child
+processor is inserted. This record uses the engine bypass path and has
+no backend. Nonempty racks retain their original child expansion and IDs.

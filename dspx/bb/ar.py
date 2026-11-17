@@ -358,3 +358,116 @@ def lsar_gap(left, right, length, *, order=32, lower=None, upper=None, iteration
         estimate = np.clip(estimate, low, high)
         fixed |= violated
     return np.clip(estimate, low, high), {'iterations': count, 'orders': [len(a)-1 for a in models]}
+
+
+def robust_observed_model(x, missing, order=32, *, trim=.9, score_fraction=.98):
+    """Trimmed covariance refinement of an observed-only Burg model.
+
+    Fit contiguous observed regression rows, by default trimming 10 percent
+    of innovations for at most eight deterministic refinements. Score the best 98
+    percent with BIC; this retains excitation decay without fitting isolated
+    excitation impulses. Local reverse-time models may have growing poles.
+    Existing model estimators are deliberately unchanged.
+    """
+    v = np.asarray(x, dtype=np.float64)
+    missing = np.asarray(missing)
+    if (v.ndim != 1 or missing.shape != v.shape or missing.dtype != bool or
+            not np.isfinite(v).all() or not isinstance(order, (int, np.integer)) or order < 1 or
+            not .5 <= trim <= 1 or not .5 <= score_fraction <= 1):
+        raise ParamError('invalid robust observed AR input or fitting fractions')
+    best = masked_burg(v, missing, order)
+    # Unmasked noise-like blocks have no accurate low-order continuation to
+    # refine. Keep Burg there; exhaustive trimmed fits only add variance.
+    if not missing.any() and len(v) > len(best):
+        innovation = residual(v, best)[len(best)-1:]
+        if float(np.mean(innovation**2)) >= .3*max(float(np.mean(v*v)), 1e-30):
+            return best
+    criterion = np.inf
+    for p in range(1, min(order, len(v)-2)+1):
+        frames = np.lib.stride_tricks.sliding_window_view(v, p+1)
+        good = ~np.lib.stride_tricks.sliding_window_view(missing, p+1).any(axis=1)
+        data = frames[good]
+        if len(data) < max(16, 2*p):
+            break
+        keep = np.ones(len(data), bool)
+        floor = max(float(np.sqrt(np.mean(data[:, -1]**2)))*1e-12, 1e-15)
+        for _ in range(8):
+            coeff = linalg.lstsq(data[keep, :-1][:, ::-1], -data[keep, -1],
+                                 cond=1e-12, lapack_driver='gelsy')[0]
+            model = np.r_[1., coeff]
+            error = abs(data @ model[::-1])
+            selected = error <= max(float(np.quantile(error, trim)), floor)
+            if np.array_equal(keep, selected):
+                break
+            keep = selected
+            if np.count_nonzero(keep) < p+2:
+                break
+        if np.max(abs(model)) > 1e4:
+            continue
+        trimmed = np.sort(error**2)[:max(1, int(score_fraction*len(error)))]
+        ratio = float(np.mean(trimmed))/max(float(np.mean(data[:, -1]**2)), 1e-30)
+        bic = len(data)*np.log(max(ratio, 1e-30))+p*np.log(len(data))
+        if bic < criterion:
+            best, criterion = model, bic
+        if ratio < 1e-20:
+            return model
+    return best
+
+
+def joint_lsar(x, missing, *, models, lower=None, upper=None, iterations=8):
+    """Solve all mono missing samples together with fixed AR models.
+
+    Regression rows can cross several neighboring holes. All observed samples
+    are exact constants. Bounds use at most eight active-set solves, as in
+    lsar_gap; this additive API does not change that function's behavior.
+    """
+    v = np.asarray(x, dtype=np.float64)
+    missing = np.asarray(missing)
+    if (v.ndim != 1 or missing.shape != v.shape or missing.dtype != bool or
+            not np.isfinite(v).all() or not 1 <= iterations <= 8 or len(models) != 2 or
+            any(not len(a) or a[0] != 1 or not np.isfinite(a).all() for a in models)):
+        raise ParamError('invalid joint LSAR input, models or iteration count')
+    idx = np.flatnonzero(missing)
+    if not len(idx):
+        return v.copy(), {'iterations': 0, 'orders': [len(a)-1 for a in models]}
+    low = np.broadcast_to(-np.inf if lower is None else lower, v.shape)[idx]
+    high = np.broadcast_to(np.inf if upper is None else upper, v.shape)[idx]
+    if np.any(low > high) or np.isnan(low).any() or np.isnan(high).any():
+        raise ParamError('invalid joint LSAR bounds')
+    known = v.copy()
+    known[idx] = 0
+    operators, targets = [], []
+    for reverse, model in zip((False, True), models):
+        p = len(model)-1
+        times = np.arange(0, len(v)-p) if reverse else np.arange(p, len(v))
+        taps = np.flatnonzero(model)
+        offsets = taps if reverse else -taps
+        positions = times[:, None]+offsets
+        active = missing[positions].any(axis=1)
+        positions = positions[active]
+        rows = np.repeat(np.arange(len(positions)), len(taps))
+        op = sparse.csr_matrix((np.tile(model[taps], len(positions)),
+                                (rows, positions.ravel())), shape=(len(positions), len(v)))
+        operators.append(op[:, idx])
+        targets.append(-op @ known)
+    mat = sparse.vstack(operators, format='csr')
+    normal = (mat.T @ mat).tocsc()
+    ridge = max(1., float(np.mean(normal.diagonal())))*1e-12
+    normal += sparse.eye(len(idx), format='csc')*ridge
+    rhs = mat.T @ np.concatenate(targets)+ridge*v[idx]
+    estimate = v[idx].copy()
+    fixed = np.zeros(len(idx), bool)
+    for count in range(1, iterations+1):
+        free = ~fixed
+        if free.any():
+            estimate[free] = spsolve(normal[free][:, free], rhs[free]-normal[free][:, fixed] @ estimate[fixed])
+        violated = (estimate < low) | (estimate > high)
+        if not violated.any():
+            break
+        estimate = np.clip(estimate, low, high)
+        fixed |= violated
+    if not np.isfinite(estimate).all():
+        raise ParamError('joint LSAR produced nonfinite samples')
+    result = v.copy()
+    result[idx] = np.clip(estimate, low, high)
+    return result, {'iterations': count, 'orders': [len(a)-1 for a in models]}

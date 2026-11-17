@@ -3,7 +3,8 @@
 API (audio is frames x channels, zero initial history):
 ``fast_shift(x, sr, ratio, grain_ms=40, delay_ms=0, feedback=0,
 highcut_hz=0)``: two Hann-crossfaded rotating delay taps. ratio is a positive
-scalar or one value per sample. No correlation/phase alignment is performed.
+scalar or one value per sample. Constant feed-forward shifts choose tap spacing
+from past input periods; no correlation or waveform phase alignment is used.
 ``wsola(x, sr, stretch, window_ms=40, stereo_link=True,
 source_positions=None)``: output/input duration ratio; waveform-similarity
 overlap-add, exact rounded output length. Optional strictly increasing source
@@ -69,6 +70,73 @@ def _read(x, positions, method='sinc8'):
     return out
 
 
+def _period_spacing(x, end, sr, half):
+    """Choose a bounded integer-period spacing using only available history.
+
+    Regular positive crossings supply the period, rather than a correlation
+    search for a splice. A sinusoidal recurrence refines single-tone estimates
+    without the frequency bias of linearly interpolated high-frequency zeros.
+    Irregular crossings and periods longer than half the grain use the nominal
+    spacing. Channel selection uses only the same causal analysis window.
+    """
+    block = x[max(0, end-round(sr*.05)):end]
+    if len(block) < 8:
+        return half
+    ref = block[:, int(np.argmax(np.sum(block*block, axis=0)))]
+    crossings = np.flatnonzero((ref[:-1] <= 0) & (ref[1:] > 0))[-17:]
+    if len(crossings) < 3:
+        return half
+    times = crossings-ref[crossings]/(ref[crossings+1]-ref[crossings])
+    periods = np.diff(times)
+    period = float(np.mean(periods))
+    if np.max(np.abs(periods-period)) > .02*period:
+        return half
+    middle = ref[1:-1]
+    power = float(np.dot(middle, middle))
+    if power > 1e-30:
+        neighbours = .5*(ref[:-2]+ref[2:])
+        cosine = float(np.dot(middle, neighbours)/power)
+        residual = neighbours-cosine*middle
+        if -1 < cosine < 1 and np.dot(residual, residual) < 1e-10*power:
+            period = 2*np.pi/np.arccos(cosine)
+    # A tiny tolerance avoids dropping a whole period due to roundoff at an
+    # exactly commensurate nominal grain. The delay bound still holds exactly.
+    count = int(np.floor(half/period+1e-7))
+    return min(half, count*period) if count else half
+
+
+def _periodic_fast(x, sr, ratio, grain, delay=0):
+    """Causal two-tap crossfades, adapting spacing only at zero tap gain.
+
+    Each tap moves at exactly 1-ratio between resets. The dominant tap reaches
+    the fixed midpoint at every handover; only the silent tap is repositioned.
+    Complementary Hann gains sum to one for coherent periodic taps. A short
+    single-tap startup supplies history even when tiny detuning makes the first
+    complete crossfade last several seconds. All delays stay within grain+4.
+    """
+    delta = 1-ratio
+    half = grain/2
+    start = min(sr*.04, half/(2*abs(delta)))
+    n = np.arange(len(x), dtype=float)-delay
+    d1 = np.empty(len(x))
+    d2 = np.empty(len(x))
+    weight = np.zeros(len(x))
+    a = min(len(x), int(np.ceil(start+delay)))
+    d1[:a] = 4+half+delta*(n[:a]-start)
+    d2[:a] = d1[:a]
+    while a < len(x):
+        spacing = _period_spacing(x, max(0, int(np.floor(start))-4), sr, half)
+        finish = start+spacing/abs(delta)
+        b = min(len(x), int(np.ceil(finish+delay)))
+        travel = delta*(n[a:b]-start)
+        d1[a:b] = 4+half+travel
+        d2[a:b] = d1[a:b]-np.copysign(spacing, delta)
+        weight[a:b] = .5-.5*np.cos(np.pi*(n[a:b]-start)/(finish-start))
+        a, start = b, finish
+    return (_read(x, n-d1)*(1-weight[:, None])
+            +_read(x, n-d2)*weight[:, None])
+
+
 def fast_shift(x, sr, ratio, grain_ms=40, delay_ms=0, feedback=0, highcut_hz=0):
     """Causal dual tap shift; musical tap delays are not declared as lookahead.
 
@@ -99,6 +167,12 @@ def fast_shift(x, sr, ratio, grain_ms=40, delay_ms=0, feedback=0, highcut_hz=0):
             d = max(3., d)
         filt = LoopFilter(sr, x.shape[1], highcut=highcut_hz)
         wet = DelayLine(d, x.shape[1], 'lagrange3').process(x, d, feedback, loop=filt)
+        return LoopFilter(sr, x.shape[1], highcut=highcut_hz)(wet)
+    if not feedback and np.all(r == r[0]):
+        # Offset the tap clock as well as the reads by the musical delay.
+        # Evaluating fractional clocks directly avoids a second centred kernel
+        # that would otherwise truncate the intermediate voice at render end.
+        wet = _periodic_fast(x, sr, float(r[0]), grain, delay)
         return LoopFilter(sr, x.shape[1], highcut=highcut_hz)(wet)
     # Integrated speed deviation is evaluated from the beginning of context.
     # Scalars use multiplication, avoiding accumulation error on long renders.

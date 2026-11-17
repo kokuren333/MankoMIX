@@ -42,6 +42,13 @@ def target_schema():
     return conditions
 
 
+def patch_schema(params):
+    """Attach target conditions, leaving defaults only on matching branches."""
+    params['allOf'] = target_schema()
+    for endpoint in ('lo', 'hi'):
+        params['properties'][endpoint].pop('default', None)
+
+
 def validate(p):
     from mankomix.dspx.bb.curves import period_ms
     from mankomix.dspx.bb.keyed import validate_shape, validate_band
@@ -241,3 +248,5 @@ SPECS = [definition('curve_shaper', parameters(), implemented=True)]
 TIME_VARYING = {'curve_shaper'}
 IMPLS = {'curve_shaper': curve_shaper}
 CROSS_VALIDATE = {'curve_shaper': validate}
+RESOLVE_PARAMS = {'curve_shaper': resolve_target_params}
+SCHEMA_PATCH = {'curve_shaper': patch_schema}

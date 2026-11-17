@@ -67,10 +67,7 @@ def test_pt1_neutral_exact(quality):
 
 @pytest.mark.parametrize('quality', QUALITY)
 @pytest.mark.parametrize('freq', [100, 440, 1000, 3000])
-def test_pt2_pt3_stationary(quality, freq, request):
-    if quality == 'fast' and freq == 440:
-        request.node.add_marker(pytest.mark.xfail(strict=True,
-            reason='Unaligned fast taps fail PT2/PT3 at 440 Hz'))
+def test_pt2_pt3_stationary(quality, freq):
     x = H.sine(freq, -12, sr=16000, seconds=1.5, channels=1)
     y = direct('pitch_shift', x, dict(semitones=7, quality=quality))
     error = float(cents(y[4000:-4000], 16000, freq*2**(7/12)))
@@ -245,10 +242,7 @@ def test_bend_interpolation_and_glide():
 
 
 @pytest.mark.parametrize('quality', ['fast', 'standard'])
-def test_bend_constant_pt2_pt3(quality, request):
-    if quality == 'fast':
-        request.node.add_marker(pytest.mark.xfail(strict=True,
-            reason='Pitch bend inherits fast PT2/PT3 limitation on a 440 Hz tone'))
+def test_bend_constant_pt2_pt3(quality):
     sr = 16000
     x = H.sine(440, -12, sr=sr, seconds=1.5, channels=1)
     y = direct('pitch_curve', x, dict(bend=[[0, 7]], quality=quality), sr)
@@ -267,10 +261,7 @@ def test_harmonizer_dry_and_mute(count):
 
 
 @pytest.mark.parametrize('quality', QUALITY)
-def test_harmonizer_voice_frequency_pan_delay(quality, request):
-    if quality == 'fast':
-        request.node.add_marker(pytest.mark.xfail(strict=True,
-            reason='Fast voice at 440 Hz fails PT2'))
+def test_harmonizer_voice_frequency_pan_delay(quality):
     sr = 16000
     x = H.sine(440, -12, sr=sr, seconds=1.25, channels=2)
     p = dict(semitones=[7], level_db=[-6], pan=[1], delay_ms=[50], dry_db=-90, quality=quality)
@@ -344,7 +335,6 @@ def test_micro_frequency_ripple_delay_and_mono_record():
     assert H.null(x, direct('micro_pitch', x, dict(mix=0), sr))['bit_identical']
 
 
-@pytest.mark.xfail(strict=True, reason='Unaligned two taps cannot bound ripple for all stationary frequencies')
 def test_micro_noncommensurate_tone():
     x = H.sine(440, -12, sr=48000, seconds=7, channels=2)
     y = direct('micro_pitch', x, dict(mix=1), 48000)
@@ -426,10 +416,14 @@ def test_parameter_defaults_and_bounds(enabled, kind):
 
 
 @pytest.mark.parametrize('kind', KINDS)
-def test_unaccepted_public_types_remain_disabled(kind):
-    assert P.describe(kind)['implemented'] is False
-    with pytest.raises(ChainError):
-        render(kind, np.zeros((32, 1)))
+def test_public_acceptance_status(kind):
+    if kind == 'pitch_shift':
+        assert P.describe(kind)['implemented'] is False
+        with pytest.raises(ChainError):
+            render(kind, np.zeros((32, 1)))
+    else:
+        assert P.describe(kind)['implemented'] is True
+        assert np.isfinite(render(kind, np.zeros((32, 1)))).all()
 
 
 @pytest.mark.parametrize('kind', ['micro_pitch', 'harmonizer'])

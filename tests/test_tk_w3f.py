@@ -1,4 +1,4 @@
-"""W3f acceptance and explicitly retained specification/integration failures."""
+"""W3f acceptance, including the C7d closures of the original failures."""
 import importlib
 import itertools
 import json
@@ -10,8 +10,7 @@ from mankomix.dsp.errors import ParamError, ChainError
 from tests import toolimpl_harness as H
 
 TYPES = ('tape','cassette','lofi','amp_basic','reverb_spring')
-PUBLIC = dict.fromkeys(TYPES, False)
-PUBLIC['reverb_spring'] = True
+PUBLIC = dict.fromkeys(TYPES, True)
 CONTRACT = {
  'tape': dict(drive_db=(0,24,0),output_db=(-36,12,0),auto_gain=False,mix=(0,1,1),
     oversample=([1,2,4,8],4), amount=(0,1,1),speed=([3.75,7.5,15,30],15),
@@ -33,10 +32,9 @@ CONTRACT = {
 
 
 @pytest.fixture(autouse=True)
-def candidate_registration(monkeypatch):
+def public_registration():
     for name in TYPES:
         assert P.PROCESSORS[name]['implemented'] is PUBLIC[name]
-        monkeypatch.setitem(P.PROCESSORS[name], 'implemented', True)
 
 
 def render(name, x, p=None, sr=48000, seed=0, sid='probe'):
@@ -138,14 +136,16 @@ def test_composite_manual_expansion_and_records(name):
 
 
 @pytest.mark.parametrize('name', ['cassette','lofi'])
-@pytest.mark.xfail(strict=True,reason='BB-00 rejects the required empty neutral expansion; shared engine not edited')
 def test_composite_all_zero_engine_identity(name):
     module = importlib.import_module('mankomix.dspx.procs.'+name)
     p = dict(wobble=0,saturation=0,age=0,hiss_db=-120,narrow=0) if name == 'cassette' else dict.fromkeys(
         ['wobble','dirt','crunch','tone','noise','space'],0)
     assert module.expand(P.validate_params(name,p)) == []
     x = tone()
-    assert render(name,x,p).audio.tobytes() == x.tobytes()
+    result = render(name,x,p)
+    assert result.audio.tobytes() == x.tobytes()
+    assert result.steps[0]['composite_of']['type'] == name
+    assert result.steps[0]['expansion'] == []
 
 
 @pytest.mark.parametrize('style',['tape','vinyl','digital','radio'])
@@ -327,29 +327,25 @@ def test_nonlinear_nt2_nt3_nt4_nt5_vectors(name,limit):
         aliases = [spectral(render(name,tone(f),controls).audio,f)['alias_dbc'] for f in [5000,10000,15000]]
         small = spectral(render(name,tone(level=-60),controls).audio)['gain_db']+60
         vectors.append(dict(drive_db=drive,**v,alias=aliases,small_signal_gain_db=small))
-        if name == 'amp_basic':
-            assert max(aliases) <= limit
-            assert abs(small) <= .05
+        assert max(aliases) <= limit
+        assert abs(small) <= .05
     print('NONLINEAR_VECTORS',name,json.dumps(vectors,sort_keys=True))
-    # These are diagnostics; the exact unmet acceptance tests below stay xfail.
+    # Preserve the measured NT3 harmonic vectors alongside acceptance checks.
     assert all(np.isfinite(v['gain_db']) for v in vectors)
 
 
 @pytest.mark.parametrize('name',['tape'])
-@pytest.mark.xfail(strict=True,reason='Generic filtering/magnetic circuit has not met the flat NT4 small-signal requirement')
 def test_nt4_flat_small_signal(name):
     gain = spectral(render(name,tone(level=-60)).audio)['gain_db']+60
     assert abs(gain) <= .05
 
 
-@pytest.mark.xfail(strict=True,reason='The causal interstage filters leave a measured one-sample wet/dry mismatch (NT6)')
 def test_amp_nt6_active_impulse_alignment():
     x = np.zeros((6000,1));x[3000]=.1
     wet = render('amp_basic',x).audio
     assert H.latency(wet,reference=x,method='correlation') == 0
 
 
-@pytest.mark.xfail(strict=True,reason='Fixed 8x physical tape has not met -70 dBc at the maximum drive')
 def test_tape_nt2_maximum_drive():
     v = spectral(render('tape',tone(15000),dict(drive_db=24)).audio,15000)
     assert v['alias_dbc'] <= -70
@@ -427,13 +423,12 @@ def test_spring_rt60_seed_and_linearity(rt):
     print('SPRING_RT',rt,rows)
 
 
-def test_master_slot_and_unimplemented_public_contract(monkeypatch):
+def test_master_slot_and_implemented_public_contract():
     assert P.PROCESSORS['tape']['master_slot'] == P.PROCESSORS['saturator']['master_slot'] == 3
     for name in ['cassette','lofi','amp_basic','reverb_spring']:
         assert P.PROCESSORS[name]['master_slot'] is None
         with pytest.raises(ChainError):
             E.validate_chain([dict(type=name)],'master')
     for name,value in PUBLIC.items():
-        monkeypatch.setitem(P.PROCESSORS[name],'implemented',value)
-        if not value:
-            with pytest.raises(ChainError): E.validate_chain([dict(type=name)],'track')
+        assert P.PROCESSORS[name]['implemented'] is value
+        assert E.validate_chain([dict(type=name)],'track')

@@ -51,8 +51,17 @@ def validate_chain(chain, stage, legacy):
         if expander is None:
             raise ParamError(f"missing composite expander: {kind}")
         children = expander(copy.deepcopy(source["params"]))
-        if not isinstance(children, list) or not children:
-            raise ParamError(f"{kind}: composite expansion must be a nonempty list")
+        if not isinstance(children, list):
+            raise ParamError(f"{kind}: composite expansion must be a list")
+        if not children:
+            # Retain an audit record without inventing a processor child.
+            # The engine's bypass path preserves the input bits, including
+            # channel-targeted racks that would otherwise encode/decode M/S.
+            expanded.append(dict(clean, bypass=True))
+            metadata[sid] = {"composite_of": copy.deepcopy(raw), "expansion": []}
+            if "channel" in raw:
+                metadata[sid]["channel"] = raw["channel"]
+            continue
         for n, child in enumerate(children, 1):
             if not isinstance(child, dict) or child.get("type") not in P.PROCESSORS:
                 raise ParamError(f"{kind}: invalid composite child")
@@ -145,6 +154,6 @@ def seed_implementation(fn, kind, sid):
 
 
 def record_metadata(record, step):
-    for key in ("channel", "composite_of"):
+    for key in ("channel", "composite_of", "expansion"):
         if key in step:
             record[key] = copy.deepcopy(step[key])

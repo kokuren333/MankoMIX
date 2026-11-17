@@ -4,13 +4,37 @@ from scipy import signal
 from mankomix.dspx.params import _e, _f, _i
 
 
+def _models(v, missing, sr, order):
+    """Observed-only forward/reverse fits with well-conditioned sparse lags.
+
+    At high rates, fit a common recurrence across interleaved sample phases
+    near 8 kHz. Phase boundaries are masked, never joined as observations.
+    Expand its coefficients onto sparse original-rate lags; no audio is
+    resampled and every original observed sample remains an exact constant.
+    This avoids a nearly singular high-order difference operator at 96 kHz.
+    """
+    from mankomix.dspx.bb.ar import robust_observed_model
+    stride = max(1, round(sr/8000)) if sr > 16000 else 1
+    models = []
+    for data, holes in ((v, missing), (v[::-1], missing[::-1])):
+        if stride > 1:
+            data = np.concatenate([np.r_[data[k::stride], np.zeros(order)] for k in range(stride)])
+            holes = np.concatenate([np.r_[holes[k::stride], np.ones(order, bool)] for k in range(stride)])
+        model = robust_observed_model(data, holes, order)
+        expanded = np.zeros((len(model)-1)*stride+1)
+        expanded[::stride] = model
+        models.append(expanded)
+    return models
+
+
 def declip(x, sr, p, *, seed=0):
-    from mankomix.dspx.bb.ar import lsar_gap, observed_model
+    from mankomix.dspx.bb.ar import lsar_gap, observed_model, joint_lsar
     from mankomix.dspx.bb.restoration import runs, region, region_mix, finish
     lo, hi = region(len(x), sr, p)
     wet = x.copy()
     levels, count, solves = [], 0, []
     mask = np.zeros_like(x, dtype=bool)
+    unavailable = np.zeros_like(mask)
     if p['amount'] and hi > lo:
         for ch in range(x.shape[1]):
             v = x[:, ch]
@@ -33,6 +57,7 @@ def declip(x, sr, p, *, seed=0):
                 if level is None:
                     continue
                 candidate = u >= level*(1-1e-8)
+                unavailable[:, ch] |= candidate
                 for a, b in runs(candidate):
                     if a < lo or b > hi or not p['min_run'] <= b-a <= round(p['max_run_ms']*sr/1000):
                         continue
@@ -40,6 +65,27 @@ def declip(x, sr, p, *, seed=0):
             levels.append({'positive': thresholds[0], 'negative': thresholds[1]})
         for ch in range(x.shape[1]):
             spans = runs(mask[:, ch])
+            if p['oversample'] == 1 and spans:
+                # Fit only observed rows, including exclusion of short plateaus
+                # which are not eligible for output repair. Solve neighboring
+                # holes together rather than treating clipped neighbors as data.
+                size = max(round(.1*sr), 8*p['ar_order'])
+                for start in range(lo, hi, size):
+                    stop = min(hi, start+size)
+                    if not mask[start:stop, ch].any():
+                        continue
+                    a, b = max(0, start-size), min(len(x), stop+size)
+                    v, missing = x[a:b, ch], unavailable[a:b, ch]
+                    models = _models(v, missing, sr, p['ar_order'])
+                    positive, negative = levels[ch]['positive'], levels[ch]['negative']
+                    lower = np.where(v > 0, positive if positive is not None else -np.inf, -np.inf)
+                    upper = np.where(v < 0, -negative if negative is not None else np.inf, np.inf)
+                    estimate, info = joint_lsar(v, missing, models=models, lower=lower, upper=upper)
+                    selected = mask[start:stop, ch]
+                    wet[start:stop, ch][selected] = estimate[start-a:stop-a][selected]
+                    solves.append(info)
+                count += int(np.count_nonzero(mask[:, ch]))
+                continue
             model_cache = {}
             for i, (a, b) in enumerate(spans):
                 factor = p['oversample']
@@ -82,13 +128,15 @@ def declip(x, sr, p, *, seed=0):
 
 def _spec():
     from mankomix.dspx.bb.restoration import definition, rp_params
-    return definition('declip', rp_params()+[
+    spec = definition('declip', rp_params()+[
     _f('threshold_db', 'dBFS', -24, 0, 0, 'Zero: estimate positive and negative plateau levels.'),
-    _i('min_run', 'samples', 2, 32, 3, 'Minimum clipped run length.'),
+    _i('min_run', 'samples', 2, 32, 2, 'Minimum clipped run length.'),
     _f('max_run_ms', 'ms', .5, 20, 5, 'Maximum clipped run length.'),
     _i('ar_order', None, 8, 128, 48, 'Maximum AR model order.'),
     _e('headroom', ['auto', 'none'], 'auto', 'Attenuate reconstructed peaks above full scale.'),
     _e('oversample', [1, 2, 4], 1, 'Clean context interpolation factor.')])
+    spec['implemented'] = True
+    return spec
 
 
 def validate(p):

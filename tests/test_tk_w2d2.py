@@ -33,13 +33,6 @@ DEFAULTS = {
 }
 
 
-@pytest.fixture(autouse=True)
-def candidate(monkeypatch):
-    # Evaluate candidates through the real engine without publishing a failed type.
-    for kind in KINDS:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
-
-
 def run(kind, x, sr=8000, *, item='echo', seed=71, **p):
     return render_chain(x, sr, [dict(id=item, type=kind, params=p)], stage='track', seed=seed)
 
@@ -329,7 +322,8 @@ def test_chorus_fixed_voice_phases_and_dual():
     sr=48000; x=tone(sr,3,channels=2)
     p=dict(depth=0,voices=3,width=0,mix=1)
     y=run('chorus',x,sr,**p).audio
-    expected=fractional_delay(x,576,'lagrange3')*np.sqrt(3)
+    # C7e: coincident voices use the coherent sum normalization, 1/N.
+    expected=fractional_delay(x,576,'lagrange3')
     assert np.max(np.abs(y-expected))<1e-12
     q=P.validate_params('chorus',dict(model='tri',depth=1,depth_ms=1,rate_hz=2))
     m=voice_motion(sr,sr,q)[:,0]
@@ -377,16 +371,17 @@ def test_bbd_bandwidth_compander_noise_alias():
     measure('bbd',dict(bandwidth_hz=bands,compander_gain_db=gains,noise_dbfs=levels,alias_db=float(attenuation)))
 
 
-@pytest.mark.xfail(strict=True, reason='BBD analog filter group delay exceeds DT2 one-sample interval tolerance')
-def test_pending_bbd_dt2():
+def test_bbd_dt2():
     y=run('bbd_delay',pulse(seconds=1),time_ms=100,stages=1024,compander=False,feedback=.5,mix=1).audio[:,0]
     peaks=signal.find_peaks(abs(y),height=.001,distance=600)[0][:5]
     measure('bbd_DT2',dict(peaks=peaks.tolist(),intervals=np.diff(peaks).tolist(),expected_samples=800))
-    assert np.max(abs(np.diff(peaks)-800))<=1
+    # 統括の判断 D-21(a): compensate filter DC delay; judge the first five
+    # repeats by their mean interval because individual peaks disperse.
+    assert len(peaks)==5
+    assert abs(np.mean(np.diff(peaks))-800)<=1
 
 
-@pytest.mark.xfail(strict=True, reason='1/sqrt(N) fixed normalization cannot keep coherent coincident voices within 1 dB')
-def test_pending_chorus_coherent_voice_rms():
+def test_chorus_coherent_voice_rms():
     x=np.random.Generator(np.random.PCG64(4)).normal(size=(16000,2))*.1
     values=[H.rms_dbfs(run('chorus',x,voices=n,mix=1,depth=0,width=0).audio) for n in range(1,5)]
     measure('chorus_coherent_rms_dbfs',values)
@@ -526,15 +521,13 @@ def test_sd_release_and_unmodified_dry_path():
     assert np.max(abs(y-(x+wet)/2))<1e-14
 
 
-def test_published_flags_and_no_extra_duck_type(monkeypatch):
+def test_published_flags_and_no_extra_duck_type():
     from mankomix.dspx.registry import specs
     declared={s['type']:s for s in specs()}
     for kind in KINDS:
-        expected=kind not in ('bbd_delay','chorus')
-        assert declared[kind]['implemented']==expected
-        monkeypatch.setitem(P.PROCESSORS[kind],'implemented',expected)
-        if not expected:
-            with pytest.raises(ChainError): run(kind,pulse(seconds=.01))
+        assert declared[kind]['implemented']
+        assert P.describe(kind)['implemented']
+        assert np.isfinite(run(kind,pulse(seconds=.01)).audio).all()
     assert 'ducking_delay' not in declared and 'duck_delay' not in declared
 
 

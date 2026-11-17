@@ -18,7 +18,7 @@ def pitch_curve(x, sr, p, *, seed=0):
 
 SPECS = [dict(type='pitch_curve', description='Absolute-time pitch bend.',
     stages=['track', 'bus'], master_slot=None, offline_only=False,
-    backends=['reference'], implemented=False,
+    backends=['reference'], implemented=True,
     realtime=dict(block_ok=False, latency_samples=0, allocates=True,
         latency_rule='Fast: 0; standard: 40 ms lookahead, internally compensated; empty: 0.'),
     params=[

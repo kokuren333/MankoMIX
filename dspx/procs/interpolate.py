@@ -1,4 +1,4 @@
-"""T10-19 explicit AR gaps; spectral is reserved for the W3j implementation."""
+"""T10-19 explicit AR and full-band spectral gap interpolation."""
 import numpy as np
 from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _a, _b, _e, _f, _i
@@ -11,11 +11,7 @@ def validate(p):
     for a, b in zip(p['t0_s'], p['t1_s']):
         if b <= a or b-a > .500000000001 or a < last:
             raise ParamError('gaps must be ordered, nonoverlapping and at most 500 ms')
-        if p['method'] == 'spectral' or p['method'] == 'auto' and b-a > .030000000001:
-            raise ParamError('spectral interpolation is not implemented; select method=ar explicitly')
         last = b
-    if p['method'] == 'spectral':
-        raise ParamError('spectral interpolation is not implemented')
 
 
 def interpolate(x, sr, p, *, seed=0):
@@ -32,6 +28,12 @@ def interpolate(x, sr, p, *, seed=0):
             continue
         lo = max(0, a-ncontext, gaps[i-1][1] if i else 0)
         hi = min(len(x), b+ncontext, gaps[i+1][0] if i+1 < len(gaps) else len(x))
+        if p['method'] == 'spectral' or p['method'] == 'auto' and (b-a)/sr > .030000000001:
+            from mankomix.dspx.bb.spectral_repair import spectral_gap
+            y[a:b] = spectral_gap(x[lo:hi], sr, a-lo, b-lo,
+                                  context_ms=p['context_ms'], fade_ms=p['fade_ms'])
+            orders.append({'solver': 'spectral_replace_time'})
+            continue
         for ch in range(x.shape[1]):
             left, right = x[lo:a, ch], x[b:hi, ch]
             texture, unpredictability = innovation_gap(left, right, b-a, order=p['ar_order'])
@@ -57,7 +59,7 @@ def interpolate(x, sr, p, *, seed=0):
 
 
 SPECS = [{'type': 'interpolate', 'implemented': True,
-          'description': 'Offline explicit AR gap interpolation; spectral is unavailable.',
+          'description': 'Offline explicit AR or spectral gap interpolation.',
           'stages': ['track', 'bus'], 'master_slot': None, 'offline_only': True,
           'backends': ['reference'], 'realtime': {'block_ok': False, 'latency_samples': 0, 'allocates': True},
           'params': [_b('delta', False, 'Output the removed signal.'),

@@ -1,11 +1,11 @@
 """T09-02 single-operation spectral effect, on the unchanged BB-06 grid.
 
-Shift/scale use interpolated complex bins and analytic phase rotation for
-each destination frequency. Amplitudes blend in dB; transformed phase is
-used for every nonzero amount. Random events use PCG64 absolute event ids.
+Shift/scale translate analytic windowed components with a continuous
+phase accumulator; scale follows the instantaneous frequency of each peak.
+Amplitudes blend in dB; transformed phase is used for every nonzero amount. Random events use PCG64 absolute event ids.
 """
 import numpy as np
-from scipy import signal
+from scipy import fft, signal
 from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _f, _i, _e, _b
 
@@ -26,6 +26,74 @@ def event_rng(seed, parameter_seed, event):
         [int(seed) & ((1 << 64)-1), int(parameter_seed), int(event)])))
 
 
+def instantaneous_frequencies(a):
+    """Resolve the bin-center phase advance plus its wrapped residual, in Hz."""
+    phase = np.angle(a.spectra)
+    f = a.frequencies_hz
+    if len(phase) < 2:
+        return np.broadcast_to(f[None, :, None], phase.shape).copy()
+    expected = 2*np.pi*f*a.hop_samples/a.sr
+    residual = np.angle(np.exp(1j*(np.diff(phase, axis=0)-expected[None, :, None])))
+    hz = f[None, :, None]+residual*a.sr/(2*np.pi*a.hop_samples)
+    return np.concatenate([hz[:1], hz], axis=0)
+
+
+def _translate(a, p):
+    """Translate positive-frequency components without complex-bin cancellation.
+
+    Modulating each analytic frame includes both its absolute center phase
+    and its within-frame phase ramp. Scaling partitions the spectrum at the
+    valleys between peaks, retaining each component's window envelope rather
+    than stretching that envelope along with its carrier. Peak phase clocks
+    follow the closest peak in the preceding frame when bins change.
+    """
+    z, f = a.spectra, a.frequencies_hz
+    n = len(a.window)
+    local = (np.arange(n)-n//2)/a.sr
+    out = np.zeros_like(z)
+    hz = instantaneous_frequencies(a) if p['op'] == 'scale' else None
+    for ch in range(z.shape[2]):
+        previous = np.empty(0, dtype=int)
+        clocks = np.empty(0)
+        previous_shifts = np.empty(0)
+        for t in range(len(z)):
+            mag = abs(z[t, :, ch])
+            if not np.any(mag):
+                continue
+            if p['op'] == 'shift':
+                peaks = np.array([int(np.argmax(mag))])
+                boundaries = [0, len(f)]
+                shifts = np.array([p['shift_hz']])
+                rotations = 2*np.pi*shifts*a.samples[t]/a.sr
+            else:
+                peaks = signal.find_peaks(mag, height=np.max(mag)*.001)[0]
+                if not len(peaks):
+                    peaks = np.array([int(np.argmax(mag))])
+                # Bound work for dense/noisy spectra while retaining all bins.
+                if len(peaks) > 32:
+                    peaks = np.sort(peaks[np.argsort(mag[peaks], kind='stable')[-32:]])
+                boundaries = [0]+[int(left+np.argmin(mag[left:right+1]))
+                                  for left, right in zip(peaks[:-1], peaks[1:])]+[len(f)]
+                shifts = (p['ratio']-1)*hz[t, peaks, ch]
+                rotations = np.zeros(len(peaks))
+                if len(previous):
+                    nearest = np.argmin(abs(peaks[:, None]-previous[None, :]), axis=1)
+                    rotations = clocks[nearest]+np.pi*(shifts+previous_shifts[nearest])*a.hop_samples/a.sr
+                previous, clocks, previous_shifts = peaks, rotations, shifts
+            for j, (shift, rotation) in enumerate(zip(shifts, rotations)):
+                positive = np.zeros((n,), dtype=np.complex128)
+                lo, hi = boundaries[j:j+2]
+                indices = np.arange(lo, hi)
+                indices = indices[(f[indices]+shift >= 0) & (f[indices]+shift <= a.sr/2)]
+                positive[indices] = z[t, indices, ch]*2
+                positive[0] *= .5
+                positive[n//2] *= .5
+                analytic = fft.ifft(positive, workers=1)
+                frame = (analytic*np.exp(1j*(rotation+2*np.pi*shift*local))).real
+                out[t, :, ch] += fft.rfft(frame, workers=1)
+    return out
+
+
 def transform(a, p, *, seed=0):
     """Return transformed complex spectra; bins outside the band are exact."""
     from mankomix.dspx.bb.stft import smooth_frequency, band_weights
@@ -38,7 +106,7 @@ def transform(a, p, *, seed=0):
     if op == 'blur' and len(z):
         alpha = np.exp(-a.hop_samples/(a.sr*p['time_ms']*.001))
         outmag, _ = signal.lfilter([1-alpha], [1, -alpha], mag, axis=0,
-                                   zi=np.zeros_like(mag[:1]))
+                                   zi=alpha*mag[:1])
     elif op == 'gate':
         threshold = np.max(mag[:, inside], axis=1, keepdims=True, initial=0)*10**(p['threshold_db']/20)
         keep = mag >= threshold
@@ -46,17 +114,8 @@ def transform(a, p, *, seed=0):
             keep = ~keep
         outmag = np.where(keep, mag, 0)
     elif op in ('shift', 'scale'):
-        source = f-p['shift_hz'] if op == 'shift' else f/p['ratio']
-        coord = source/(f[1]-f[0])
-        lower = np.floor(coord).astype(int)
-        frac = coord-lower
-        valid = (coord >= 0) & (coord <= len(f)-1)
-        lo = np.clip(lower, 0, len(f)-1)
-        hi = np.clip(lower+1, 0, len(f)-1)
-        mapped = z[:, lo]*(1-frac)[None, :, None]+z[:, hi]*frac[None, :, None]
-        mapped[:, ~valid] = 0
-        outmag = abs(mapped)
-        outphase = np.angle(mapped)+2*np.pi*time[:, None, None]*(f-source)[None, :, None]
+        mapped = _translate(a, p)
+        outmag, outphase = abs(mapped), np.angle(mapped)
     elif op == 'scramble':
         bins = np.flatnonzero(inside)
         width = max(1, round(p['block_hz']/(f[1]-f[0])))

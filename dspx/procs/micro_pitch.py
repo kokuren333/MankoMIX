@@ -19,7 +19,7 @@ def micro_pitch(x, sr, p, *, seed=0):
 
 SPECS = [dict(type='micro_pitch', description='Two detuned rotating delay voices.',
     stages=['track', 'bus'], master_slot=None, offline_only=False,
-    backends=['reference'], implemented=False,
+    backends=['reference'], implemented=True,
     realtime=dict(block_ok=False, latency_samples=0, allocates=True),
     params=[
         _f('left_cents', 'cents', -50, 50, -9, 'Left detuning.'),

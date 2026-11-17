@@ -158,7 +158,6 @@ def test_chorus_crosses_zero_with_feedback_and_replayed_history(sr, feedback):
     from mankomix.dspx.procs.chorus import voice_motion, chorus
     delays = voice_motion(len(x), sr, p)
     assert np.any(delays == 0) and np.any(delays > 0)
-    # Chorus remains private because of the separate contradictory RMS spec.
     y, _, _ = chorus(x, sr, p)
     repeat, _, _ = chorus(x, sr, p)
     assert y.tobytes() == repeat.tobytes()
@@ -217,7 +216,7 @@ def test_infinite_clock_limit_full_scale_sixty_second_tail(feedback):
     measure('bbd_zero_limit_tail', feedback=feedback, peak=float(np.max(np.abs(y))), tail=tail)
 
 
-def test_coherent_voice_rms_conflict_matches_closed_form():
+def test_coherent_voice_rms_after_correlation_normalization():
     from mankomix.dspx.procs.chorus import chorus
     x = np.random.Generator(np.random.PCG64(4)).normal(0, .1, (16000, 2))
     outputs = []
@@ -225,7 +224,7 @@ def test_coherent_voice_rms_conflict_matches_closed_form():
         p = P.validate_params('chorus', dict(voices=voices, depth=0, width=0, mix=1))
         outputs.append(chorus(x, 8000, p)[0])
     ratios = [float(np.sqrt(np.mean(y*y)/np.mean(outputs[0]**2))) for y in outputs]
-    assert np.allclose(ratios, np.sqrt(np.arange(1, 5)), atol=1e-14)
-    assert not P.describe('chorus')['implemented']
-    assert not P.describe('bbd_delay')['implemented']
-    measure('coherent_voice_conflict', gain_db=(20*np.log10(ratios)).tolist())
+    assert np.allclose(ratios, 1, atol=1e-14)
+    assert P.describe('chorus')['implemented']
+    assert P.describe('bbd_delay')['implemented']
+    measure('coherent_voice_gain', gain_db=(20*np.log10(ratios)).tolist())

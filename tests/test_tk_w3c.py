@@ -1,4 +1,4 @@
-"""W3c measured restoration acceptance; unmet requirements stay strict xfail."""
+"""W3c measured restoration acceptance, including C7c closure."""
 import json
 import numpy as np
 import pytest
@@ -11,20 +11,6 @@ from mankomix.dspx.procs import declick as C
 from tests import toolimpl_harness as H
 
 TYPES = ('declick', 'declip', 'interpolate')
-
-
-@pytest.fixture(autouse=True)
-def diagnostic_enable(monkeypatch, request):
-    """Only this test module can render an honestly unpublished implementation."""
-    for kind in ('declick', 'declip'):
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
-    params = getattr(getattr(request.node, 'callspec', None), 'params', {})
-    name = request.node.originalname
-    unmet = (name == 'test_declick_rp4' and params.get('material') == 'vowel' and params.get('kind') in ('crackle', 'mouth') or
-             name == 'test_click_200_detection_and_error' and params.get('material') == 'vowel' or
-             name == 'test_declip_sdr_levels_constraints' and params.get('depth') == -6 and params.get('material') in ('vowel', 'mix'))
-    if unmet:
-        request.node.add_marker(pytest.mark.xfail(strict=True, reason='Measured spec acceptance remains unmet; type stays unpublished.'))
 
 
 def render(kind, x, sr, params=None):
@@ -60,15 +46,15 @@ def test_kind_default_helper_retains_explicit_values():
 
 def test_publication_and_measured_default():
     from mankomix.dspx.procs import declip as D, interpolate as I
-    assert not C.SPECS[0]['implemented'] and not D.SPECS[0]['implemented']
+    assert C.SPECS[0]['implemented'] and D.SPECS[0]['implemented']
+    assert P.PROCESSORS['declick']['implemented'] and P.PROCESSORS['declip']['implemented']
     assert I.SPECS[0]['implemented'] and P.PROCESSORS['interpolate']['implemented']
     assert P.validate_params('interpolate', {}) == dict(
         delta=False, t0_s=[], t1_s=[], method='auto', ar_order=512, context_ms=300., fade_ms=2.)
     assert P.validate_params('declip', {}) == dict(amount=1., delta=False, start_s=0., end_s=0.,
-        threshold_db=0., min_run=3, max_run_ms=5., ar_order=48, headroom='auto', oversample=1)
+        threshold_db=0., min_run=2, max_run_ms=5., ar_order=48, headroom='auto', oversample=1)
 
 
-@pytest.mark.xfail(strict=True, reason='Engine has no generic conditional-default resolver; declick remains unpublished.')
 def test_engine_kind_defaults():
     for kind, defaults in C.KIND_DEFAULTS.items():
         p = P.validate_params('declick', {'kind': kind})
@@ -100,10 +86,6 @@ def test_declared_bounds_defaults_and_execution(kind):
             if spec['id'] == 'start_s' and value:
                 params['end_s'] = value  # reject the empty end-of-domain interval
                 with pytest.raises(ParamError):
-                    P.validate_params(kind, params)
-                continue
-            if kind == 'interpolate' and spec['id'] == 'method' and value == 'spectral':
-                with pytest.raises(ParamError, match='spectral'):
                     P.validate_params(kind, params)
                 continue
             if kind == 'declick' and spec['id'] == 'band_lo_hz' and value:
@@ -182,7 +164,6 @@ def test_click_200_detection_and_error(material):
     assert found >= 190 and false <= 5 and max(errors) <= -30
 
 
-@pytest.mark.xfail(strict=True, reason='Dense crackle removal below 80%; declick remains unpublished.')
 def test_crackle_dense_removal_and_clean_samples():
     sr = 16000
     x = tones(sr, 1.2)
@@ -201,7 +182,6 @@ def test_crackle_dense_removal_and_clean_samples():
     assert efficiency >= .8 and change <= -50
 
 
-@pytest.mark.xfail(strict=True, reason='Mouth repair error exceeds -30 dBFS; declick remains unpublished.')
 def test_mouth_band_clicks_and_silence_gating():
     sr = 16000
     x = np.r_[np.zeros((sr//2, 1)), H.vowel(sr=sr, seconds=4.3), np.zeros((sr//2, 1))]
@@ -213,13 +193,17 @@ def test_mouth_band_clicks_and_silence_gating():
         z[a:a+n, 0] += .3*np.sin(2*np.pi*(2200+i%8*700)*u)*np.hanning(n)
     z[1600:1664, 0] += .3*np.sin(2*np.pi*4000*np.arange(64)/sr)*np.hanning(64)
     p = C.resolve_kind_params({'kind': 'mouth'})
-    y = render('declick', z, sr, p).audio
+    result = render('declick', z, sr, p)
+    y = result.audio
     changed = np.any(z != y, axis=1)
     detected = sum(changed[a:a+round(.006*sr)].any() for a in positions)
     errors = [H.rms_dbfs(y[a:a+round(.006*sr)]-x[a:a+round(.006*sr)]) for a in positions]
-    print('MOUTH200', detected, max(errors))
+    events = result.steps[0]['stats']['detected_events']
+    false = sum(not any(e['start_s']*sr < a+round(.006*sr) and
+                        (e['start_s']+e['length_s'])*sr > a for a in positions) for e in events)
+    print('MOUTH200', detected, max(errors), 'false', false)
     assert y[:3200].tobytes() == z[:3200].tobytes()
-    assert detected >= 190 and max(errors) <= -30
+    assert detected >= 190 and false <= 5 and max(errors) <= -30
 
 
 def test_declick_transients_and_long_event():
@@ -327,8 +311,7 @@ def test_interpolation_noise_rms(ms):
 
 
 @pytest.mark.parametrize('bad', [dict(t0_s=[0], t1_s=[]), dict(t0_s=[0], t1_s=[.501]),
-    dict(t0_s=[.1], t1_s=[.1]), dict(t0_s=[.1, .15], t1_s=[.2, .3]),
-    dict(t0_s=[0], t1_s=[.031]), dict(method='spectral')])
+    dict(t0_s=[.1], t1_s=[.1]), dict(t0_s=[.1, .15], t1_s=[.2, .3])])
 def test_invalid_gaps(bad):
     with pytest.raises(ParamError):
         P.validate_params('interpolate', bad)

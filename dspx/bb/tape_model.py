@@ -10,8 +10,12 @@ over linearly interpolated field samples, initial M=H=0, float64 (n,ch).
 The caller supplies 8x oversampling. No adaptive step or Newton solver.
 loss_fir(sr, speed=15, gap_loss=.5, bias=.5) returns a symmetric FIR.
 head_bump_sos(sr, speed, gain_db) returns a generic speed-scaled peak.
-emphasis(x, sr, speed, inverse=False) is an exactly paired first-order shelf;
-its chosen time constants are generic, not a verified IEC implementation.
+emphasis(x, sr, speed, inverse=False) is the original generic shelf.
+recording_eq(sr, speed) supplies an IEC-time-constant shelf pair for tape:
+3.75 ips: 3180/90 us, 7.5: infinity/70, 15: infinity/35,
+30: infinity/17.5. A 2 Hz zero and an ultrasonic pole regularize the
+DC/Nyquist singularities. Time constants: Pretto et al., Audio Mostly
+2021, Table 1, doi:10.1145/3478384.3478409 (paper only).
 """
 import math
 import numpy as np
@@ -29,10 +33,14 @@ def _langevin(q):
 
 def magnetize(x, saturation=.5, bias=.5, hysteresis=True):
     x = np.asarray(x, dtype=np.float64)
-    strength = .12+2.8*saturation
+    # Dimensionless field calibration keeps the entire public drive range
+    # resolved at the fixed 8x RK4 rate, rather than driving into a nearly
+    # discontinuous magnetic transition. No input-dependent gain fitting.
+    strength = .006+.12*saturation
     # Low bias creates a smooth dead-zone, without a discontinuous sign step.
     dead = max(0., .5-bias)*.8
-    field = strength*(x-dead*.015*np.tanh(x/.015))
+    field = strength*x
+    field = field-dead*np.tanh(field)
     if not hysteresis:
         slope = strength*(1-dead)
         return np.tanh(field)/slope
@@ -40,7 +48,7 @@ def magnetize(x, saturation=.5, bias=.5, hysteresis=True):
     # 8x RK4 steps stable even for full-scale near-Nyquist excitation.
     field = 4*np.tanh(field/4)
     a, alpha = 1., .001
-    c, k = .96-.5*max(0., .5-bias), 4.+.5*max(0., .5-bias)
+    c, k = .96-.05*max(0., .5-bias), 4.+.5*max(0., .5-bias)
     slope = c/(3*a-c*alpha)*strength*(1-dead)
     out = np.empty_like(x)
 
@@ -97,3 +105,31 @@ def emphasis(x, sr, speed, inverse=False):
     tau = {3.75: 120e-6, 7.5: 90e-6, 15: 50e-6, 30: 35e-6}[speed]
     b, a = signal.bilinear([tau, 1.], [tau*.5, 1.], fs=sr)
     return signal.lfilter(a if inverse else b, b if inverse else a, x, axis=0)
+
+
+def recording_eq(sr, speed):
+    """Stable reciprocal recording/playback coefficients, unity at 1 kHz.
+
+    H(s) = (1+s*tau_hi)/(1+s*tau_ultrasonic), with an additional
+    (s+w_2Hz)/(s+1/tau_low) for the finite LF constant at 3.75 ips.
+    Both regularizers are model choices, not extra IEC time constants.
+    The analog map is bilinear at the supplied operating sample rate.
+    """
+    low, high = {3.75: (3180e-6, 90e-6), 7.5: (None, 70e-6),
+                 15: (None, 35e-6), 30: (None, 17.5e-6)}[speed]
+    b, a = np.array([high, 1.]), np.array([1/(2*np.pi*.45*sr), 1.])
+    if low is not None:
+        b = np.polymul(b, [1., 2*np.pi*2])
+        a = np.polymul(a, [1., 1/low])
+    b, a = signal.bilinear(b, a, fs=sr)
+    _, h = signal.freqz(b, a, worN=[1000.], fs=sr)
+    return b/abs(h[0]), a
+
+
+def playback_makeup(sr, speed, gap_loss, bias, head_bump_db):
+    """Fixed 1 kHz loss/bump/DC recovery derived from filter coefficients."""
+    _, loss = signal.freqz(loss_fir(sr, speed, gap_loss, bias), worN=[1000.], fs=sr)
+    _, bump = signal.sosfreqz(head_bump_sos(sr, speed, head_bump_db), worN=[1000.], fs=sr)
+    _, dc = signal.sosfreqz(signal.butter(1, 5, 'highpass', fs=sr, output='sos'),
+                           worN=[1000.], fs=sr)
+    return float(1/abs(loss[0]*bump[0]*dc[0]))

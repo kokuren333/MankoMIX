@@ -40,7 +40,7 @@ def expand(p):
     return result
 
 
-SPECS = [dict(type='lofi', implemented=False, composite=True, description='Fixed creative degradation rack.',
+SPECS = [dict(type='lofi', implemented=True, composite=True, description='Fixed creative degradation rack.',
     stages=['track','bus'], master_slot=None, offline_only=False, backends=['reference'], channel_ok=False,
     realtime=dict(block_ok=False, allocates=True, latency_samples='variable',
                   latency_rule='Expanded children declare and compensate their latency.'),

@@ -7,9 +7,11 @@ tone_coefficients(sr,p) bilinear-transforms that transfer to digital SOS.
 triode(x,k) is normalized biased tanh with a smooth positive grid shunt.
 reference_makeup(sr,stages=2) returns a fixed central-circuit 1 kHz
 recovery gain derived from the analog/digital filter transfer functions.
+alignment_samples(...) returns the circuit-derived integer peak delay.
 """
 import numpy as np
 from scipy import signal
+from functools import lru_cache
 
 
 def tone_transfer(p):
@@ -57,3 +59,33 @@ def reference_makeup(sr, stages=2):
     _, h1 = signal.sosfreqz(hp,worN=[1000.],fs=sr)
     _, h2 = signal.sosfreqz(lp,worN=[1000.],fs=sr)
     return float(1/abs(tone[0]*(h1[0]*h2[0])**stages))
+
+
+@lru_cache(maxsize=128)
+def alignment_samples(sr, factor, stages, bright, bass, mid, treble, tonestack, presence_db):
+    """Integer peak delay of the linearized circuit, independent of audio.
+
+    Keep the causal circuit phase and advance its wet output offline by
+    this delay. The compensated resampler is included in the reference
+    impulse, so rounding is performed only at the input sample rate.
+    """
+    from mankomix.dspx.bb import nonlinear as N
+    rate = sr*factor
+    p = dict(bass=bass, mid=mid, treble=treble, tonestack=tonestack)
+    def linear(u):
+        wet = u.copy()
+        if bright:
+            low = N.filter_audio(wet, rate, 1600, order=1)
+            wet = low+1.6*(wet-low)
+        for _ in range(stages):
+            wet = N.filter_audio(wet, rate, 12, 'highpass', 1)
+            wet = N.filter_audio(wet, rate, 14000, order=1)
+        return signal.sosfilt(tone_coefficients(rate, p), wet, axis=0)
+    pulse = np.zeros((2048, 1)); pulse[512] = 1.
+    response = N.precision_oversampled(pulse, factor, linear)
+    if presence_db:
+        from mankomix.dsp.reference.filters import rbj_biquad
+        response = signal.sosfilt(rbj_biquad('high_shelf', 3000, presence_db, 1, sr), response, axis=0)
+    response = N.filter_audio(response, sr, 20, 'highpass', 2)
+    response -= np.mean(response, axis=0)
+    return int(np.argmax(abs(response[:, 0])))-512

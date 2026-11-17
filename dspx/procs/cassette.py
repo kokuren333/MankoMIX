@@ -25,7 +25,7 @@ def expand(p):
     return result
 
 
-SPECS = [dict(type='cassette', implemented=False, composite=True,
+SPECS = [dict(type='cassette', implemented=True, composite=True,
     description='Fixed cassette degradation composite.', stages=['track','bus'], master_slot=None,
     offline_only=False, backends=['reference'], channel_ok=False,
     realtime=dict(block_ok=False, allocates=True, latency_samples='variable',

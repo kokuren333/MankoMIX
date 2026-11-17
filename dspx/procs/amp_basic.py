@@ -6,7 +6,7 @@ from mankomix.dspx.params import _f, _i, _b, _e
 
 def amp_basic(x, sr, p, *, seed=0):
     from mankomix.dspx.bb import nonlinear as N
-    from mankomix.dspx.bb.amp_circuit import triode, tone_coefficients, reference_makeup
+    from mankomix.dspx.bb.amp_circuit import triode, tone_coefficients, reference_makeup, alignment_samples
     output = p['output_db']-(p['drive_db'] if p['auto_gain'] else 0)
     if not len(x) or p['mix'] == 0 or (p['drive_db'] == 0 and p['power_drive_db'] == 0):
         return N.mix_output(x, x, 0, output), sr, {'latency_samples': 0}
@@ -39,16 +39,25 @@ def amp_basic(x, sr, p, *, seed=0):
     if p['presence_db']:
         from mankomix.dsp.reference.filters import rbj_biquad
         wet = signal.sosfilt(rbj_biquad('high_shelf', 3000, p['presence_db'], 1, sr), wet, axis=0)
-    wet = N.dc_block(wet, sr)
+    # A double DC zero removes the area of the asymmetric turn-on
+    # transient; subtracting a one-pole record mean alone leaves a
+    # constant offset in otherwise settled portions of long records.
+    wet = N.filter_audio(wet, sr, 20, 'highpass', 2)
+    wet -= np.mean(wet, axis=0)
+    advance = alignment_samples(sr, factor, *(p[k] for k in (
+        'stages', 'bright', 'bass', 'mid', 'treble', 'tonestack', 'presence_db')))
+    if advance > 0:
+        wet = np.pad(wet[advance:], ((0, min(advance, len(wet))), (0, 0)))
     return N.mix_output(x, wet, p['mix'], output), sr, dict(
         latency_samples=0, internal_oversample=factor, latency_compensated=True,
+        circuit_delay_samples=advance,
         sag_tau_ms=80., sag_max_db=float(np.max(sag_db, initial=0.)), cabinet_included=False)
 
 
-SPECS = [dict(type='amp_basic', implemented=False, description='Deterministic generic amplifier.',
+SPECS = [dict(type='amp_basic', implemented=True, description='Deterministic generic amplifier.',
     stages=['track'], master_slot=None, offline_only=False, backends=['reference'], channel_ok=True,
     realtime=dict(block_ok=False, allocates=True, latency_samples=0,
-                  latency_rule='Polyphase resampling compensated offline; circuit phase retained.'),
+                  latency_rule='Resampling and integer circuit peak delay compensated offline; residual circuit phase retained.'),
     params=[_f('drive_db','dB',0,60,24,'Preamp drive.'), _f('output_db','dB',-36,12,0,'Output gain.'),
         _b('auto_gain',False,'Subtract drive_db.'), _f('mix',None,0,1,1,'Aligned mix.'),
         _e('oversample',[1,2,4,8],8,'Operating rate.'), _i('stages',None,1,4,2,'Amplifying stages.'),

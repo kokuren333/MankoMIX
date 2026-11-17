@@ -360,7 +360,6 @@ def test_freeze_interval_validation_and_exact_outside(enabled):
             P.validate_params('spectral_freeze', bad)
 
 
-@pytest.mark.xfail(strict=True, reason='Specified center-bin advance detunes off-bin tones by more than 1 Hz.')
 def test_freeze_advance_frequency(enabled):
     sr = 16000
     x = H.sine(1000, sr=sr, seconds=3)
@@ -371,7 +370,6 @@ def test_freeze_advance_frequency(enabled):
     assert abs(f-1000) <= 1
 
 
-@pytest.mark.xfail(strict=True, reason='Independent frame phases exceed the specified 0.5 dB band stability.')
 def test_freeze_30s_spectrum_and_no_loop(enabled):
     sr = 8000
     x = H.pink_noise(-20, sr=sr, seconds=31, seed=14)
@@ -398,9 +396,11 @@ def test_freeze_30s_spectrum_and_no_loop(enabled):
     assert peak < .2
 
 
+# 統括の判断 D-21(c): scramble permutes bins as its intended effect;
+# stationary-sine envelope preservation is not an acceptance condition.
 @pytest.mark.parametrize('op', [pytest.param(op, marks=pytest.mark.xfail(strict=True,
-    reason='Measured active-effect envelope ripple exceeds S4; phase robotization intentionally modulates.'))
-    if op != 'gate' else op for op in OPS])
+    reason='Remaining active-effect S4 miss; see C7b report.'))
+    if op in ('contrast', 'phase', 'smear_freq') else op for op in OPS if op != 'scramble'])
 def test_fx_s4_measured_ripple(enabled, op):
     sr = 48000
     x = H.sine(1000, sr=sr, seconds=3)

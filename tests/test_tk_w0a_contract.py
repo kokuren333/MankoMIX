@@ -239,7 +239,7 @@ def test_composite_expansion_records_ids_source_and_channel(composite):
     assert all(s["bypass"] and "composite_of" in s for s in bypass.steps)
 
 
-@pytest.mark.parametrize("children", [None, [], [None], [{"type": "missing"}],
+@pytest.mark.parametrize("children", [None, [None], [{"type": "missing"}],
     [{"type": "gain", "params": {"gain_db": 100}}], [{"type": "gain", "params": {"unknown": 1}}],
     [{"type": "w0a_composite"}], [{"type": "gain", "channel": "bad"}],
     [{"type": "dither"}, {"type": "gain"}]])
@@ -248,6 +248,36 @@ def test_composite_rejects_invalid_expansions(composite, children):
     table[kind] = lambda p: children
     with pytest.raises((ParamError, ChainError)):
         E.validate_chain([{"type": kind}], "track")
+
+
+@pytest.mark.parametrize("channel", [None, "stereo", "mid", "side", "left", "right"])
+@pytest.mark.parametrize("bypass", [False, True])
+def test_composite_empty_expansion_is_identity_and_recorded(composite, channel, bypass):
+    kind, table = composite
+    table[kind] = lambda p: []
+    source = {"id": "empty", "type": kind, "params": {"gain_db": -12}, "bypass": bypass}
+    if channel is not None:
+        source["channel"] = channel
+    original = copy.deepcopy(source)
+    x = np.random.Generator(np.random.PCG64(31)).normal(0, .1, (128, 2))
+    x[0] = [-0., 0.]
+    steps = E.validate_chain([source], "track")
+    assert len(steps) == 1
+    assert steps[0]["id"] == "empty" and steps[0]["type"] == kind
+    assert steps[0]["composite_of"] == source and steps[0]["expansion"] == []
+    result = _render([source], x)
+    assert result.audio.tobytes() == x.tobytes()
+    assert result.steps[0]["composite_of"] == source
+    assert result.steps[0]["expansion"] == [] and result.steps[0]["backend"] is None
+    # Its position is preserved between real processors, without a child ID.
+    chain = [{"type": "gain", "params": {"gain_db": -3}}, source,
+             {"type": "gain", "params": {"gain_db": 2}}]
+    assert _render(chain, x).audio.tobytes() == _render([chain[0], chain[2]], x).audio.tobytes()
+    assert source == original
+    with pytest.raises(ChainError, match="duplicate"):
+        E.validate_chain([source, source], "track")
+    with pytest.raises(ParamError):
+        E.validate_chain([{**source, "params": {"gain_db": 100}}], "track")
 
 
 def test_composite_checks_source_ranges_and_final_chain_constraints(composite):
@@ -283,18 +313,17 @@ def test_describe_and_existing_schema_unchanged_when_extensions_removed(register
         assert current == {t: _bytes(P.describe(t)) for t in original}
     assert current == {t: _bytes(s) for t, s in original.items()}
     base = P._graph_schema_base()
+    patches = registry.schema_patches()
+    for variant in base["items"]["oneOf"]:
+        kind = variant["properties"]["type"]["const"]
+        if kind in patches:
+            assert kind not in original
+            patches[kind](variant["properties"]["params"])
     schema = P.graph_schema()
     assert schema["x-schema-version"] == P.SCHEMA_VERSION == 1
     for variant in schema["items"]["oneOf"]:
         assert "channel" in variant["properties"]
         variant["properties"].pop("channel")
-        if variant["properties"]["type"]["const"] == "curve_shaper":
-            from mankomix.dspx.procs.curve_shaper import target_schema
-            params = variant["properties"]["params"]
-            assert params.pop("allOf") == target_schema()
-            for endpoint, default in (("lo", 200), ("hi", 8000)):
-                assert "default" not in params["properties"][endpoint]
-                params["properties"][endpoint]["default"] = default
     assert _bytes(schema) == _bytes(base)
 
 

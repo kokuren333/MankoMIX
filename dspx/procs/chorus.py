@@ -89,6 +89,33 @@ def voice_motion(frames, sr, p, *, seed=0, start_sample=0):
     return np.stack(delays, axis=2)
 
 
+def mix_voices(voices, routing, sr):
+    """Normalize positive voice correlation with a causal 50 ms estimator.
+
+    The denominator is sqrt(sum(g_i^2)+2*sum(g_i*g_j*max(rho_ij,0))).
+    It reduces to routing-energy normalization for uncorrelated voices and
+    to sum(g_i) for coincident voices. Negative correlation retains its
+    intentional cancellation; gain never exceeds the uncorrelated gain.
+    History replay reproduces the estimator without dependence on the future.
+    """
+    from scipy import signal
+    wet = sum(voice*gain for voice, gain in zip(voices, routing))
+    if len(voices) == 1 or not len(wet):
+        return wet
+    decay = np.exp(-1/(.05*sr))
+    def smooth(values):
+        return signal.lfilter([1-decay], [1, -decay], values, axis=0)
+    powers = [smooth(voice*voice) for voice in voices]
+    energy = np.broadcast_to(np.sum(routing*routing, axis=0), wet.shape).copy()
+    for i in range(len(voices)):
+        for j in range(i):
+            norm = np.sqrt(powers[i]*powers[j])
+            correlation = np.divide(smooth(voices[i]*voices[j]), norm,
+                                    out=np.zeros_like(wet), where=norm > 0)
+            energy += 2*routing[i]*routing[j]*np.clip(correlation, 0, 1)
+    return wet/np.sqrt(energy)
+
+
 def chorus(x, sr, p, *, seed=0):
     from mankomix.dspx.bb.delayfx import feedback_audio, finish
     from mankomix.dspx.bb.delayline import LoopFilter
@@ -99,7 +126,7 @@ def chorus(x, sr, p, *, seed=0):
     dry = np.repeat(x, 2, axis=1) if x.shape[1] == 1 else x
     motion = voice_motion(len(x), sr, p, seed=seed)
     count = motion.shape[2]
-    wet = np.zeros_like(dry)
+    voices = []
     for v in range(count):
         d = motion[:, :, v]
         if p['model']=='bbd':
@@ -134,15 +161,12 @@ def chorus(x, sr, p, *, seed=0):
         else:
             voice = feedback_audio(dry, d, p['feedback'])
         # Symmetric cross-distribution. Width=0 preserves the centred sum.
-        pan = 0 if count == 1 else 2*v/(count-1)-1
-        gains = np.array([1-p['width']*max(0,pan), 1+p['width']*min(0,pan)])
-        wet += voice*gains
-    # Fixed energy normalization, with no signal-dependent gain riding.
+        voices.append(voice)
     routing = np.array([[1-p['width']*max(0, 0 if count==1 else 2*v/(count-1)-1),
                          1+p['width']*min(0, 0 if count==1 else 2*v/(count-1)-1)] for v in range(count)])
-    wet /= np.sqrt(np.sum(routing*routing, axis=0))
+    wet = mix_voices(voices, routing, sr)
     wet = LoopFilter(sr, 2, min(p['lowcut_hz'], .49*sr), p['highcut_hz'])(wet)
-    return finish(x, wet, sr, p, dict(voices_effective=count, voice_normalization='inverse_sqrt_routing_energy'))
+    return finish(x, wet, sr, p, dict(voices_effective=count, voice_normalization='positive_correlation_energy'))
 
 
 def _declarations():
@@ -155,7 +179,7 @@ def _declarations():
         _f('feedback', None, -.5, .5, 0, 'Signed per-voice feedback.'),
         _f('highcut_hz', 'Hz', 0, 20000, 0, 'Wet lowpass.'),
         _f('lowcut_hz', 'Hz', 0, 1000, 0, 'Wet highpass.'),
-        _f('width', None, 0, 1, 1, 'Voice stereo distribution.')], channel=False)]
+        _f('width', None, 0, 1, 1, 'Voice stereo distribution.')], channel=False, implemented=True)]
 
 
 SPECS = _declarations()
