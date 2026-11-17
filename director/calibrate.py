@@ -74,7 +74,7 @@ def strong_end(op: str, ptype: str | None, key: str, lo: float, hi: float, param
 
 def knobs(doc: dict, proj=None) -> list[dict]:
     """Every range parameter of the direction: id, move, key, range, select value, strong / weak end."""
-    from .direction import _array_param_ids, EDIT_OPS, resolve_params
+    from .direction import _array_param_ids, EDIT_OPS, resolve_params, X, OPS
     out = []
     items = proj.floor_items() if proj is not None else {}
     tracks = proj.tracks() if proj is not None else {}
@@ -98,7 +98,7 @@ def knobs(doc: dict, proj=None) -> list[dict]:
     for m in doc["block"].get("moves") or []:
         op = m.get("op")
         params = m.get("params") or {}
-        if op in EDIT_OPS:   # edit parameters are never calibration knobs (§1.3)
+        if op in EDIT_OPS or op in X.specs(OPS):   # extension params are owned by their validator/planner
             continue
         if op == "place":    # place parameters keep their select value (FBREVIEW FR-5)
             continue

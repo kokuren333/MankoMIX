@@ -558,6 +558,43 @@ def revert(root: str | Path, dir_id: str, move: str | None = None, *, actor: str
     if not lp.is_file():
         raise EditError(f"no edit ledger for {dir_id} in this project")
     ledger = json.loads(lp.read_text(encoding="utf-8"))
+    extension_rows = {**ledger.get('derived', {}), **ledger.get('clip_edits', {})}
+    ordered = ledger.get('xop_order') or []
+    if ordered and (move in ordered or move is None and (not ledger.get('moves') or any(
+            extension_rows[mid].get('status') == 'applied' for mid in ordered))):
+        from . import xops
+        try:
+            result = xops.revert_edits(root, dir_id, move, actor=actor)
+        except ValueError as exc:
+            raise EditError(str(exc)) from exc
+        if move is not None or not ledger.get('moves'):
+            return result
+        legacy = revert(root, dir_id, actor=actor)
+        legacy['derived_reverted_moves'] = [mid for mid in result['reverted_moves']
+                                            if extension_rows[mid]['kind'] == 'derived']
+        legacy['extension_reverted_moves'] = result['reverted_moves']
+        return legacy
+    if move in (ledger.get('moves') or {}) and any(
+            row.get('status') == 'applied' and row.get('track') == ledger['moves'][move].get('track')
+            for row in extension_rows.values()):
+        raise EditError('revert later extension edits on this track first')
+    # BB-18 layouts must be restored before the older mute/fade edits they contain.
+    derived_rows = ledger.get('derived') or {}
+    if derived_rows and (move in derived_rows or move is None and (
+            not ledger.get('moves') or any(row.get('status') == 'applied' for row in derived_rows.values()))):
+        from . import derived
+        try:
+            result = derived.revert(root, dir_id, move, actor=actor)
+        except derived.DerivedError as exc:
+            raise EditError(str(exc)) from exc
+        if move is not None or not ledger.get('moves'):
+            return result
+        legacy = revert(root, dir_id, actor=actor) if any(
+            row.get('status') == 'applied' for row in ledger['moves'].values()) else None
+        if legacy is None:
+            return result
+        legacy['derived_reverted_moves'] = result['reverted_moves']
+        return legacy
     moves = ledger.get("moves") or {}
     if move is not None and move not in moves:
         raise EditError(f"{dir_id} has no edit move '{move}'")
@@ -599,7 +636,8 @@ def revert(root: str | Path, dir_id: str, move: str | None = None, *, actor: str
     for mid in targets:
         moves[mid]["status"] = "reverted"
         moves[mid]["reverted_journal_seq"] = seq
-    if all(x.get("status") != "applied" for x in moves.values()):
+    if all(x.get("status") != "applied" for x in moves.values()) and not any(
+            x.get('status') == 'applied' for x in extension_rows.values()):
         ledger["reverted"] = True
         ledger["reverted_journal_seq"] = seq
     lp.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

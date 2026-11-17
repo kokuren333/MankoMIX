@@ -1070,6 +1070,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-write", dest="no_write", action="store_true", help="do not write files under reports/")
 
     grp = add("direction", None, "direction layer: song dossier, direction validate / apply / check, observation query")
+    direction_parser = grp
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
     gsub.required = True
     sp = add("dossier", cmd_direction_dossier,
@@ -1232,6 +1233,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--person", required=True, help="engineer slug (the card id is eng_<slug>)")
     sp.add_argument("--kb", default="_private/kb", help=kb_help)
     add("list", cmd_direction_ref_list, "works and engineers of the kb with refstudy freshness", rsub)         .add_argument("--kb", default="_private/kb", help=kb_help)
+
+    from mankomix.director.commands import register as register_direction_commands
+    register_direction_commands(direction_parser, common, _project)
 
     grp = add("kb", None, "experience store kb/: index, lint, search and show")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")

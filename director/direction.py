@@ -67,6 +67,12 @@ OPS = {
     "place": ("mix", ("target", "params")),
 }
 EDIT_OPS = ("edit_trim", "edit_gate")
+from . import xops as X
+
+def _edit_ops():
+    return EDIT_OPS + tuple(name for name, spec in X.specs(OPS).items() if spec.stage == "edit")
+
+
 # place parameters (FR-5): id -> (lo, hi, default, a range [lo, hi] + select allowed); room is a bus id
 PLACE_PARAMS = {
     "azimuth": (-1.0, 1.0, None, True),
@@ -878,6 +884,9 @@ def scene_block(sc: dict, src_t, src_f) -> dict:
 def validate(doc: dict, project: str | Path | None = None) -> dict:
     """Validate a parsed direction. ``project``: the project it will be applied to (targets, replaces, sections)."""
     b = doc["block"]
+    extensions = X.specs(OPS)
+    ops = {**OPS, **{name: (s.stage, s.required) for name, s in extensions.items()}}
+    edit_ops = _edit_ops()
     errors: list[dict] = []
     warnings: list[dict] = []
     notes: list[str] = []
@@ -1022,12 +1031,13 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             err(where, "bad_id", "every move needs a unique id")
         seen_ids.add(mid)
         op = m.get("op")
-        if op not in OPS:
+        extension = extensions.get(op)
+        if op not in ops:
             valid_ops = OPS if any(x.get("op") == "duck_curve" for x in b.get("moves") or []) else {
                 k: v for k, v in OPS.items() if k != "duck_curve"}
             err(where, "bad_op", f"unknown op '{op}' (valid: {', '.join(valid_ops)})")
             continue
-        stage, req = OPS[op]
+        stage, req = ops[op]
         if m.get("stage", stage) != stage:
             err(where, "bad_stage", f"op '{op}' runs on stage '{stage}', not '{m.get('stage')}'")
         for k in req:
@@ -1054,13 +1064,13 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             err(where, "invariant", f"'{proc}' is part of the master stage (order, limiter, dither) and cannot be used")
         sec = m.get("section")
         if sec not in (None, "all"):
-            if op != "gain" and op not in EDIT_OPS:
+            if op != "gain" and op not in edit_ops and not (extension and extension.section):
                 err(where, "section_scope", "only 'gain' can be limited to a section (other ops: tool_requests)")
             elif isinstance(sec, str) and proj and sec not in sections:
                 err(where, "unknown_section", f"unknown section '{sec}'")
             elif isinstance(sec, dict) and not ({"t0_s", "t1_s"} <= set(sec)):
                 err(where, "bad_value", "a time section needs t0_s and t1_s")
-        params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if op in ("gain_curve", "duck_curve") \
+        params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if extension or op in ("gain_curve", "duck_curve") \
             else resolve_params(m, m.get("params") or {}, ptype=_move_processor(m, proj))
         notes += rnotes
         # targets
@@ -1074,7 +1084,14 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             if m.get("replaces") not in items:
                 err(where, "unknown_replaces", f"'{m.get('replaces')}' is not a processor of the floor mix")
         raw = m.get("params") or {}
-        if op == "chain_add":
+        if extension:
+            if extension.stage == "edit":
+                if not S.is_track_target(target) or target in buses:
+                    err(where, "bad_target", f"'{op}' needs a track target")
+                elif proj and target not in tracks:
+                    err(where, "unknown_target", f"unknown target '{target}'")
+            extension.validate(copy.deepcopy(m), X.ValidationContext(proj, b, where, err))
+        elif op == "chain_add":
             _check_proc_params(proc, raw, _holder_stage(target), where, errors)
         elif op == "chain_param" and proj and m.get("replaces") in items:
             kind, hid = items[m["replaces"]]
@@ -1151,7 +1168,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         # guarantee here), and citing a theory card (KT-nnnn) never makes a move E1; a place is E2 or above
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
-        if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck" \
+        if m.get("origin") == "catalog" and cited and cited <= rule_ids and not extension and op not in EDIT_OPS and op != "duck" \
                 and op != "place" and op != "gain_curve" and op != "duck_curve":
             tier = "E1"
         if op == "master_target":
@@ -1161,7 +1178,8 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 tier = "E3"
         if target == LEAD and ((op == "gain" and sec not in (None, "all"))
                                or (op == "chain_add" and proc in TIME_VARYING) or op in EDIT_OPS
-                               or op == "duck" or op == "gain_curve" or op == "duck_curve"):
+                               or op == "duck" or op == "gain_curve" or op == "duck_curve"
+                               or (extension and (extension.stage == "edit" or extension.time_varying))):
             tier = "E3"
             lead_e3 = True
         if tier == "E3" and not b.get("listen_for"):
@@ -1290,6 +1308,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     if proj.floor_mxp is None:
         raise DirectionError("the project has no applied floor mix proposal (mix.applied.proposal_id)")
     b = doc["block"]
+    extensions = X.specs(OPS)
     dir_id = doc["id"]
     ch = copy.deepcopy(proj.floor_mxp.get("changes") or {})
     ch.setdefault("tracks", {})
@@ -1340,6 +1359,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     ducks: dict[str, list] = {}
     curves: dict[str, list] = {}
     keyed_bands: list = []
+    xautomation: dict[str, list] = {}
     # new buses first so sends can reach them
     for m in b.get("moves") or []:
         if m.get("op") != "bus_add":
@@ -1468,6 +1488,39 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             notes.extend(dp["notes"])
 
     for m in b.get("moves") or []:
+        extension = extensions.get(m.get("op"))
+        if extension:
+            if extension.stage == "edit":
+                continue
+            result = extension.expand(proj, copy.deepcopy(m))
+            if not isinstance(result, X.MixResult) or not isinstance(result.record, dict):
+                raise DirectionError(f"{m['op']}: expand must return MixResult with a record")
+            target, trace = m.get("target"), []
+            if result.points:
+                from .duck import merge_automation
+                if target not in cur:
+                    raise DirectionError(f"{m['op']}: automation needs a track target")
+                points = merge_automation([], result.points)
+                xautomation.setdefault(target, []).append((m['id'], points))
+                trace.append(f"automation:{target}")
+            for i, declaration in enumerate(result.chain):
+                ptype = declaration["type"]
+                params = P.validate_params(ptype, declaration.get("params") or {})
+                errors = []
+                _check_proc_params(ptype, params, _holder_stage(target), m['id'], errors)
+                if target == "master" or ptype in MASTER_ONLY or errors:
+                    raise DirectionError(f"{m['op']}: invalid chain declaration")
+                item = _item(dir_id, m, ptype, params, target, f".x{i + 1}")
+                if target in cur:
+                    track(target)["chain"].append(item)
+                else:
+                    from .duck_curve import bus_chain as extension_bus_chain
+                    extension_bus_chain(proj, ch, target).append(item)
+                trace.append(item['id'])
+            record['moves'][m['id']] = {**copy.deepcopy(result.record), "op": m['op'],
+                                        "track": target, "trace": trace}
+            notes.extend(result.notes)
+            continue
         params, n = resolve_params(m, m.get("params") or {}, sel, ptype=_move_processor(m, proj))
         notes += n
         if m.get("op") == "bus_add":
@@ -1501,6 +1554,9 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             lst = KC.bus_chain(proj, ch, target)
         lst.append(item)
         record["moves"][m["id"]]["item"] = item["id"]
+    # New-op automation is a separate column until all ducks have been collected.
+    for tid, points in xautomation.items():
+        ducks.setdefault(tid, []).extend(points)
     for tid, segs in seg_gain.items():
         if tid in curves:
             continue
@@ -1523,7 +1579,8 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     if any(m.get("op") == "duck_curve" for m in b.get("moves") or []):
         from . import duck_curve as KC
         KC.measure_proposal(proj, ch, record)
-    mix_moves = [m for m in b.get("moves") or [] if OPS.get(m.get("op"), ("",))[0] == "mix"]
+    mix_moves = [m for m in b.get("moves") or [] if OPS.get(m.get("op"), ("",))[0] == "mix"
+                 or (m.get("op") in extensions and extensions[m['op']].stage == "mix")]
     if not mix_moves:
         return None, record, notes
     fm = proj.floor_mxp
@@ -1636,11 +1693,26 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
         raise DirectionError(f"{doc['id']} was already applied to this project")
     # the edit stage (UPGRADE2 §1, U-19): before calibration, cleanup and the mix; skipped (and its
     # module never imported) when the direction has no edit move
-    edit_moves = [m for m in doc["block"].get("moves") or [] if m.get("op") in EDIT_OPS]
+    edit_moves = [m for m in doc["block"].get("moves") or [] if m.get("op") in _edit_ops()]
     edits = None
     if edit_moves:
         from . import edit as E
-        edits = E.apply_moves(root, doc, edit_moves, actor=actor)
+        extensions = X.specs(OPS)
+        builtin_edits = [m for m in edit_moves if m.get('op') in EDIT_OPS]
+        edits = E.apply_moves(root, doc, builtin_edits, actor=actor) if builtin_edits else {
+            "record": {}, "summary": {"moves": 0, "regions": 0, "refused": 0,
+                                      "ledger": f"directions/{doc['id']}.edits.json"}}
+        for move in edit_moves:
+            if move['op'] not in extensions:
+                continue
+            try:
+                row = X.apply_edit(root, doc, move, extensions[move['op']], actor=actor)
+            except ValueError as exc:
+                raise DirectionError(f"{move['id']}: {exc}") from exc
+            edits['record'][move['id']] = row
+            edits['summary']['moves'] += 1
+            kind = 'derived' if row['kind'] == 'derived' else 'clip_edits'
+            edits['summary'][kind] = edits['summary'].get(kind, 0) + 1
         proj = _Project(root)
     cal = None
     if calibrate:
@@ -1692,7 +1764,7 @@ def _without_edit_params(doc: dict) -> dict:
     parameter, so no edit parameter is ever a calibration knob (§1.3)."""
     d = copy.deepcopy(doc)
     for m in d["block"].get("moves") or []:
-        if m.get("op") in EDIT_OPS:
+        if m.get("op") in _edit_ops():
             m["params"] = {}
     return d
 
@@ -1932,9 +2004,24 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
                 refs.setdefault(r.split("/", 1)[1], []).append(it.get("id"))
     missing = []
     recorded = (rec or {}).get("record", {}).get("moves", {})
+    extensions = X.specs(OPS)
     for m in b.get("moves") or []:
         op = m.get("op")
-        if op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
+        if op in extensions:
+            row = recorded.get(m.get('id')) or {}
+            traced = row.get('op') == op and row.get('track') == m.get('target')
+            if extensions[op].stage == 'mix':
+                traced = traced and isinstance(row.get('trace'), list) and all(
+                    item in refs.get(m.get('id'), []) for item in row.get('trace', []))
+            else:
+                lp = root / DIRECTIONS_DIR / f"{doc['id']}.edits.json"
+                group = 'clip_edits' if row.get('kind') == 'clip_edit' else 'derived'
+                entry = ((_read_json(lp).get(group) or {}).get(m.get('id')) or {}) if lp.is_file() else {}
+                traced = traced and entry.get('op') == op and entry.get('status') == 'applied' \
+                    and entry.get('result') == row.get('result')
+            if not traced:
+                missing.append(m.get('id'))
+        elif op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
                 or (op == "gain" and m.get("section") not in (None, "all")) \
                 or op == "gain_curve" \
                 or (op in ("duck", "duck_curve") and (recorded.get(m.get("id")) or {}).get("hits") != 0):
@@ -1962,6 +2049,12 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
                         "removed_energy_rel_db": {k: e.get("removed_energy_rel_db") for k, e in lmv.items()},
                         "status": {k: e.get("status") for k, e in lmv.items()},
                         "ledger": f"{DIRECTIONS_DIR}/{led_path.name}", "reverted": bool(led.get("reverted"))}
+        if led.get('derived'):
+            out['edits']['derived'] = {mid: {k: row.get(k) for k in ('op', 'track', 'status', 'key', 'result')}
+                                       for mid, row in led['derived'].items()}
+        if led.get('clip_edits'):
+            out['edits']['clip_edits'] = {mid: {k: row.get(k) for k in ('op', 'track', 'status', 'params')}
+                                          for mid, row in led['clip_edits'].items()}
     # gate definitions before / after
     now = gate_definitions_hash()
     before = (rec or {}).get("gate_definitions")
@@ -1993,3 +2086,7 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     dest.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     out["outcome_path"] = f"{DIRECTIONS_DIR}/{dest.name}"
     return out
+
+
+# Declarations may import the public direction helpers; discover after defining them.
+X.load(OPS)

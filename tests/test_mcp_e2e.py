@@ -816,8 +816,17 @@ KNOWN_CLI_ONLY = {
        for c in ("direction listen pack", "direction listen record")},
 }
 SERVER_TOOLS = {"job_status", "job_result", "job_list"}       # server-level, no CLI counterpart (README)
-# third-level command groups: '<group> <sub>' whose help lists its own SUBCOMMAND block
-NESTED_GROUPS = ("direction ref", "direction edit", "direction stems", "direction listen")
+from mankomix.director.commands import cli_only as _direction_cli_only
+
+_extension_cli = _direction_cli_only()
+assert not (set(_extension_cli) & set(CLI_TO_MCP)), 'extension overwrote an existing CLI mapping'
+CLI_TO_MCP.update({name: planned for name, (planned, reason) in _extension_cli.items()})
+KNOWN_CLI_ONLY.update({name: reason for name, (planned, reason) in _extension_cli.items()})
+
+# Include every extension prefix; preserve direct executable groups such as query.
+NESTED_GROUPS = tuple(sorted({"direction ref", "direction edit", "direction stems", "direction listen"} | {
+    ' '.join(name.split()[:n]) for name in _extension_cli for n in range(2, len(name.split()))
+}, key=lambda name: (len(name.split()), name)))
 
 
 def _help(*argv: str) -> str:
@@ -866,7 +875,8 @@ def cli_commands() -> dict[str, str]:
             out[cmd] = text
     for group in NESTED_GROUPS:
         if group in out:
-            del out[group]
+            if group not in CLI_TO_MCP:
+                del out[group]
             text = _help(*group.split())
             for s in _subcommands(text, "SUBCOMMAND"):
                 out[f"{group} {s}"] = text
