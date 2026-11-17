@@ -90,10 +90,14 @@
 | `direction stems observe --project P [--variant V] SPEC` | 観察量 1 つまたは配列（JSON 文字列か `@file`）を現在のトラック信号で測り、`direction_stem_observations` の JSON を返す |
 | `direction stems relate --project P [--variant V] [--section ID\|JSON] [--top N]` | 聞こえる全トラックの dry 信号のマスキング、帯域別の値、上位の相手、帯域の担当を `direction_stem_relate` の JSON で返す。区間は ID か `{t0_s, t1_s}`。`--top` は既定 3、整数 1〜8（範囲外は入力エラー） |
 | `direction stems purity --project P [--track TRK]...` | 整音後・チェーン前・フェーダー前の共有成分、残響、幅、ダイナミクス、由来等のフラグと取り込み時の和の整合を `direction_stem_purity` の JSON で返す。`--track` 省略時は聞こえる全トラック |
+| `direction listen pack --project P --floor FLOOR [--variant V] (--section ID\|JSON \| --excerpt T0,T1)... --out DIR [--match integrated\|section\|lead] [--kb ROOT]...` | 抜粋ごとに結果・床・無処理のステム和（`raw_gain_only`）の 3 本を、音量合わせ（大きい方を下げる）と名前を隠したファイル名で `--out` に書き出す（24 bit WAV、鍵 `key/key.json`、回答用紙 `sheet.md`、`answers.template.json`）。標準出力は `kind`・`files`・`key_path` だけで対応を出さない。`--out` がプロジェクト・床・kb（`--kb` で足した物を含む）の中、または空でないときは入力エラー |
+| `direction listen record --project P --direction DIR_ID --from ANSWERS` | 埋めた回答 1 回分を `directions/dir_<id>.listening.json` に足す（outcome は書き換えない）。等級 `grade`（`trial`／`adoption`）は記録された条件から機械が付け、回答に書くと拒否。outcome が無いと入力エラー |
 
 `direction stems` の 3 コマンドはプロジェクトに何も書かない。適用済みの整音キャッシュが無い・古い場合は描画せず入力エラー（終了コード 1）になり、先に `clean apply`／`render` を実行する旨を返す。整音未適用・無効・スキップのトラックは元の素材を読む。共通の `--project`・`--format json|text` 等は他の direction コマンドと同様に使える。下見の実施や順序は必須ではない。マスキングの値は粗いモデル値で、0 に近いほど良いわけではない。帯域の担当（`band_owners`）は P-22 の担当の規則を満たしたトラックだけで、その帯域で鳴っているトラックの一覧ではない。共有成分は漏れの量そのものではなく、残響も粗い推定である。音が良くなることは実証していない。
 
 `direction validate` は、主張・期待・安全弁に台帳指標（`P-nn`）の量を書くと、`--project` の有無に依らず警告 `unmeasured_quantity` を量ごとに 1 件出す（`direction check` は結果を測り直さず、標準の流れでは `not_measured` になるため。`ok` と終了コードは変わらない。詳しくは [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §8.6）。
+
+`direction listen` の 2 コマンドは任意で、validate／check／`kb lint` は聴取記録の有無を見ない（聴いたか・何回聴いたかを検査しない）。`pack` はプロジェクトと kb に何も書かず、`record` は聴取記録だけを書く。どちらも CLI だけで、MCP には出していない。等級の条件と聴取記録の形は [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §9.2。指揮書の任意欄 `frame`・`scene.room`・`triage`（§9.3〜§9.5）はコマンドを足さず、使わない指揮書の出力は従来と同じ。音が良くなることは実証していない。
 
 追補 2 で既存のコマンドに足したフラグ（どれも付けたときだけ働き、付けないときの出力は従来と同じ。使わなくても不利にならない）: `direction ref study --add transient`（refstudy にトランジェント輪郭の節）、`direction ref compare --add transient|guide`（refsheet に輪郭の対照・汎用ガイドからの形の偏差の節）、`direction check --translation`（outcome に判定外の `translation` ブロック）、`kb search --source-type T ... --curriculum CUR_ID`。詳しくは [docs/DIRECTION_FORMAT.md](../docs/DIRECTION_FORMAT.md) §6.1・§7。
 

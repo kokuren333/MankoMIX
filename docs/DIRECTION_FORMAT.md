@@ -766,3 +766,215 @@ SPEC §4.6 の「EQ マッチで写さない」「一度に比べる問いは 1 
 | 採用した手と選ばれた量、較正の予測と選択、編集段の区間 | 適用記録 `directions/dir_<id>.apply.json`（編集 op があれば台帳 `directions/dir_<id>.edits.json`） |
 | 判定（主張・期待・ガード、ゲート定義ハッシュの apply 時と check 時の一致） | outcome `directions/dir_<id>.outcome.json` |
 | 指揮書そのもの | `dir_` ID（ブロックの正規化 JSON の SHA-256。§1）と、`directions/` の凍結コピー |
+
+### 9.2 聴き比べ（`direction listen pack`／`direction listen record`）
+
+§9.1.3 の「聴いた結果」と §9.1.4 の「聴いて採用」（「後の節」）は、本節の聴取記録と等級を指す。
+
+結果・床・無処理の 3 つを、音量をそろえ名前を隠して書き出し（`pack`）、聴いた回答を 1 回ずつ記録に足す（`record`）。道具は再生も判定もしない。聴くこと・記録することは任意で、validate／apply／check／`--calibrate`／`kb lint` は聴取記録の有無を見ない。
+
+**`direction listen pack --project <p> --floor <floor> [--variant <v>] (--section <id|json> | --excerpt <t0,t1>)... --out <dir> [--match integrated|section|lead] [--kb <root>]...`**
+
+- 構成員（1 つの抜粋につき 3 本）:
+
+| 構成員 | 中身 |
+|---|---|
+| `result` | `--project` の変種（省略時は先頭の変種）の描画済みマスター（`hires_native`） |
+| `floor` | `--floor` の同じ ID の変種の描画済みマスター。同じ ID が無ければ床の先頭の変種 |
+| `raw_gain_only` | 取り込んだステムの素材をそのまま足した和（整音・クリップの編集・ミュート・フェード・ゲイン・チェーンを通さない）。ステムが無い案件は原曲。音量合わせのゲインだけを掛ける |
+
+- 抜粋: `--section`（床の提案の区間 ID か `{"t0_s", "t1_s"}` の JSON）と `--excerpt t0,t1`（秒）を、どちらも繰り返して併用できる。1 つ以上が必須。サンプル位置に直して重複を除き、時刻順に並べる。3 本の共通の長さを超える抜粋・空の抜粋・負の時刻は入力エラーで、切り詰めない
+- 音量合わせ（R-01）: 3 本の大きさを測り、**最も小さい構成員に合わせて他を下げる**（ゲインは常に 0 dB 以下。上げない）。リミッター・ディザー・正規化は掛けない
+
+| `--match` | 測る範囲 |
+|---|---|
+| `integrated`（既定） | 各構成員の全長の積分ラウドネス（どの抜粋にも同じゲイン） |
+| `section` | 抜粋ごとの積分ラウドネス |
+| `lead` | 抜粋のうち、主役のステムの素材が鳴っているフレーム（編集段と同じ 50 ms 窓・10 ms ホップ、−70 dBFS より上）だけをつないだ積分ラウドネス。主役は目的関数の主役。主役のステムが無い・抜粋に鳴っている所が無いときは入力エラー |
+
+- 名前を隠す: 音声のファイル名は `x01_k1abcdef.wav` の形（抜粋の連番＋中身と無関係な記号）。3 本の並びは、結果に適用済みの指揮書の ID（無ければプロジェクトの ID）・抜粋のサンプル位置・サンプルレートから作った固定の種で決まる。時刻・乱数は使わず、同じ入力からは同じバイト列になる
+- 書き出す物（`--out` の下だけ）:
+
+| ファイル | 中身 |
+|---|---|
+| `x<nn>_k<n><記号>.wav` | 抜粋ごとに 3 本。元のサンプルレート、24 bit PCM |
+| `key/key.json` | 対応表（`kind: direction_listen_key`）。ファイル名ごとの構成員・抜粋（秒とサンプル位置）・掛けたゲイン（`gain_db`）・測った大きさ（`loudness_lufs`）・合わせ方・素材の種類（`stem_sum`／`fullmix`）・PCM の範囲外のサンプル数（`pcm_clipped_samples`）と、入力のハッシュ（両プロジェクトの `project.json`、両マスター、無処理の和に使った素材、床の提案）。`lead` なら主役の活動の定義も。絶対パスは書かない |
+| `sheet.md` | 回答用紙。聴いた日・再生環境、抜粋ごとに「違いが分かるか」「どちらが好きか」「依頼に合うか」「メモ」の欄。構成員名・区間名・音量は出さない |
+| `answers.template.json` | 記録用の回答 1 回分の雛形。`conditions` は実際の条件で埋まり、`date`・`playback`・`judgments` の中身は空 |
+
+- 標準出力は `{"kind": "direction_listen_pack", "files": [...], "key_path": "key/key.json"}` だけで、構成員とファイルの対応を出さない
+- 書き出し先の拒否（G-5）: `--out` が結果のプロジェクト・床のプロジェクト・`kb/`・`_private/kb/`・`--kb` で足したフォルダのどれかの中（リンクを解決した後で判定）なら入力エラー（終了コード 2）。既にあるファイル、または空でないフォルダも拒否する（上書きしない）。拒否のときは何も書かない。プロジェクトと kb には何も書かない
+- その他の入力エラー: 描画済みマスターが無い、変種が無い、3 本のサンプルレートが違う、床の区間 ID が無い、`--match` が未知
+
+**`direction listen record --project <p> --direction <dir_id> --from <answers.json>`**
+
+`--from` は `answers.template.json` を埋めた回答 **1 回分**（`sessions` で包まない）。`directions/dir_<id>.listening.json` に 1 回分を足す（無ければ作る）。outcome・適用記録は書き換えない。
+
+```json
+{ "kind": "direction_listening", "schema_version": 1, "direction": "dir_xxxxxxxxxxxx",
+  "conformance": { "source": "dir_xxxxxxxxxxxx.outcome.json", "verify": "pass", "gate": null,
+                   "outcome_status": "checked", "outcome_summary": { "…": "outcome の写し" } },
+  "sessions": [ { "date": "2026-11-20", "playback": "（文）",
+      "conditions": { "level_match": "integrated", "blind": true, "members": ["result", "floor", "raw_gain_only"] },
+      "judgments": [ { "axis": "preference", "pair": ["result", "floor"], "answer": "floor", "note": "（文）" } ] } ],
+  "grade": "trial" }
+```
+
+- 回答の検査（形だけ）: 各階層のキーはちょうど上の形（足りない・余るのは拒否。`grade` を書いた回答も拒否）。`date` は実在する日付 `YYYY-MM-DD`（自動では入れない）。`playback`・`note` は 400 字までの文字列。`level_match` は `integrated`／`section`／`lead`／`none`、`blind` は真偽値、`members` と `pair`（2 件）は構成員名。`axis` は `audible`（違いが分かるか）／`preference`（どちらが好きか）／`fits_request`（依頼に合うか）、`answer` は `pair` のどちらか・`none`・`unsure`。`judgments` は配列。誤りは入力エラー（終了コード 2）で、何も書かない
+- `--direction` は `dir_` と小文字 16 進 12 桁。その指揮書の outcome（`dir_<id>.outcome.json`）が無ければ入力エラー（先に `direction check`）。既にある記録も読み直して検査する
+- 回答は記号で書いた後、鍵（`key/key.json`）を見て構成員名に直して書く。鍵を開けるのは回答を書き終えてから（目安。機械は確かめない）
+- 同じ回答を 2 回足すと 2 回分として残る（重複を除かない）
+- **等級 `grade` は機械が付ける（G-4。自己申告させない）**: 記録された全聴取が、音量をそろえ（`level_match` が `none` でない）、名前を隠し（`blind: true`）、`raw_gain_only` を含み、かつ異なる日付の聴取が 2 回以上あるとき `adoption`。それ以外は `trial`。足すたびに全聴取から付け直す。どちらが好きかの答え・outcome の合否は等級に入らない
+- `conformance` は聴いた結果とは別の軸で、機械の判定の写し: `verify` は同じ変種の `reports/verify_<variant>.json` の `overall`、`gate` は同じ変種の Mix Report（`reports/report_<variant>.json`）の `translation_gate.status`、それが無ければ `project.json` の変種の評価の `gate.status`（現在のマスター段のチェーンのハッシュと一致するときだけ）。記録が無ければ `null` で、`pass` を推定しない。`outcome_status`／`outcome_summary` は outcome の `status`／`summary` があるときだけ写す（数値は小数 3 桁）。検査や判定を新たに実行しない
+- kb に収蔵するときは、聴取記録を outcome と同じフォルダへ写す（JSON は `kb lint` の対象外。`edits.json` と同じ扱い）
+
+使わない場合: 2 つのコマンドを呼ばなければ何も変わらない。validate・check・`kb lint` の出力は、聴取記録の有無で変わらない（記録が無い案件は従来とバイト同一）。新しいゲートは G-4（記録の中の等級）と G-5（書き出し先）だけで、既存の指揮書の合否・警告・出力を変えない。聴いたか・いつ聴いたか・何回聴いたかを機械は検査しない。
+
+当てになり度と固定の注記:
+
+- 等級は記録された**条件**から付く。条件の欄（名前を隠したか等）が実際どうだったかを機械は確かめられない。`adoption` は「条件をそろえて、日を変えて 2 回以上聴いた記録がある」ことを言うだけで、音が良くなったことの証明ではない
+- 3 本の音量合わせは比較のためだけのもので、納品の検査ではない（§9.1.7）。`integrated` は全長でそろえるので、抜粋ごとの大きさはそろわないことがある。`pcm_clipped_samples` が 0 でない抜粋は、書き出しで範囲外のサンプルが丸められている
+- `raw_gain_only` は「何もしなかったら」の目安で、取り込み時の素材の単純な和である（時間のずれは推定しない。§9.1.6）
+- 聴いていない処理は候補として残してよいが、「改善を確認済み」とは扱わない（§9.1.4）
+
+範囲外: 再生、ABX の実施、聴取結果の集計と重みの較正、MCP への公開（今回は CLI だけ）。
+
+### 9.3 枠の宣言（`frame`）
+
+ブロックの任意欄（トップレベル）。狙い（`aims`）の外側に、何を一番聴かせ、何を譲り、何を守り、どこまでの粗さを許すかを書いておく置き場。機械は宣言から手を導かず、宣言と手・実測との整合も見ない（`scene` と同じ線。§8.3）。
+
+```json
+"frame": {
+  "lead": "一番聴かせる物（文）",
+  "yield": ["譲る物（文）"],
+  "keep": ["変えてはいけない特徴（文）"],
+  "roughness_ok": ["許す粗さ（文）"],
+  "scale": "この曲が狙う音場の規模（1 行）",
+  "era": { "year": 2024, "genre": "（文）", "stance": "（文）" },
+  "key_words": [ { "t_s": 32.0, "text": "聴かせたい言葉" } ],
+  "mono_keep": ["trk_vocals", "trk_kick"],
+  "section_roles": [ { "section": "s3", "lead": "trk_guitar",
+      "roles": { "trk_keys": ["harmony_bed"], "trk_fx": ["unknown"] } } ],
+  "tolerances": [ { "quantity": "obs:o_vox_mono", "range": [-24.0, -18.0], "note": "（文）" } ]
+}
+```
+
+- すべてのキーが任意で、`frame: {}` も書ける。書いたキーに `null` は書けない（型の誤り）。文は空文字でもよい
+- 役割の語彙（`section_roles[].roles` の値）: `lead_melody`（主旋律）／`counter`（合いの手・対旋律）／`rhythm`／`harmony_bed`（和声の土台）／`ornament`（飾り）／`double`（同じ旋律の重ね）／`harmony_vocal`（ハモリ）／`call_response`（掛け合い）／`unknown`（決めていない）。1 トラックに複数書け、重複も拒否しない。役割は宣言で、機械は決めない
+- `section` は区間 ID（`all` も可）か `{"t0_s", "t1_s"}`。時刻の区間は音源の長さで切らず、最短の長さも求めない
+- validate の検査（G-1。形と範囲だけ）:
+
+| 条件 | where | コード |
+|---|---|---|
+| `frame` が object でない／未知のキー | `frame` | `bad_value` |
+| 文（`lead`・`scale`・配列の各要素・`era.genre`／`stance`・`key_words[].text`・`tolerances[].note`）が文字列でない／401 字以上 | 各欄 | `bad_value`／`param_range` |
+| `yield`・`keep`・`roughness_ok`・`mono_keep`・`tolerances` が配列でない／17 件以上 | 各欄 | `bad_value`／`param_range` |
+| `key_words`・`section_roles` が配列でない／65 件以上 | 各欄 | `bad_value`／`param_range` |
+| `era` が object でない／`year`・`genre`・`stance` 以外のキー | `frame.era` | `bad_value` |
+| `era.year` が整数でない（bool・小数を含む）／1900〜2100 の外 | `frame.era.year` | `bad_value`／`param_range` |
+| `key_words[i]` が object でない／未知のキー、`text` が無い | `frame.key_words[i]`／`.text` | `bad_value`／`missing_field` |
+| `t_s` が有限の数でない／負 | `frame.key_words[i].t_s` | `bad_value`／`param_range` |
+| `mono_keep[i]`・`section_roles[i].lead`・`roles` のキーが `trk_<stem>` でない／`--project` つきで無いトラック | 各欄 | `bad_value`／`unknown_target` |
+| `section_roles[i]` が object でない／未知のキー、`section`・`roles` が無い | `frame.section_roles[i]`／`.section`・`.roles` | `bad_value`／`missing_field` |
+| `section` が空でない文字列でも `{t0_s, t1_s}` でもない／時刻が有限でない・負／`t0_s ≥ t1_s` | `frame.section_roles[i].section`（時刻は `.t0_s`／`.t1_s`） | `bad_value`／`param_range` |
+| `--project` つきで無い区間 ID | `frame.section_roles[i].section` | `unknown_section` |
+| `roles` が object でない／役割の配列が配列でない・17 件以上／語彙の外 | `frame.section_roles[i].roles…` | `bad_value`／`param_range`／`bad_value` |
+| `tolerances[i]` が object でない／未知のキー、`quantity`・`range` が無い | `frame.tolerances[i]`／`.quantity`・`.range` | `bad_value`／`missing_field` |
+| `quantity` が `obs:<このブロックの observations の id>` でない（`P-nn` も拒否） | `frame.tolerances[i].quantity` | `bad_quantity` |
+| `range` が有限の 2 数でない／下限 ≥ 上限 | `frame.tolerances[i].range` | `bad_value`／`param_range` |
+
+- **検査しないこと**: どのキーを書いたか（未記入の警告は無い）、宣言が全トラック・全区間を覆うか、手が宣言どおりか（譲ると書いた物を下げたか等）、宣言と実測が合うか。評価段・手の件数も変えない
+- `direction check` は `frame.tolerances` があるときだけ（空配列でも）outcome に判定外のブロック `frame` を足す。値は観察量の測定済みの値を使い、測り直さない
+
+```json
+"frame": { "tolerances": [ { "quantity": "obs:o_vox_mono", "range": [-24.0, -18.0],
+      "floor": 0.0, "result": 0.0, "within": true } ],
+  "note": "参考値。どの判定にも入らない" }
+```
+
+- `floor`・`result` は観察量の値（小数 3 桁）。`within` は結果の値が `range` の閉区間（両端を含む）に入るか。どちらかの側が測れない（値が無い・`status: error`）とその側は `null` で、`within` も `null`。`range` は書かれたまま。`tolerances` 以外のキーと各項の `note` は outcome に写さない
+- ブロック全体を、主張・期待・ガード・`summary`・`move_ref`・`--calibrate` のどれも読まない（`translation`・`scene` と同じ扱い）。合否にしたいときは既存の主張（`not_worse`／`up`／`down`）で立てられる。許容の幅は床の目標範囲の代わりではない
+
+`mono_keep` を確かめる観察量の書き方（例）: `mono_keep` 自体は何も測らない。モノで残したいトラックの残り方を見たいときは、同じトラックを同じ経路で、見方だけ変えた 2 つの観察量を書く。
+
+```json
+"observations": [
+  { "id": "o_vox_st",   "primitive": "loudness", "stat": "integrated", "target": "trk_vocals", "path": "solo", "section": "all" },
+  { "id": "o_vox_mono", "primitive": "loudness", "stat": "integrated", "target": "trk_vocals", "path": "solo", "view": "mono", "section": "all" } ]
+```
+
+- 読み方: 2 つの差（`o_vox_mono` − `o_vox_st`）がモノにしたときの減り方である。`view: mono` は `(L+R)/2` を両チャンネルに置く見方なので、**位相の問題が無くても、中央から外したトラックは値が下がる**（等電力則で片側に振り切ったモノ素材なら約 −3 dB、中央なら 0 dB）。このパンによる通常の差を損失と数えず、損失として読むのは、パンから見込める差を超えて下がった分（逆相、幅の処理、左右の違う素材の打ち消し）である。床と結果でパンを変えていなければ、差の床から結果への変化を読むのが分かりやすい
+- トラック対象の観察量はレベルマッチしない（§8.1）。主張・ガードに使うか、`tolerances` に並べるか、読むだけにするかは指揮者の裁量で、`mono_keep` を書いても観察量は求められない
+- 既存の S-04・OF-5（低域のモノの検査）は変わらない。`mono_keep` はそれらに何も足さない
+
+使わない場合: `frame` の無い指揮書の validate・適用記録・ミックス提案・outcome は従来とバイト同一で、`dir_` ID も変わらない（ID が変わるのは `frame` を書いた新しい指揮書だけ）。`tolerances` の無い `frame` は outcome を変えない。新しいゲートは形の検査（G-1）だけで、使ったかどうか・どのキーを書いたかを機械は検査しない。
+
+当てになり度と固定の注記: 宣言は狙いの記述で、実測とずれても誤りではなく、減点もしない。役割は機械が決めない。宣言を書いたことで音が良くなることは実証していない。
+
+範囲外: 宣言から手を導くこと、宣言の未記入の警告、`mono_keep` の自動測定、`section_roles` を床の重要度・役割に反映すること。
+
+### 9.4 部屋の宣言（`scene.room`）
+
+`scene`（§8.3）の任意のキー。どんな部屋で鳴っている音楽かを書き、部屋に当たるバスを指せる。
+
+```json
+"scene": { "sources": [ { "track": "trk_vocals", "azimuth": 0.0, "depth": 1 } ],
+  "room": { "note": "どんな部屋で鳴っている音楽か（文）", "bus": "bus_room" } }
+```
+
+- `note` は必須、`bus` は任意。`scene` の他の規則（`sources` が必須で 1〜32 件など）は変わらない
+- validate の検査（G-1。§8.3 の表に加わる行）:
+
+| 条件 | where | コード |
+|---|---|---|
+| `room` が object でない（文字列を含む） | `scene` | `bad_value` |
+| `note`・`bus` 以外のキー | `scene.room` | `bad_value` |
+| `note` が無い／文字列でない／401 字以上 | `scene.room.note` | `missing_field`／`bad_value`／`param_range` |
+| `bus` が `bus_` で始まる文字列でない | `scene.room.bus` | `bad_value` |
+| `--project` つきで、既存のバスでも同じ指揮書の `bus_add` の対象でもない | `scene.room.bus` | `unknown_target` |
+
+- **検査しないこと**: 指したバスに音源が送られているか、`place` の `room` と同じバスか、手の順序、宣言と響きの実測が合うか
+- `direction check` は `room` があるときだけ、outcome の `scene` ブロックの末尾に `room` を書かれたまま写す。判定外で、主張・期待・ガード・`summary`・`--calibrate` は読まない
+
+使わない場合: `room` の無い `scene` の validate・outcome は従来とバイト同一。新しいゲートは形の検査だけで、書いたかどうかを機械は検査しない。
+
+当てになり度と固定の注記: 宣言は狙いの記述で、部屋の響きを測ったり作ったりはしない。部屋の印象が実際に出ることは実証していない。
+
+範囲外: 部屋の響きのデータの読み込み、音源ごとの初期反射（§8.7）。
+
+### 9.5 直さない出口（`triage`）
+
+ブロックの任意欄（トップレベル）。見つけた問題を「直す」だけでなく、「差し替える」「生成し直す」「そのままにする」も正当な結論として書く置き場。
+
+```json
+"triage": { "decision": "leave",
+  "options": [ { "choice": "regenerate", "gains": "（文）", "loses": ["気に入っている歌い回し"] } ],
+  "findings": [ { "what": "（文）", "track": "trk_vocals", "t_s": 41.2, "status": "intentional", "basis": "（文）", "move": "m03" } ] }
+```
+
+- 語彙: `decision`・`options[].choice` は `fix`（直す）／`replace`（差し替える）／`regenerate`（生成し直す）／`leave`（そのまま）。`findings[].status` は `fix`（直す）／`unknown`（分からない）／`intentional`（意図した物）／`no_change`（変えない）
+- 必須: `decision`。`options` の各項は `choice`・`gains`・`loses`、`findings` の各項は `what`・`status`・`basis`。`track`・`t_s`・`move` は任意。`options`・`findings` は省略・空配列でもよい
+- validate の検査（G-1。形と範囲だけ）:
+
+| 条件 | where | コード |
+|---|---|---|
+| `triage` が object でない／未知のキー | `triage` | `bad_value` |
+| `decision` が無い／語彙の外 | `triage.decision` | `missing_field`／`bad_value` |
+| `options` が配列でない／9 件以上 | `triage.options` | `bad_value`／`param_range` |
+| 項が object でない・未知のキー／必須欄が無い | `triage.options[i]`（欠落は `.choice` 等） | `bad_value`／`missing_field` |
+| `choice` が語彙の外、`gains` が文字列でない・401 字以上、`loses` が配列でない・17 件以上・要素が文でない | 各欄 | `bad_value`／`param_range` |
+| `findings` が配列でない／65 件以上 | `triage.findings` | `bad_value`／`param_range` |
+| 項が object でない・未知のキー／必須欄が無い | `triage.findings[i]`（欠落は `.what` 等） | `bad_value`／`missing_field` |
+| `what`・`basis` が文字列でない・401 字以上、`status` が語彙の外 | 各欄 | `bad_value`／`param_range` |
+| `track` が `trk_<stem>` でない／`--project` つきで無いトラック | `triage.findings[i].track` | `bad_value`／`unknown_target` |
+| `t_s` が有限の数でない／負 | `triage.findings[i].t_s` | `bad_value`／`param_range` |
+| `move` が同じブロックの手の ID でない | `triage.findings[i].move` | `bad_id` |
+
+- **機械は判定しない。** `status: fix` に手が無いこと、`decision: leave` なのに手があること、`decision` と手の件数の整合、所見の網羅は検査しない。check・`--calibrate` は `triage` を読まず、outcome に何も足さない。パイプラインを止めない
+- **手が 0 件の指揮書**: `"moves": []` と明記すれば、現状でも validate・apply・check を通る（apply は適用記録だけを書き、ミックス提案は作らない）。`moves` キーの省略は従来どおり `moves`／`missing_field` で拒否する（緩めない）。主張（`claims`）など他の必須欄の規則も変わらない。「そのまま」の結論は、`triage` と散文（分析メモ、`human_questions`）に残せる
+
+使わない場合: `triage` の無い指揮書の validate・適用記録・ミックス提案・outcome は従来とバイト同一で、`dir_` ID も変わらない。新しいゲートは形の検査（G-1）だけで、書いたかどうかを機械は検査しない。
+
+当てになり度と固定の注記: 直すか・差し替えるか・残すかの判断は指揮者とオーナーの物で、機械が「直すな」と言う根拠は無い。道具は差し替え・生成し直しを行わない。
+
+範囲外: 判定の自動化、`triage` から手を導くこと、差し替え・生成し直しの実行。
