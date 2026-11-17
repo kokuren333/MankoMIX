@@ -3,14 +3,23 @@ from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _f, _e
 
 
-def validate(p):
+def _model_entry(model):
+    """Resolve metadata without loading weights or accessing the network."""
     from mankomix.dspx.bb.ml import model_entry
-    from mankomix.dspx.bb.restoration import validate_region
-    validate_region(p)
+    from mankomix.core import registry
+    model = model or registry.default_model('denoise')
+    if not model:
+        return None
     try:
-        model_entry(p['model'], 'denoise')
+        return model_entry(model, 'denoise')
     except LookupError:
         raise ParamError('denoise_ml requires a registered denoise model') from None
+
+
+def validate(p):
+    from mankomix.dspx.bb.restoration import validate_region
+    validate_region(p)
+    _model_entry(p['model'])
 
 
 def denoise_ml(x, sr, p, *, seed=0):
@@ -18,14 +27,17 @@ def denoise_ml(x, sr, p, *, seed=0):
     from mankomix.dspx.bb import ml, restoration
     from mankomix.dspx.procs.denoise import denoise
     validate(p)
-    entry = ml.model_entry(p['model'], 'denoise')
-    record = dict(model_id=p['model'], caveats=list(entry['license']['caveats']),
-                  license=ml.registry.license_record(entry), fallback_used=False,
+    entry = _model_entry(p['model'])
+    record = dict(model_id=entry['id'] if entry else '',
+                  caveats=list(entry['license']['caveats']) if entry else [ml.SPEECH_CAVEAT],
+                  license=ml.registry.license_record(entry) if entry else None, fallback_used=False,
                   provider=None, latency_samples=0, latency_compensated=True)
     if not p['amount'] or not p['reduction_db'] or restoration.region(len(x), sr, p)[0] == restoration.region(len(x), sr, p)[1]:
         return restoration.finish(x, x.copy(), sr, p, **record, inference_skipped=True)
     try:
-        resolved = ml.resolve_for_run(p['model'], 'denoise')
+        if entry is None:
+            raise ml.ModelUnavailable('no registered default denoise model; specify a model ID')
+        resolved = ml.resolve_for_run(entry['id'], 'denoise')
         wet, run = ml.infer(x, sr, resolved)
         record.update(run)
         wet = x+(1-10**(-p['reduction_db']/20))*(wet-x)
@@ -43,11 +55,6 @@ def denoise_ml(x, sr, p, *, seed=0):
     return restoration.finish(x, y, sr, p, **record)
 
 
-def patch_schema(schema):
-    schema.setdefault('required', []).append('model')
-    schema['properties']['model'].pop('default', None)
-
-
 from mankomix.dspx.bb.restoration import rp_params
 
 SPECS = [dict(type='denoise_ml', implemented=False,
@@ -55,11 +62,10 @@ SPECS = [dict(type='denoise_ml', implemented=False,
     stages=['track'], master_slot=None, offline_only=True, backends=['model'],
     fallback=dict(type='denoise', mapping='auto profile; reduction capped at 40 dB'),
     realtime=dict(block_ok=False, latency_samples=0, allocates=True),
-    params=[dict(id='model', type='asset', registry='models', unit=None, default='',
-                 description='Required registered denoise model ID; weights are never fetched during render.'),
+    params=[dict(id='model', type='asset', registry='models', unit=None, default='', allow_empty=True,
+                 description='Registered denoise model ID; empty uses the registered denoise default or fallback. Weights are never fetched during render.'),
             _f('reduction_db', 'dB', 0, 60, 18, 'Maximum model correction blend.'),
             _e('fallback', ['denoise', 'error'], 'denoise', 'Action when local model/runtime is unavailable.'),
             *rp_params()])]
 IMPLS = {'denoise_ml': denoise_ml}
 CROSS_VALIDATE = {'denoise_ml': validate}
-SCHEMA_PATCH = {'denoise_ml': patch_schema}

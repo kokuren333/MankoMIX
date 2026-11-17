@@ -68,13 +68,16 @@ def test_invalid_parameters(kw):
         params(**kw)
 
 
-def test_required_and_unknown_model():
-    for p in ({}, {'model': 'missing'}, {'model': None}):
+def test_unspecified_and_unknown_model():
+    assert P.validate_params('denoise_ml', {})['model'] == ''
+    assert P.validate_params('denoise_ml', {'model': ''})['model'] == ''
+    for p in ({'model': 'missing'}, {'model': None}):
         with pytest.raises(ParamError):
             P.validate_params('denoise_ml', p)
     graph = P.graph_schema()
     branch = next(b for b in graph['items']['oneOf'] if b['properties']['type']['const'] == 'denoise_ml')
-    assert 'model' in branch['properties']['params']['required']
+    assert 'model' not in branch['properties']['params'].get('required', [])
+    assert branch['properties']['params']['properties']['model']['default'] == ''
 
 
 @pytest.mark.parametrize('sr', [44100, 48000, 96000])

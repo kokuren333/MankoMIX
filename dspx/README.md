@@ -250,3 +250,84 @@ input hash and synthetic noise/SNR observations. The baseline hash is for the
 pinned adapter/runtime on the reference Windows CPU environment; an independently
 reviewed known answer for another environment may be supplied via
 `MANKOMIX_W5A_EXPECTED_HASH`. A missing variable skips the optional test.
+
+## NAM capture adapter (W5b)
+
+`bb/nam.py` uses BB-16 (`bb/ml.py`) for model lookup, BYOW settings, local
+SHA-256/size verification and report-record extraction. It implements mono
+classic NAM JSON versions 0.5.1/0.5.2/0.5.3: WaveNet layer arrays (dilated
+causal convolutions, Tanh/ReLU/Sigmoid, optional sigmoid gate and output head)
+and stacked LSTM (IFGO gates, serialized initial hidden/cell states). Multiple
+audio channels run independent copies of the mono capture. Newer NAM versions,
+parametric/multichannel networks, FiLM, slimmable/grouped networks and other
+architectures are explicit errors. A missing/invalid sample rate is an error.
+
+Inference is independently written numpy float64, without training, PyTorch,
+ONNX conversion or a new dependency. Matrix-vector products use fixed numpy
+reductions rather than threaded BLAS. The model retains state across fixed
+1024-sample internal chunks, with no overlap/window. WaveNet raw-input padding
+is receptive-field minus one zero samples; deeper biased layers process this
+padding too. LSTM starts at its exported h0/c0 without extra prewarm. Resampling
+uses the existing `resample_poly_hq` twice, replaying full offline context and
+trimming to the original length. The adapter introduces no lookahead; learned
+capture response/phase, bias and DC are preserved, not normalized or removed.
+Silence/impulse checks on generated zero-bias captures do not guarantee the
+response of an arbitrary user capture.
+
+`NamModel.state(channels)` and `NamModel.process(audio, state)` are the raw,
+stateful model API. `infer(x, sr, resolved)` returns audio plus reproducibility
+facts; `infer_blocks` is full offline replay before resampling, not independently
+resampled chunks. Raw stateful processing and offline transport replay are both
+tested at 64/1024/full boundaries. Reference inference is offline and prioritizes
+repeatability; no real-time speed claim is made.
+
+Register a user-supplied capture explicitly with:
+
+```python
+from mankomix.dspx.bb import nam
+nam.register(capture_path, id='my_capture', source_url=original_distribution_url,
+             license_weights=user_declared_license, evidence_url=license_url)
+```
+
+Registration validates the file, uses existing `core.registry.model_register`,
+then enriches that local BYOW entry with source URL, architecture, sample rate,
+format, adapter revision, SHA-256, byte size, separate code/weights licenses,
+primary reference-license evidence and the fixed manufacturer-affiliation
+caveat. It neither copies nor downloads weights. Capture rights are declared by
+the user; a reference implementation's MIT license does not license a capture.
+No official entry, default capture or capture weights are bundled. Render-time
+lookup re-hashes through BB-16 and verifies the actual bytes again before parse.
+
+The format references are
+[neural-amp-modeler v0.9.0](https://github.com/sdatkinson/neural-amp-modeler/tree/102333bf1c2c9f4255d73b8712ad3ecb0d8af275)
+(`nam/models/wavenet.py`, `nam/models/recurrent.py`, MIT, copyright 2024 Steven
+Atkinson) and
+[NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore/tree/d3189ed482ded880c128bf312941266c4fa5ceec)
+(`NAM/lstm.cpp`, format-version documentation, MIT, copyright 2023 Steven
+Atkinson). Their pinned LICENSE files were opened and checked on 2026-11-17;
+URLs/dates are in `nam.REFERENCES`. No upstream implementation is bundled.
+
+`procs/amp_sim.py` is track/offline/model-backend only, with required explicit
+model, input -24..24 dB/default 0, output -36..12 dB/default 0, and
+`fallback=error` by default. Only missing local weights permit the explicit
+`fallback=amp_basic` substitute, which uses the existing generic amplifier's
+defaults after input gain and before output gain. Its different sound, actual
+parameters and reason are recorded alongside before/after meters and capture
+license/hash. Invalid IDs, kinds, configurations and hashes do not fall back.
+Empty model is only an internal declaration sentinel for the existing catalogue
+default-validation contract; execution rejects it and JSON Schema requires a
+nonempty model. No capture is selected implicitly.
+
+Public `implemented=False` remains until the core owner connects standard Mix
+Report model/fallback facts and validates model files before track-cache reuse.
+Engine-step stats and BB-16 `report_records` already expose the facts. Tests
+enable the processor only within an isolated fixture to exercise this path.
+
+Model-free tests: `python -B -m pytest -q -p no:cacheprovider tests/test_tk_w5b.py`.
+The optional external test requires `MANKOMIX_W5B_MODEL`, independently pinned
+`MANKOMIX_W5B_MODEL_SHA256` and `MANKOMIX_W5B_EXPECTED_HASH`, plus
+`MANKOMIX_W5B_SOURCE_URL` and `MANKOMIX_W5B_LICENSE_WEIGHTS`; an optional license
+evidence URL is `MANKOMIX_W5B_LICENSE_URL`. Known input is mono at the capture
+sample rate, `rate//4+127` samples, 0.1*sin(220 Hz)+0.03*sin(440 Hz), gains zero.
+No capture variable means skip; no test downloads or silently accepts a newly
+computed output hash.
