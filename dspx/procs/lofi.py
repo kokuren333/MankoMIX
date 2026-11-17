@@ -1,4 +1,4 @@
-"""Fixed creative rack mappings; see docs/tool_impl/W3f_mappings.md."""
+"""Fixed creative rack mappings; see dspx/COMPOSITES.md."""
 from mankomix.dspx.params import _f, _e, _i
 
 # wow, flutter, drive, lost bits, minimum clock, HP, LP, noise channels

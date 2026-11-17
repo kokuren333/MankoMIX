@@ -168,7 +168,7 @@ def test_lofi_documented_style_mapping(style):
     assert child[4]['params']['freq_hz'] == pytest.approx(hi)
     assert set(child[5]['params'])-{'seed','hiss_color'} == {n+'_db' for n in noises}
     assert child[6]['params'] == dict(rt60_s=.3,predelay_ms=0,mix=.25)
-    doc = Path('docs/tool_impl/W3f_mappings.md').read_text(encoding='utf-8')
+    doc = Path('dspx/COMPOSITES.md').read_text(encoding='utf-8')
     row = next(line for line in doc.split('## Lofi')[1].splitlines() if line.startswith(f'| {style} |'))
     fields = [part.strip() for part in row.strip('|').split('|')]
     assert list(map(float,fields[1:8])) == [w,f,d,24-b,r,lo,hi]
@@ -188,7 +188,7 @@ def test_cassette_documented_material_mapping(material,bias,gap,cutoff):
     assert child[2]['params'] == dict(kind='lpf',freq_hz=cutoff*.5)
     assert child[3]['params'] == dict(hiss_db=-40,dropout=.3,seed=65535)
     assert child[4]['params'] == dict(width=.5)
-    doc = Path('docs/tool_impl/W3f_mappings.md').read_text(encoding='utf-8').split('## Lofi')[0]
+    doc = Path('dspx/COMPOSITES.md').read_text(encoding='utf-8').split('## Lofi')[0]
     row = next(line for line in doc.splitlines() if line.startswith(f'| {material} |'))
     fields = [part.strip() for part in row.strip('|').split('|')]
     assert list(map(float,fields[1:])) == [bias,gap,cutoff]

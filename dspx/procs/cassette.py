@@ -1,4 +1,4 @@
-"""Fixed cassette component mapping; see docs/tool_impl/W3f_mappings.md."""
+"""Fixed cassette component mapping; see dspx/COMPOSITES.md."""
 from mankomix.dspx.params import _f, _e, _i
 
 TAPE_TYPES = {'normal': (.45, .65, 10000), 'chrome': (.55, .45, 14000),
