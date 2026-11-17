@@ -215,7 +215,7 @@ def spectral_fx(x, sr, p, *, seed=0, compensate=True):
     return y, sr, dict(latency_samples=n, latency_compensated=compensate, op=p['op'])
 
 
-SPECS = [dict(type='spectral_fx', implemented=False,
+SPECS = [dict(type='spectral_fx', implemented=True,
     description='Eight deterministic single-operation spectral effects.',
     stages=['track', 'bus'], master_slot=None, offline_only=False, backends=['reference'],
     realtime=dict(block_ok=False, latency_samples='window_scaled', allocates=True),

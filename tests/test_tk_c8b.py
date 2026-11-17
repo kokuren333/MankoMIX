@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from scipy import signal
 from mankomix.dsp import engine as E, processors as P
-from mankomix.dsp.errors import ChainError
 from mankomix.dspx.bb import stft as S, spectral_components as C
 from mankomix.dspx.procs import spectral_fx as FX, spectral_dynamics as D
 from tests import toolimpl_harness as H
@@ -111,7 +110,7 @@ def test_contrast_and_smear_remain_active_on_resolved_spectral_envelope():
     assert H.null(x, smeared)['rms_dbfs'] > -60
 
 
-def test_random_phase_lobe_coherence_magnitude_seed_and_nontrivial_output(monkeypatch):
+def test_random_phase_lobe_coherence_magnitude_seed_and_nontrivial_output():
     sr = 16000
     x = H.white_noise(-20, sr=sr, seconds=.7, channels=2, seed=17)
     params = dict(op='phase', phase_mode='random', amount=1)
@@ -128,9 +127,6 @@ def test_random_phase_lobe_coherence_magnitude_seed_and_nontrivial_output(monkey
                 ratios = z[t, bins, ch]/a.spectra[t, bins, ch]
                 if len(ratios):
                     np.testing.assert_allclose(ratios, ratios[0], atol=1e-12)
-    # FX remains False because literal hold has an unresolved S4 conflict.
-    # Its acceptance rendering alone may enable the normal engine temporarily.
-    monkeypatch.setitem(P.PROCESSORS['spectral_fx'], 'implemented', True)
     def render(seed, item='effect'):
         return E.render_chain(x, sr, [dict(id=item, type='spectral_fx', params=params)],
                               stage='track', seed=seed).audio
@@ -173,17 +169,20 @@ def test_public_registration_and_defaults():
     for kind in ('spectral_fx', 'spectral_dynamics'):
         x = H.sine(997, -28, sr=48000, seconds=.2)
         chain = [dict(id='effect', type=kind, params={})]
-        if kind == 'spectral_fx':
-            assert P.describe(kind)['implemented'] is False
-            with pytest.raises(ChainError, match='not implemented'):
-                E.render_chain(x, 48000, chain, stage='track')
-            continue
         assert P.describe(kind)['implemented'] is True
         y = E.render_chain(x, 48000, chain, stage='track').audio
         assert y.shape == x.shape and np.isfinite(y).all()
+        if kind == 'spectral_fx':
+            np.testing.assert_array_equal(y, x)
+            params = dict(op='phase', phase_mode='hold', amount=1)
+            chain[0]['params'] = params
+            active = E.render_chain(x, 48000, chain, stage='track').audio
+            np.testing.assert_array_equal(active, direct(kind, x, 48000, params))
 
 
 def test_literal_hold_phase_magnitude_and_hop_periodicity():
+    # 統括の判断 D-25(a): test the fixed phase/magnitude and hop period;
+    # the resulting envelope ripple is an intended effect, exempt from S4.
     sr, window = 48000, 2048
     # A hop-harmonic input has constant magnitudes. A frozen phase then
     # forces an H-periodic output; verify the literal operation independently.

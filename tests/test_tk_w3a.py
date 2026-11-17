@@ -398,12 +398,10 @@ def test_freeze_30s_spectrum_and_no_loop(enabled):
 
 # 統括の判断 D-21(c): scramble permutes bins as its intended effect;
 # stationary-sine envelope preservation is not an acceptance condition.
-# 統括の判断 D-23(b): only phase=zero (robotization) is exempt from S4.
-# Hold and random remain active acceptance cases.
+# 統括の判断 D-23(b): phase=zero (robotization) is exempt from S4.
+# 統括の判断 D-25(a): phase=hold is also exempt; random still requires S4.
 @pytest.mark.parametrize('op,extra', [(op, {}) for op in OPS if op not in ('scramble', 'phase')]
-    + [pytest.param('phase', {'phase_mode': 'hold'}, marks=pytest.mark.xfail(strict=True,
-        reason='Literal frozen per-bin phase conflicts with S4; see C8b report.')),
-       ('phase', {'phase_mode': 'random'})])
+    + [('phase', {'phase_mode': 'random'})])
 def test_fx_s4_measured_ripple(enabled, op, extra):
     sr = 48000
     x = H.sine(1000, sr=sr, seconds=3)
@@ -412,6 +410,26 @@ def test_fx_s4_measured_ripple(enabled, op, extra):
     ripple = float(20*np.log10(np.max(envelope)/np.min(envelope)))
     emit('FX_S4', dict(op=op, extra=extra, ripple_db=ripple))
     assert ripple <= .05
+
+
+def test_fx_phase_hold_s4_exemption(enabled):
+    # 統括の判断 D-25(a): literal fixed phase creates hop-periodic output;
+    # envelope ripple is part of the effect, so S4 does not apply to hold.
+    sr = 48000
+    x = H.sine(1000, sr=sr, seconds=3)
+    params = dict(op='phase', phase_mode='hold', amount=1)
+    a = S.analyze(x, sr, window=2048)
+    z = FX.transform(a, P.validate_params('spectral_fx', params))
+    use = (a.frequencies_hz > 100) & (a.frequencies_hz < 5000)
+    np.testing.assert_allclose(abs(z[:, use]), abs(a.spectra[:, use]), atol=1e-12)
+    np.testing.assert_allclose(np.exp(1j*np.angle(z[:, use])),
+        np.broadcast_to(np.exp(1j*np.angle(a.spectra[:1, use])), z[:, use].shape), atol=1e-12)
+    y = render('spectral_fx', x, params, sr)
+    envelope = abs(signal.hilbert(y[sr:-sr, 0]))
+    ripple = float(20*np.log10(envelope.max()/envelope.min()))
+    emit('FX_HOLD_S4_EXEMPT', dict(ripple_db=ripple))
+    assert y.shape == x.shape and np.isfinite(y).all() and np.isfinite(ripple)
+    np.testing.assert_allclose(y, S.synthesize(a, z), atol=1e-12)
 
 
 @pytest.mark.parametrize('kind', list(MODULES))
