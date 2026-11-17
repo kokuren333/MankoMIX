@@ -13,6 +13,8 @@ ClockFilter(sr, ratio=.45, order=2).process(x, clock_hz) is a stateful cascade
 of clock-tracking one poles; clock_hz may be scalar or one value per frame.
 filter_audio and dc_block are whole-context offline helpers, not streaming
 adapters. nl_params/specification supply fresh registration dictionaries.
+precision_oversampled/precision_oversampling_info add an opt-in sharper
+resampling path. centered_adaa1 adds a whole-context zero-delay ADAA path.
 
 ADAA equations: Parker et al., DAFx-16, sections 2/4; Bilbao et al., IEEE SPL
 2017, doi:10.1109/LSP.2017.2675541, eqs. (5)-(7). Independent
@@ -221,3 +223,62 @@ def specification(name, params, description, *, slot=3, stages=None):
 def mix_output(x, wet, mix=1, output_db=0):
     y = x.copy() if mix == 0 else wet if mix == 1 else mix*wet+(1-mix)*x
     return y if output_db == 0 else y*10**(output_db/20)
+
+
+@lru_cache(maxsize=8)
+def _precision_os_filter(factor):
+    h = signal.firwin(128*factor+1, 1/factor, window=('kaiser', 14.0))
+    h.setflags(write=False)
+    return h
+
+
+@lru_cache(maxsize=1)
+def _precision_final_filter():
+    h = signal.firwin(1025, .5, window=('kaiser', 14.0))
+    h.setflags(write=False)
+    return h
+
+
+def precision_oversampled(x, factor, fn):
+    """Opt-in staged polyphase path, factor 1..256, beta=14.
+
+    Power-of-two factors only. Callback runs at factor times the input rate.
+    Interpolation and the first decimator use 128 taps/phase; the final
+    2x decimator uses 512 to
+    reject harmonics just above the original Nyquist frequency. All FIR
+    delays are compensated (net latency zero); metadata declares their sum.
+    This whole-context API does not change oversampled or its FIR cache.
+    """
+    if factor not in (1, 2, 4, 8, 16, 32, 64, 128, 256):
+        raise ParamError('precision oversample must be a power of two in 1..256')
+    x = np.asarray(x, dtype=np.float64)
+    if not len(x):
+        return x.copy()
+    if factor == 1:
+        return fn(x)
+    h = _precision_os_filter(factor)
+    up = signal.resample_poly(x, factor, 1, axis=0, window=h.copy())
+    wet = fn(up)
+    if factor > 2:
+        wet = signal.resample_poly(wet, 1, factor//2, axis=0,
+                                   window=_precision_os_filter(factor//2).copy())
+    return signal.resample_poly(wet, 1, 2, axis=0,
+                                window=_precision_final_filter().copy())[:len(x)]
+
+
+def centered_adaa1(x, curve, primitive):
+    """Offline symmetric first divided difference, net group delay zero.
+
+    Average the causal and reversed causal ADAA paths. Endpoints use zero
+    history; the existing ADAA1 streaming API and arithmetic are unchanged.
+    """
+    return .5*(adaa1(x, curve, primitive)+adaa1(x[::-1], curve, primitive)[::-1])
+
+
+def precision_oversampling_info(factor):
+    """Metadata: raw FIR delay 352 input samples (factor 2: 320; 1: 0)."""
+    if factor not in (1, 2, 4, 8, 16, 32, 64, 128, 256):
+        raise ParamError('precision oversample must be a power of two in 1..256')
+    return dict(oversample=factor, internal_oversample=factor, latency_samples=0,
+                uncompensated_latency_samples=(352 if factor > 2 else 320 if factor == 2 else 0),
+                latency_compensated=True)

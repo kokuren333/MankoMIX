@@ -15,12 +15,14 @@ SPECS = [N.specification('loudness_shaper', [
 
 
 def loudness_shaper(x, sr, p, *, seed=0):
-    info = N.oversampling_info(p['oversample'])
+    factor = int(p['oversample'])*4
+    info = N.precision_oversampling_info(factor)
+    info['oversample'] = p['oversample']
     if p['effect'] == 0:
         return x.copy(), sr, info
     u = x*10**(p['input_db']/20)
     bands, meta = C.split_bands(u, sr, [240, 2400], 'linear') if p['band_split'] else ([u], {})
-    ys = [N.oversampled(b, p['oversample'],
+    ys = [N.precision_oversampled(b, factor,
           lambda v: N.loudness_curve(v, p['effect'], p['curve'], p['clip'])) for b in bands]
     y = C.recombine_bands(ys)*10**(p['output_db']/20)
     return y, sr, dict(info, crossover_latency_samples=meta.get('latency_samples', 0),

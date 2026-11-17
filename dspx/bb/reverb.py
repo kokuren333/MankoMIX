@@ -9,13 +9,18 @@ Applied Sciences 7, 483 (2017), https://doi.org/10.3390/app7050483 .
 
 Public API: orthogonal_matrix(8|16); delay_lengths(sr, size_m, lines, seed);
 rt60_gain(delay_samples, sr, rt60_s); absorption_sos(delay, sr, rt_tuple,
-low_xover=250, high_xover=4000); Allpass(delay, gain, channels).process(x);
+low_xover=250, high_xover=4000, order=2); Allpass(delay, gain, channels).process(x);
 AllpassTank(sr, rt60_s=2, diffusion=.6, seed=0).process(stereo);
-FDN(sr, params, chamber=False, seed=0).process(stereo, mod_depth=None);
+FDN(sr, params, chamber=False, seed=0, absorption_order=2).process(stereo, mod_depth=None);
 early_reflections(sr, frames, size_m, seed=0); render_ir(sr, params,
-chamber=False, seed=0, frames=None); process_reverb(x, sr, params,
-chamber=False, seed=0, execution=None); velvet_ir(sr, duration_ms, params,
+chamber=False, seed=0, frames=None, absorption_order=2); process_reverb(x, sr, params,
+chamber=False, seed=0, execution=None, absorption_order=2); velvet_ir(sr, duration_ms, params,
 shape='flat', seed=0); measure_ir(h, sr, params, modulation_stopped=False).
+validate_decay_rv(params) adds the hall/chamber-only 24 s longest-band limit;
+validate_rv(params) and the existing rendering APIs retain their default behavior.
+absorption_order=4 opts into flatter shelves used by hall/chamber only.
+FDN/process_reverb also accept mod_interpolation='sinc8' (legacy default);
+hall opts into 'lagrange3' to avoid gain above unity in the feedback reads.
 IRs have shape (frames, input=2, output=2); processors preserve mono/stereo.
 All states start at zero. DelayLine supplies feedback and fractional reads;
 BB-07 supplies FFT convolution. lti and unmodulated tv use identical kernels.
@@ -63,6 +68,20 @@ def validate_rv(p):
         raise ParamError("low crossover must be below high crossover")
 
 
+def validate_decay_rv(p):
+    """Hall/chamber RV validation, with a measured CT-8 decay limit.
+
+    Keep the shared RV validator and all rendering primitives unrestricted.
+    A 24 s longest band gives 150 dB nominal decay over 60 s, leaving
+    30 dB for excitation, routing and the peak rather than RMS criterion.
+    """
+    validate_rv(p)
+    longest = p["rt60_s"] * max(1, p.get("rt60_low_mult", 1), p.get("rt60_high_mult", 1))
+    if longest > 24:
+        raise ParamError("rt60_s * max(1, rt60_low_mult, rt60_high_mult) must be <= 24 s "
+                         "(60 s / -120 dBFS CT-8 decay limit)")
+
+
 def orthogonal_matrix(lines=16):
     if lines not in (8, 16):
         raise ValueError("FDN requires 8 or 16 lines")
@@ -92,11 +111,31 @@ def rt60_gain(delay_samples, sr, rt60_s):
     return np.exp(-math.log(1000) * np.asarray(delay_samples) / (sr * rt60_s))
 
 
-def absorption_sos(delay, sr, rt_tuple, low_xover=250, high_xover=4000):
-    """Mid gain plus two biquad shelves, in dB per line traversal."""
+def absorption_sos(delay, sr, rt_tuple, low_xover=250, high_xover=4000, *, order=2):
+    """Per-traversal absorption; order=2 preserves the original biquad design.
+
+    order=4 uses Butterworth shelves with flatter band interiors. Each shelf
+    has the specified asymptotic gains and their geometric mean at crossover.
+    """
     from mankomix.dsp.reference.filters import rbj_biquad
     db = -60 * delay / (sr * np.asarray(rt_tuple))
     low_xover, high_xover = min(low_xover, .2*sr), min(high_xover, .4*sr)
+    if order == 4:
+        def shelf(freq, low_db, high_db):
+            # Scale a normalized Butterworth pole set separately for zeros
+            # and poles, then use the prewarped bilinear transform.
+            _, poles, _ = signal.buttap(order)
+            corner = 2*sr*math.tan(math.pi*freq/sr)
+            ratio = 10**((low_db-high_db)/(40*order))
+            z, a, gain = signal.bilinear_zpk(poles*corner*ratio, poles*corner/ratio,
+                                            10**(high_db/20), fs=sr)
+            return signal.zpk2sos(z, a, gain)
+        sos = np.vstack([shelf(low_xover, db[0]-db[1], 0),
+                         shelf(high_xover, 0, db[2]-db[1])])
+        sos[0, :3] *= 10 ** (db[1] / 20)
+        return sos
+    if order != 2:
+        raise ValueError("absorption order must be 2 or 4")
     sos = np.vstack([rbj_biquad("low_shelf", low_xover, db[0]-db[1], 1.9, sr),
                      rbj_biquad("high_shelf", high_xover, db[2]-db[1], 1.9, sr)])
     sos[0, :3] *= 10 ** (db[1] / 20)
@@ -148,7 +187,8 @@ class AllpassTank:
 
 class FDN:
     """8/16 delay lines with analytic per-band absorption and fixed routing."""
-    def __init__(self, sr, params, *, chamber=False, seed=0):
+    def __init__(self, sr, params, *, chamber=False, seed=0, absorption_order=2,
+                 mod_interpolation="sinc8"):
         p = params
         self.sr, self.p, self.chamber = sr, dict(p), chamber
         self.lines = 8 if chamber else 16
@@ -160,10 +200,12 @@ class FDN:
         depth = p.get("mod_depth", 0)
         self.rate = p.get("mod_rate_hz", .5)
         self.excursion = sr*.00008/max(.5, self.rate)
-        self.line = DelayLine(max(self.delays)+self.excursion+1, self.lines, "sinc8" if depth else "integer")
+        self.line = DelayLine(max(self.delays)+self.excursion+1, self.lines,
+                              mod_interpolation if depth else "integer")
         rt = (p["rt60_s"]*p.get("rt60_low_mult", 1), p["rt60_s"], p["rt60_s"]*p.get("rt60_high_mult", 1))
-        self.sos = [absorption_sos(d, sr, rt, p.get("low_xover_hz", 250), p.get("high_xover_hz", 4000)) for d in self.delays]
-        self.zi = [np.zeros((2, 2)) for _ in self.delays]
+        self.sos = [absorption_sos(d, sr, rt, p.get("low_xover_hz", 250), p.get("high_xover_hz", 4000),
+                                   order=absorption_order) for d in self.delays]
+        self.zi = [np.zeros((len(sos), 2)) for sos in self.sos]
         diffusion = p.get("density", .9) if chamber else p.get("diffusion", .7)
         ms = [.13, .19, .29, .43, .61, .89, 1.27, 1.79] if chamber else [.73, 1.13, 1.79, 2.71, 4.13, 6.17]
         self.diffusers = [Allpass(max(1, round(t*sr/1000)), .25+.45*diffusion) for t in ms]
@@ -226,8 +268,10 @@ def _wet_filter(x, sr, p):
                       p.get("highcut_hz", 8000) if p.get("highcut_hz", 8000) < .45*sr else 0)(x)
 
 
-def _late(x, sr, p, chamber, seed, depth=None):
-    out = FDN(sr, p, chamber=chamber, seed=seed).process(x, mod_depth=depth, offline_diffusion=True)
+def _late(x, sr, p, chamber, seed, depth=None, absorption_order=2, mod_interpolation="sinc8"):
+    out = FDN(sr, p, chamber=chamber, seed=seed, absorption_order=absorption_order,
+              mod_interpolation=mod_interpolation).process(
+        x, mod_depth=depth, offline_diffusion=True)
     if chamber:
         rise = round(.04*p.get("distance", .5)*sr)
         if rise:
@@ -235,7 +279,7 @@ def _late(x, sr, p, chamber, seed, depth=None):
     return out
 
 
-def render_ir(sr, params, *, chamber=False, seed=0, frames=None, return_scales=False):
+def render_ir(sr, params, *, chamber=False, seed=0, frames=None, return_scales=False, absorption_order=2):
     """Unmodulated MIMO IR; default length is 140 dB of the slowest decay."""
     p = params
     validate_rv(p)
@@ -248,7 +292,8 @@ def render_ir(sr, params, *, chamber=False, seed=0, frames=None, return_scales=F
     if count:
         for i in range(2):
             pulse = np.zeros((count, 2)); pulse[0, i] = 1
-            h[pre:, i, :] = _late(pulse, sr, {**p, "mod_depth": 0}, chamber, seed, 0)
+            h[pre:, i, :] = _late(pulse, sr, {**p, "mod_depth": 0}, chamber, seed, 0,
+                                  absorption_order=absorption_order)
         energy = float(np.sum(h*h)/2)
         late_gain = 1/math.sqrt(energy) if energy else 1.
         h *= late_gain
@@ -265,8 +310,9 @@ def render_ir(sr, params, *, chamber=False, seed=0, frames=None, return_scales=F
 
 
 @lru_cache(maxsize=2)
-def _cached_design(sr, items, chamber, seed):
-    h, late, early = render_ir(sr, dict(items), chamber=chamber, seed=seed, return_scales=True)
+def _cached_design(sr, items, chamber, seed, absorption_order=2):
+    h, late, early = render_ir(sr, dict(items), chamber=chamber, seed=seed, return_scales=True,
+                              absorption_order=absorption_order)
     h.setflags(write=False)
     return h, late, early
 
@@ -305,7 +351,8 @@ def finish(dry, wet, sr, p, stats):
     return (1-mix)*dry+mix*wet, sr, stats
 
 
-def process_reverb(x, sr, params, *, chamber=False, seed=0, execution=None):
+def process_reverb(x, sr, params, *, chamber=False, seed=0, execution=None, absorption_order=2,
+                   mod_interpolation="sinc8"):
     p = params
     validate_rv(p)
     if not p["mix"]:
@@ -317,12 +364,13 @@ def process_reverb(x, sr, params, *, chamber=False, seed=0, execution=None):
     # tails in a truncated input. No cache keyed by mutable dictionaries.
     design = tuple(sorted((k, v) for k, v in p.items() if k not in
                           {"mix", "width", "bpm", "mod_depth", "mod_rate_hz"} and not k.startswith("duck_")))
-    h, late_gain, er_gain = _cached_design(sr, design, chamber, seed)
+    h, late_gain, er_gain = _cached_design(sr, design, chamber, seed, absorption_order)
     stereo = _stereo(x)
     if execution == "lti":
         wet = fft_convolve(stereo, h[:max(1, len(x))], "same")
     else:
-        wet = _late(stereo, sr, p, chamber, seed)*late_gain
+        wet = _late(stereo, sr, p, chamber, seed, absorption_order=absorption_order,
+                    mod_interpolation=mod_interpolation)*late_gain
         if not chamber:
             er = early_reflections(sr, max(1, round(.2*sr)), p.get("size_m", 25), modulation_seed(seed, "er", p.get("seed", 0)))
             wet += fft_convolve(stereo, er, "same")*er_gain

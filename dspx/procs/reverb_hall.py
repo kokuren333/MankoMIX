@@ -1,10 +1,11 @@
 """Geometry-scaled early reflections, allpass diffusion and 16-line FDN."""
 from mankomix.dspx.params import _f
-from mankomix.dspx.bb.reverb import definition, rv_params, process_reverb, validate_rv
+from mankomix.dspx.bb.reverb import definition, rv_params, process_reverb, validate_decay_rv
 
 
 def reverb_hall(x, sr, params, *, seed=0):
-    return process_reverb(x, sr, params, seed=seed)
+    validate_decay_rv(params)
+    return process_reverb(x, sr, params, seed=seed, absorption_order=4,mod_interpolation="lagrange3")
 
 
 SPECS = [definition("reverb_hall", rv_params(.2, 20, 2.2) + [
@@ -18,7 +19,7 @@ SPECS = [definition("reverb_hall", rv_params(.2, 20, 2.2) + [
     _f("width", None, 0, 1, 1, "Stereo width."),
     _f("mod_depth", None, 0, 1, 0, "Delay modulation depth."),
     _f("mod_rate_hz", "Hz", .05, 5, .5, "Delay modulation rate."),
-])]
+], implemented=True)]
 IMPLS = {"reverb_hall": reverb_hall}
 TIME_VARYING = {"reverb_hall"}
-CROSS_VALIDATE = {"reverb_hall": validate_rv}
+CROSS_VALIDATE = {"reverb_hall": validate_decay_rv}

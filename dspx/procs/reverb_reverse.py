@@ -62,6 +62,6 @@ SPECS = [definition("reverb_reverse", rv_params(pre=False) + [
     _f("density", None, 0, 1, .8, "Velvet pulse density."),
     _f("damping_hz", "Hz", 1000, 20000, 8000, "Source IR damping."),
     _f("width", None, 0, 1, 1, "Stereo width."),
-], offline=True)]
+], implemented=True, offline=True)]
 IMPLS = {"reverb_reverse": reverb_reverse}
 CROSS_VALIDATE = {"reverb_reverse": cross_validate}

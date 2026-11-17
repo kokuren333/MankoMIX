@@ -12,6 +12,9 @@ absolute 60-second grid, Fourier interpolation with a 1/f displacement
 spectrum, and an analytic derivative. No DC or integrated random bias.
 The grid's periodic extension is intentional and independent of render length.
 The deterministic sinusoids retain their requested frequencies. No copied code.
+Optional close_60s=True centres their odd speed waveforms at 30 seconds,
+so displacement at 0 and 60 seconds agrees without changing frequency.
+The default False preserves the original shared generator bit for bit.
 """
 import numpy as np
 from scipy.fft import rfft, rfftfreq
@@ -54,7 +57,7 @@ def _random_motion(samples, sr, rate, seed, phase=0.):
 
 def wobble(frames, sr, *, channels=1, start_sample=0, seed=0, wow_depth=.2,
            wow_rate_hz=.6, flutter_depth=.05, flutter_rate_hz=9, drift=.3,
-           scrape=0, stereo_link=1):
+           scrape=0, stereo_link=1, close_60s=False):
     """Integrate fractional speed deviations; d(displacement_seconds)/dt = -v."""
     samples = _clock(frames, sr, start_sample)
     values = (wow_depth, wow_rate_hz, flutter_depth, flutter_rate_hz, drift, scrape, stereo_link)
@@ -67,7 +70,7 @@ def wobble(frames, sr, *, channels=1, start_sample=0, seed=0, wow_depth=.2,
         for depth, rate, salt in ((wow_depth, wow_rate_hz, 0), (flutter_depth, flutter_rate_hz, 1009)):
             if not depth:
                 continue
-            t = samples.astype(np.float64)/sr
+            t = (samples - 30*sr).astype(np.float64)/sr if close_60s else samples.astype(np.float64)/sr
             phase = 2*np.pi*np.remainder(t*rate, 1.)
             v = np.sin(phase)
             integral = -np.cos(phase)/(2*np.pi*rate)
@@ -81,9 +84,15 @@ def wobble(frames, sr, *, channels=1, start_sample=0, seed=0, wow_depth=.2,
                 v = (1-drift)*v + drift*v0
             # Unlinked deterministic motion also receives independent phases.
             if c and stereo_link < 1 and not drift:
-                theta = 2*np.pi*.371*c
-                integral = stereo_link*integral - (1-stereo_link)*np.cos(phase+theta)/(2*np.pi*rate)
-                v = stereo_link*v + (1-stereo_link)*np.sin(phase+theta)
+                if close_60s:
+                    # Odd symmetry permits independent signs, not phase shifts.
+                    polarity = (-1.)**c
+                    integral *= stereo_link + (1-stereo_link)*polarity
+                    v *= stereo_link + (1-stereo_link)*polarity
+                else:
+                    theta = 2*np.pi*.371*c
+                    integral = stereo_link*integral - (1-stereo_link)*np.cos(phase+theta)/(2*np.pi*rate)
+                    v = stereo_link*v + (1-stereo_link)*np.sin(phase+theta)
             displacement[:, c] -= depth*.01*integral*sr
             speed[:, c] += depth*.01*v
         if scrape:
@@ -93,18 +102,24 @@ def wobble(frames, sr, *, channels=1, start_sample=0, seed=0, wow_depth=.2,
                 if c:
                     phase += (1-stereo_link)*c*.713
                 w = 2*np.pi*f
-                arg = w*(samples.astype(float)/sr)+phase
+                if close_60s:
+                    # Seeded signs preserve odd speed/even displacement about 30 s.
+                    arg = w*((samples-30*sr).astype(float)/sr)
+                    polarity = 1. if np.cos(phase) >= 0 else -1.
+                else:
+                    arg, polarity = w*(samples.astype(float)/sr)+phase, 1.
                 amp = scrape*1e-5/8
+                amp *= polarity
                 speed[:, c] += amp*np.sin(arg)
                 displacement[:, c] += sr*amp*np.cos(arg)/w
     return displacement, speed
 
 
-def wobble_from_params(frames, sr, p, *, channels=1, start_sample=0, seed=0):
+def wobble_from_params(frames, sr, p, *, channels=1, start_sample=0, seed=0, close_60s=False):
     keys = ('wow_depth', 'wow_rate_hz', 'flutter_depth', 'flutter_rate_hz', 'drift', 'scrape', 'stereo_link')
     controls = {k: p[k] for k in keys if k in p}
     return wobble(frames, sr, channels=channels, start_sample=start_sample,
-                  seed=combined_seed(seed, p), **controls)
+                  seed=combined_seed(seed, p), close_60s=close_60s, **controls)
 
 
 def base_latency(sr, p):

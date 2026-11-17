@@ -37,7 +37,7 @@ def render(kind, x, p=None, sr=48000, seed=0, stage='track'):
     return E.render_chain(x, sr, [{'type': kind, 'params': p or {}}], stage=stage, seed=seed).audio
 
 
-def tone(f=1000, db=-6, sr=48000, seconds=1.5):
+def tone(f=1000, db=-6, sr=48000, seconds=.6):
     return (10**(db/20)*np.sin(2*np.pi*f*np.arange(round(sr*seconds))/sr))[:, None]
 
 
@@ -281,14 +281,13 @@ def test_record_five_point_harmonics_and_aliasing(kind):
         elif kind == 'loudness_shaper': p['effect'] = drive/24
         else: p['bits'] = 24-drive*23/24
         rows.append(dict(control=drive, **harmonics(render(kind, tone(), p))))
-    aliases = {str(f): alias_db(render(kind, tone(f), ACTIVE[kind]), f) for f in (5000, 10000, 15000)}
+    aliases = {str(f): alias_db(render(kind, tone(f, seconds=1.5), ACTIVE[kind]), f) for f in (5000, 10000, 15000)}
     small = tone(db=-60)
     small_gain = db(amplitude(render(kind, small, ACTIVE[kind]), 1000)/amplitude(small, 1000))
     print('NT_VECTOR', json.dumps(dict(type=kind, harmonic_vector=rows, alias_dbc=aliases, small_signal_gain_db=small_gain)))
     assert len(rows) == 5 and all(np.isfinite(row['thd_db']) for row in rows)
 
 
-@pytest.mark.xfail(strict=True, reason='T07-05: specified HPF path retains fundamental above the cutoff.')
 def test_exciter_original_component_rejection():
     x = tone(4000, -6)
     delta = render('exciter', x, dict(amount_db=0))-x
@@ -297,7 +296,6 @@ def test_exciter_original_component_rejection():
     assert rejection <= -20
 
 
-@pytest.mark.xfail(strict=True, reason='T07-05: 12 dB/oct input HPF does not give -80 dBFS rejection one octave below.')
 def test_exciter_one_octave_below():
     x = tone(1500, -6)
     delta = render('exciter', x, dict(amount_db=0))-x
@@ -344,15 +342,14 @@ def test_bitcrush_snr():
 
 
 @pytest.mark.parametrize('kind,settings,limit', [
-    pytest.param('exciter', dict(amount_db=-6), -80, marks=pytest.mark.xfail(strict=True, reason='NT2: 4x sidechain alias floor exceeds -80 dBc.')),
-    pytest.param('loudness_shaper', dict(effect=1), -80, marks=pytest.mark.xfail(strict=True, reason='NT2: exact curve with copied 4x resampler exceeds -80 dBc.')),
-    pytest.param('fuzz', {}, -60, marks=pytest.mark.xfail(strict=True, reason='NT2: two-stage hard fuzz exceeds -60 dBc at 8x.')),
+    ('exciter', dict(amount_db=-6), -80),
+    ('loudness_shaper', dict(effect=1), -80),
+    ('fuzz', {}, -60),
     pytest.param('mb_saturator', dict(drive_db=[12]*3), -80, marks=pytest.mark.xfail(strict=True, reason='NT2: original-compatible saturator/resampler exceeds -80 dBc.')),
     ('mb_distortion', dict(crossovers_hz=[], kind_1='hard', drive_db=[24]), -60),
-    pytest.param('mb_distortion', dict(crossovers_hz=[], kind_1='fold', drive_db=[24]), -60,
-        marks=pytest.mark.xfail(strict=True, reason='NT2: centered first-order ADAA fold exceeds -60 dBc.'))])
+    ('mb_distortion', dict(crossovers_hz=[], kind_1='fold', drive_db=[24]), -60)])
 def test_nt2_active_alias_limit(kind, settings, limit):
-    values = {f: alias_db(render(kind, tone(f), settings), f) for f in (5000, 10000, 15000)}
+    values = {f: alias_db(render(kind, tone(f, seconds=1.5), settings), f) for f in (5000, 10000, 15000)}
     print('NT2_ACCEPTANCE', kind, settings, values)
     assert max(values.values()) <= limit
 
@@ -394,7 +391,7 @@ def test_spec_defaults_independently():
 def test_public_implementation_flags():
     for kind in TYPES:
         module = importlib.import_module('mankomix.dspx.procs.'+kind)
-        assert module.SPECS[0]['implemented'] is (kind == 'bitcrush')
+        assert module.SPECS[0]['implemented'] is (kind in ('bitcrush', 'exciter', 'fuzz', 'mb_distortion'))
 
 
 @pytest.mark.parametrize('kind', ['exciter', 'loudness_shaper',
@@ -411,7 +408,6 @@ def test_output_dc(kind):
     assert dc <= -80
 
 
-@pytest.mark.xfail(strict=True, reason='NT4: default gate removes the -60 dBFS probe, contradicting unit small-signal gain.')
 def test_fuzz_default_gate_small_signal():
     x = tone(db=-60)
     y = render('fuzz', x)
@@ -420,18 +416,16 @@ def test_fuzz_default_gate_small_signal():
     assert abs(gain) <= .05
 
 
-@pytest.mark.xfail(strict=True, reason='NT2: remaining multiband curves exceed -80 dBc at 8x; rectify uses input carrier reference.')
 @pytest.mark.parametrize('kind', ['tanh', 'rectify', 'fuzz', 'crush'])
 def test_record_remaining_mb_kind_aliasing(kind):
-    values = {f: alias_db(render('mb_distortion', tone(f), dict(crossovers_hz=[], kind_1=kind, drive_db=[24])), f,
+    values = {f: alias_db(render('mb_distortion', tone(f, seconds=1.5), dict(crossovers_hz=[], kind_1=kind, drive_db=[24])), f,
                          reference_amplitude=10**(-6/20) if kind == 'rectify' else None)
               for f in (5000, 10000, 15000)}
     print('MB_KIND_ALIAS', kind, json.dumps(values))
     assert max(values.values()) <= -80
 
 
-@pytest.mark.parametrize('drive', [0, 12, 24,
-    pytest.param(48, marks=pytest.mark.xfail(strict=True, reason='T07-10: downsampling overshoots bounded fold curve (observed 1.012222).'))])
+@pytest.mark.parametrize('drive', [0, 12, 24, 48])
 def test_fold_audio_bound(drive):
     for level in (-20, -6, 0):
         y = render('mb_distortion', tone(1000, level, seconds=.15),

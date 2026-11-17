@@ -1,5 +1,6 @@
-"""U-06b acceptance, measured response, and explicit pending-spec diagnostics."""
+"""U-06b acceptance and C3 closure of short feedback and weighted tape motion."""
 import importlib
+import hashlib
 import json
 
 import numpy as np
@@ -18,7 +19,7 @@ from mankomix.dspx.procs.flanger import flanger, raw_flanger, delay_samples, lat
 from mankomix.dspx.procs.phaser import phaser, corner_frequencies
 from mankomix.dspx.procs.vibrato import vibrato, raw_vibrato, onset_envelope
 from mankomix.dspx.procs.adt import adt, voice_motion
-from mankomix.dspx.procs.wow_flutter import wow_flutter, raw_wow_flutter
+from mankomix.dspx.procs.wow_flutter import wow_flutter, raw_wow_flutter, weighting_sos, weighted_measurement
 from tests import toolimpl_harness as H
 
 KINDS = ('flanger', 'phaser', 'vibrato', 'adt', 'wow_flutter')
@@ -37,13 +38,6 @@ DEFAULTS = {
     'wow_flutter': dict(wow_depth=.2, wow_rate_hz=.6, flutter_depth=.05, flutter_rate_hz=9,
                         drift=.3, scrape=0, stereo_link=1, seed=0),
 }
-
-
-@pytest.fixture(autouse=True)
-def diagnostic_registration(monkeypatch):
-    # Pending types are enabled only inside this test, never in production.
-    for kind in KINDS:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
 
 
 def p(kind, **params):
@@ -96,11 +90,11 @@ def test_declarations_defaults_and_valid_endpoints(kind):
 @pytest.mark.parametrize('kind', KINDS)
 def test_default_engine_repeat_and_excerpt(kind):
     x = tone(seconds=.18, channels=2)
-    result = run(kind, x)
+    result = H.render(kind, x, 48000, stage='track', seed=197)
     a = result.audio
-    assert a.tobytes() == run(kind, x).audio.tobytes()
+    assert a.tobytes() == H.render(kind, x, 48000, stage='track', seed=197).audio.tobytes()
     excerpt = H.render_excerpt(kind, x, 48000, 1007, len(x), stage='track', seed=197)
-    # H uses its own item id; processors receive the caller's combined seed.
+    # Both full render and excerpt use H's item id, hence the same engine seed.
     assert a[1007:].tobytes() == excerpt.tobytes()
     assert 'mono' in result.steps[0]['stats']
 
@@ -366,12 +360,13 @@ def test_wow_flutter_neutral_sixty_seconds_and_link():
     measurement('wow_flutter_60s', {'end_offset_samples': offset, 'mean_speed_percent': mean})
 
 
-@pytest.mark.xfail(strict=True, reason='An arbitrary sinusoidal rate need not close its displacement after 60 seconds')
-def test_pending_wobble_arbitrary_rate_end_offset():
-    d, _ = wobble(60*8000+1, 8000, wow_rate_hz=.137, wow_depth=3, flutter_depth=0, drift=0)
+def test_wobble_arbitrary_rate_end_offset():
+    d, v = wobble(60*8000+1, 8000, wow_rate_hz=.137, wow_depth=3, flutter_depth=0, drift=0,
+                  close_60s=True)
     offset = float(abs(d[-1, 0]-d[0, 0]))
-    measurement('pending_wobble_60s_noninteger_cycles', {'end_offset_samples': offset})
+    measurement('closed_wobble_60s_noninteger_cycles', {'end_offset_samples': offset})
     assert offset <= 1
+    assert abs(np.mean(v[:-1]))*100 <= .001
 
 
 @pytest.mark.parametrize('kind', ['flanger', 'phaser', 'vibrato', 'wow_flutter'])
@@ -447,11 +442,10 @@ def test_channel_selection_and_master_rejection():
 def test_honest_implementation_flags():
     for kind in KINDS:
         module = importlib.import_module('mankomix.dspx.procs.'+kind)
-        assert module.SPECS[0]['implemented'] == (kind in ('phaser', 'vibrato', 'adt'))
+        assert module.SPECS[0]['implemented'] is True
 
 
-@pytest.mark.xfail(strict=True, reason='BB-09 cannot read <3 fractional samples causally in a feedback loop')
-def test_pending_flanger_subsample_feedback_sweep():
+def test_flanger_subsample_feedback_sweep():
     params = p('flanger', depth=1, delay_ms=.1, min_delay_ms=0, sweep='linear', rate_hz=20)
     x = tone(48000, .1)
     _, _, stats = raw_flanger(x, 48000, params)
@@ -459,7 +453,152 @@ def test_pending_flanger_subsample_feedback_sweep():
     assert abs(stats['delay_min_samples']-float(requested.min())) <= .01
 
 
-@pytest.mark.xfail(strict=True, reason='Normative IEC weighting curve and detector have not been verified')
-def test_pending_iec_weighted_measurement():
+def test_iec_weighted_measurement():
     _, _, stats = wow_flutter(tone(seconds=.1), 48000, p('wow_flutter'))
     assert stats['iec_60386_weighted_percent'] is not None
+    assert 'self_contained_spec_fallback' in stats['weighting_status']
+    assert not stats['weighting_minimum_5s']
+
+
+@pytest.mark.parametrize('feedback', [-.95, .95])
+@pytest.mark.parametrize('delay', [0., .125, .9, 1.25, 2.75])
+@pytest.mark.parametrize('highcut', [0, 1700])
+def test_flanger_short_loop_equation_and_continuation(feedback, delay, highcut):
+    from mankomix.dspx.procs.flanger import _short_feedback
+    sr = 8000
+    x = np.random.Generator(np.random.PCG64(71)).normal(size=(127, 2))*.03
+    delays = np.full_like(x, delay)
+    wet = _short_feedback(x, delays, sr, feedback, highcut)
+    filtered = wet if not highcut else signal.sosfilt(
+        signal.butter(2, highcut, fs=sr, output='sos'), wet, axis=0)
+    # Independent BB-09 read verifies the actual equation, not delay stats.
+    expected = fractional_delay(x+feedback*filtered, delays, 'lagrange3')
+    assert np.max(abs(wet-expected)) < 2e-13
+    params = p('flanger', delay_ms=.1, min_delay_ms=0, depth=1, phase=.75,
+               sweep='linear', rate_hz=20, mix=1, feedback=feedback, highcut_hz=highcut)
+    a = raw_flanger(x, sr, params)[0]
+    b = raw_flanger(np.pad(x, ((0, 128), (0, 0))), sr, params)[0][:len(x)]
+    np.testing.assert_allclose(a, b, rtol=0, atol=2e-13)
+
+
+@pytest.mark.parametrize('feedback', [-.95, .95])
+def test_flanger_short_loop_resonance_and_sixty_second_tail(feedback):
+    sr = 1000
+    params = p('flanger', delay_ms=.1, min_delay_ms=0, depth=0, feedback=feedback, mix=1)
+    x = np.zeros((sr*60+100, 1)); x[:100] = 1
+    y = flanger(x, sr, params)[0]
+    assert np.isfinite(y).all()
+    # The +26 dB criterion describes resonance, not cubic step overshoot.
+    resonance_db = float(20*np.log10(np.max(abs(y[60:80]))))
+    assert resonance_db <= 26+1e-12
+    assert H.peak_dbfs(y[-sr:]) < -120
+    measurement('flanger_short_tail', {'feedback': feedback, 'peak': float(np.max(abs(y))),
+                                       'resonance_db': resonance_db,
+                                       'tail_peak': float(np.max(abs(y[-sr:])))})
+
+
+@pytest.mark.parametrize('feedback', [-.95, .95])
+@pytest.mark.parametrize('delay', [.125, .9, 1.25, 2.75])
+def test_flanger_short_loop_tone_resonance(feedback, delay):
+    sr = 1000
+    params = p('flanger', delay_ms=delay, min_delay_ms=0, depth=0, feedback=feedback, mix=1)
+    largest = 0.
+    for hz in (0, 100, 250, 400, 499):
+        angle = 2*np.pi*hz*np.arange(4096)/sr
+        x = np.column_stack([np.cos(angle), np.sin(angle)])
+        y = flanger(x, sr, params)[0][2048:3072]
+        gain = float(np.max(np.sqrt(np.sum(y*y, axis=1))))
+        largest = max(largest, gain)
+        assert 20*np.log10(gain) <= 26+1e-8
+    measurement('short_tone_resonance', {'feedback': feedback, 'delay_samples': delay,
+                                        'largest_db': float(20*np.log10(largest))})
+
+
+def test_short_flanger_raw_compensation():
+    sr = 48000
+    params = p('flanger', delay_ms=.1, min_delay_ms=0, depth=1, through_zero=True,
+               feedback=.95, rate_hz=20)
+    x = tone(sr, .1, channels=2)
+    latency = latency_samples(sr, params)
+    raw = raw_flanger(np.pad(x, ((0, latency), (0, 0))), sr, params)[0]
+    assert raw[latency:latency+len(x)].tobytes() == flanger(x, sr, params)[0].tobytes()
+
+
+@pytest.mark.parametrize('controls,digest', [
+    ({}, '9e64d15c82a247521cacf4d0db2ce182de36d611a7bfa7de21c2d16b7c3c23de'),
+    ({'wow_rate_hz': .137, 'drift': 0, 'scrape': .8, 'stereo_link': 0},
+     'f73528fbb87a0b6229eb405223d31a75cbcc4f435a1ea47840a903ca10ca0a29'),
+    ({'drift': 1, 'stereo_link': .3}, 'd44fbf6026011d5d26e8449ad0d07dde0a6bf5c5d915b2d5aba1217f6c506f30')])
+def test_shared_wobble_original_default_bytes(controls, digest):
+    # Captured from W2d1's original shared implementation before C3 edits.
+    arrays = wobble(1027, 8000, channels=2, start_sample=371, seed=19, **controls)
+    assert hashlib.sha256(b''.join(a.tobytes() for a in arrays)).hexdigest() == digest
+
+
+@pytest.mark.parametrize('rate,flutter', [(.1, 4), (.137, 7.123), (4, 50)])
+@pytest.mark.parametrize('drift,link', [(0, 0), (.3, .4), (1, 1)])
+def test_wobble_closed_motion_endpoints_excerpt_and_derivative(rate, flutter, drift, link):
+    sr = 8000
+    controls = dict(wow_depth=3, flutter_depth=1, wow_rate_hz=rate, flutter_rate_hz=flutter,
+                    drift=drift, stereo_link=link, scrape=1, close_60s=True)
+    # Endpoints need no full-length audio or 60 s allocation.
+    start = wobble(1, sr, channels=2, seed=31, **controls)[0]
+    end = wobble(1, sr, channels=2, start_sample=60*sr, seed=31, **controls)[0]
+    assert np.max(abs(start-end)) <= 1
+    d, v = wobble(6001, sr, channels=2, seed=31, **controls)
+    excerpt = wobble(1703, sr, channels=2, start_sample=1931, seed=31, **controls)
+    assert all(a[1931:3634].tobytes() == b.tobytes() for a, b in zip((d, v), excerpt))
+    # Analytic d/dt tested without high-frequency scrape finite-difference error.
+    controls['scrape'] = 0
+    d, v = wobble(6001, sr, channels=2, seed=31, **controls)
+    np.testing.assert_allclose(-np.gradient(d, axis=0)[1:-1], v[1:-1], atol=3e-6)
+    _, speed = wobble(60*200, 200, channels=2, seed=31, **controls)
+    mean = float(np.max(abs(np.mean(speed, axis=0)))*100)
+    assert mean <= .001
+    measurement('closed_motion', {'rate_hz': rate, 'flutter_hz': flutter, 'drift': drift,
+                                  'link': link, 'end_samples': float(np.max(abs(start-end))),
+                                  'mean_percent': mean})
+
+
+@pytest.mark.parametrize('sr', [44100, 48000, 96000])
+def test_weighting_frequency_response_and_calibrated_detector(sr):
+    hz = np.array([.05, .1, .5, .6, 1., 4., 9., 40., 100.])
+    _, response = signal.sosfreqz(weighting_sos(sr), worN=hz, fs=sr)
+    # Independently evaluate the declared analogue formula at bilinear frequencies.
+    omega = 2*sr*np.tan(np.pi*hz/sr)
+    def analogue(w):
+        return (1j*w)**2/((1j*w+2*np.pi*.5)*(1j*w+2*np.pi*4)**2)
+    norm = abs(analogue(2*sr*np.tan(np.pi*4/sr)))
+    np.testing.assert_allclose(abs(response), abs(analogue(omega))/norm, rtol=2e-6)
+    # Measure at a low control rate: the filter operates on speed, not the carrier.
+    control_sr = 400
+    time = np.arange(60*control_sr)/control_sr
+    speed = np.column_stack([.001*np.sin(2*np.pi*4*time), .002*np.sin(2*np.pi*4*time)])
+    result = weighted_measurement(speed, control_sr)
+    np.testing.assert_allclose(result['weighted_percent_by_channel'], np.sqrt(2)*np.array([.1, .2]), rtol=.01)
+    assert result['weighting_minimum_5s'] and result['iec_60386_weighted_percent'] == max(result['weighted_percent_by_channel'])
+    measurement('weighting_response', {'sr': sr, 'hz': hz.tolist(), 'magnitude': abs(response).tolist(),
+                                        'calibration_percent': result['weighted_percent_by_channel']})
+
+
+def test_weighted_3150_hz_audio_demodulation_and_item_seed():
+    sr = 16000
+    params = p('wow_flutter', wow_depth=.2, wow_rate_hz=4, flutter_depth=0, drift=0)
+    x = tone(sr, 8, 3150, 2)
+    rendered = H.render('wow_flutter', x, sr, params, stage='track', seed=31)
+    y = rendered.audio
+    phase = np.unwrap(np.angle(signal.hilbert(y[:, 0])))
+    demodulated = np.diff(phase)*sr/(2*np.pi*3150)-1
+    # Exclude Hilbert boundary transients and filter startup in both paths.
+    actual = signal.sosfilt(weighting_sos(sr), demodulated)
+    _, speed = wobble_from_params(len(x), sr, params, close_60s=True)
+    reference = signal.sosfilt(weighting_sos(sr), speed[:, 0])
+    measured = 200*np.std(actual[sr:-sr])
+    expected = 200*np.std(reference[sr:-sr])
+    assert abs(measured/expected-1) < .1
+    random_params = {'drift': 1}
+    a = render_chain(x[:2000], sr, [{'id': 'a', 'type': 'wow_flutter', 'params': random_params}], stage='track', seed=31)
+    b = render_chain(x[:2000], sr, [{'id': 'b', 'type': 'wow_flutter', 'params': random_params}], stage='track', seed=31)
+    assert a.audio.tobytes() != b.audio.tobytes()
+    measurement('weighted_audio', {'demodulated_percent': measured, 'generator_percent': expected,
+                                   'stats_percent': rendered.steps[0]['stats']['iec_60386_weighted_percent']})

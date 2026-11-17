@@ -3,8 +3,6 @@ import numpy as np
 from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _a, _e
 from mankomix.dspx.bb import nonlinear as N, crossover as C
-from .fuzz import fuzz_curve
-from .bitcrush import quantize
 
 KINDS = ['off', 'tanh', 'hard', 'fold', 'rectify', 'fuzz', 'crush']
 DEFAULTS = dict(drive_db=0, tone_hz=20000, level_db=0, mix=1)
@@ -18,6 +16,7 @@ SPECS = [N.specification('mb_distortion', [
     _a('mix', '0..1', 0, 1, 4, [], 'Empty means one per band.'),
     _e('oversample', [2, 4, 8], 8, 'Oversampling factor.', unit='x')],
     'Independent nonlinear curves followed by band tone filters.')]
+SPECS[0]['implemented'] = True
 
 
 def validate(p):
@@ -29,33 +28,41 @@ def validate(p):
         raise ParamError('unused band kinds must be off')
 
 
+def _internal_factor(kind, drive_db, factor):
+    """Reserve extra rate for DC-generating curves and each 12 dB above 24."""
+    multiplier = 4 if kind in ('rectify', 'fuzz') else 2
+    return int(factor)*multiplier*2**max(0, int(np.ceil((drive_db-24)/12)))
+
+
 def distort_band(x, sr, kind, drive_db, factor):
     """hard/fold use centered ADAA: average backward/forward interval integrals.
 
     At the oversampled rate this has zero group delay. Both endpoints require
     whole-context rendering; the reusable causal ADAA1 retains its half delay.
     crush uses 8 bits (the specification does not expose a bits parameter).
+    hard/fold divide by drive gain, preserving their unit small-signal slope.
     """
     if kind == 'off':
         return x.copy()
+    factor = _internal_factor(kind, drive_db, factor)
     g = 10**(drive_db/20)
     def process(u):
+        from .fuzz import antialiased_fuzz_curve
+        from .bitcrush import quantize
         v = u*g
         if kind == 'tanh':
-            return np.tanh(v)/g
+            return N.centered_adaa1(v, np.tanh, N.tanh_primitive)/g
         if kind in ('hard', 'fold', 'rectify'):
             curve, primitive = {'hard': (N.hard_clip, N.hard_clip_primitive),
                                 'fold': (N.fold, N.fold_primitive),
                                 'rectify': (np.abs, N.rectify_primitive)}[kind]
-            if kind in ('hard', 'fold'):
-                back = N.adaa1(v, curve, primitive)
-                ahead = N.adaa1(v[::-1], curve, primitive)[::-1]
-                return (back+ahead)*.5
-            return curve(v)
+            wet = N.centered_adaa1(v, curve, primitive)
+            return wet/g if kind in ('hard', 'fold') else wet
         if kind == 'fuzz':
-            return fuzz_curve(u, drive_db, .2, .2, 'hard')
-        return quantize(v, 8)
-    wet = N.oversampled(x, factor, process)
+            return antialiased_fuzz_curve(u, drive_db, .2, .2, 'hard')
+        return N.centered_adaa1(v, lambda z: quantize(z, 8),
+            lambda z: (np.rint(z*128)*(z*128)-.5*np.rint(z*128)**2)/128**2)
+    wet = N.precision_oversampled(x, factor, process)
     return N.dc_block(wet, sr) if kind in ('rectify', 'fuzz') else wet
 
 
@@ -64,7 +71,9 @@ def mb_distortion(x, sr, p, *, seed=0):
     C.validate_mb(p, sr)
     bp = C.expand_band_params(p, DEFAULTS)
     kinds = [p['kind_'+str(i)] for i in range(1, len(p['crossovers_hz'])+2)]
-    info = N.oversampling_info(p['oversample'])
+    info = N.precision_oversampling_info(max(_internal_factor(kind, drive, p['oversample'])
+        for kind, drive in zip(kinds, bp['drive_db'])))
+    info['oversample'] = p['oversample']
     if all(kind == 'off' for kind in kinds):
         return x.copy(), sr, info
     bands, meta = C.split_mb(x, sr, p)

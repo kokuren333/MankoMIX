@@ -14,13 +14,6 @@ from tests import toolimpl_harness as H
 TYPES = ("reverb_hall", "reverb_chamber", "reverb_gated", "reverb_reverse")
 
 
-@pytest.fixture(autouse=True)
-def enable_candidates(monkeypatch):
-    # Availability is assessed separately from numerical implementation tests.
-    for kind in TYPES:
-        monkeypatch.setitem(P.PROCESSORS[kind], "implemented", True)
-
-
 def params(kind, **p):
     return P.validate_params(kind, p)
 
@@ -30,7 +23,8 @@ def run(kind, x, sr=8000, **p):
 
 
 @pytest.mark.parametrize("lines", [8, 16])
-def test_orthogonal_coprime_and_analytic_absorption(lines):
+@pytest.mark.parametrize("order", [2,4])
+def test_orthogonal_coprime_and_analytic_absorption(lines,order):
     mat = R.orthogonal_matrix(lines)
     assert np.max(abs(mat.T @ mat - np.eye(lines))) < 1e-15
     ds = R.delay_lengths(48000, 25, lines, 17)
@@ -39,13 +33,14 @@ def test_orthogonal_coprime_and_analytic_absorption(lines):
     assert not np.array_equal(ds, R.delay_lengths(48000, 25, lines, 18))
     for d in ds:
         assert abs(float(R.rt60_gain(d, 48000, 2))**(96000/d)-.001) < 1e-15
-        sos = R.absorption_sos(d, 48000, (2, 2, 2))
+        sos = R.absorption_sos(d, 48000, (2, 2, 2),order=order)
         gain = signal.sosfreqz(sos, worN=[125, 1000, 8000], fs=48000)[1]
         assert np.max(abs(abs(gain)-R.rt60_gain(d,48000,2))) < 1e-12
 
 
-@pytest.mark.parametrize("component", ["allpass", "fdn", "modulated", "tank"])
-def test_stateful_core_chunk_invariance(component):
+@pytest.mark.parametrize("component,absorption_order", [("allpass",2),("fdn",2),("modulated",2),
+                                                       ("tank",2),("fdn",4),("modulated",4)])
+def test_stateful_core_chunk_invariance(component,absorption_order):
     sr = 8000
     p = params("reverb_hall", rt60_s=.3, mod_depth=.5 if component == "modulated" else 0)
     x = H.white_noise(sr=sr, seconds=.13, channels=2, seed=48)
@@ -54,7 +49,8 @@ def test_stateful_core_chunk_invariance(component):
             return R.Allpass(17, .65)
         if component == "tank":
             return R.AllpassTank(sr, .3)
-        return R.FDN(sr, p)
+        return R.FDN(sr, p,absorption_order=absorption_order,
+                     mod_interpolation="lagrange3" if absorption_order == 4 else "sinc8")
     expected = make().process(x)
     for chunk in (1, 64, 1024):
         core = make()
@@ -68,6 +64,7 @@ def test_stateful_core_chunk_invariance(component):
 @pytest.mark.parametrize("kind", TYPES)
 def test_registration_defaults_and_channel_rejection(kind):
     spec = P.describe(kind)
+    assert spec["implemented"] is True
     assert spec["stages"] == ["track", "bus"] and spec["master_slot"] is None
     assert spec["backends"] == ["reference"] and spec["realtime"]["allocates"]
     assert not spec["channel_ok"]
@@ -100,7 +97,7 @@ def test_numeric_endpoints_are_resolved_and_exercised(kind):
             # Probe every legal value at the actual declared rates. A short IR
             # exercises coefficients without allocating 187 s at every endpoint.
             if kind in TYPES[:2]:
-                h = R.render_ir(8000,p,chamber=kind.endswith("chamber"),frames=320)
+                h = R.render_ir(8000,p,chamber=kind.endswith("chamber"),frames=320,absorption_order=4)
             elif kind == "reverb_gated":
                 h = G.gated_ir(8000,p) if p["mode"] == "nonlin" else R.render_ir(8000,p,frames=320)
             else:
@@ -113,16 +110,16 @@ def test_numeric_endpoints_are_resolved_and_exercised(kind):
 def test_rt_vector_seed_density_correlation_and_ringing(kind,chamber):
     sr = 32000
     p = params(kind,rt60_s=.8,mix=1,lowcut_hz=20,highcut_hz=20000)
-    h = R.render_ir(sr,p,chamber=chamber)
+    h = R.render_ir(sr,p,chamber=chamber,absorption_order=4)
     pair = h.sum(axis=1)
     measurements = H.octave_rt60(pair,sr,centers_hz=(125,1000,8000))
     targets = {125:.8*p["rt60_low_mult"],1000:.8,8000:.8*p["rt60_high_mult"]}
     print(kind,"rt_vector",measurements,"targets",targets)
     for f,t in measurements.items():
         assert abs(t/targets[f]-1) <= .1
-    other = R.render_ir(sr,{**p,"seed":1},chamber=chamber)
+    other = R.render_ir(sr,{**p,"seed":1},chamber=chamber,absorption_order=4)
     assert not np.array_equal(h,other)
-    assert np.array_equal(h,R.render_ir(sr,p,chamber=chamber))
+    assert np.array_equal(h,R.render_ir(sr,p,chamber=chamber,absorption_order=4))
     for f,t in measurements.items():
         assert abs(H.rt60(other.sum(axis=1),sr,band_hz=f)/t-1) <= .05
     assert abs(H.late_correlation(pair,sr,start_s=.15)) <= .3
@@ -146,7 +143,7 @@ def test_hall_first_reflection_and_chamber_rise_are_monotonic():
     rises=[]
     p=params("reverb_chamber",rt60_s=.4,predelay_ms=0,lowcut_hz=20,highcut_hz=20000)
     for distance in (0,.5,1):
-        h=R.render_ir(16000,{**p,"distance":distance},chamber=True,frames=3200).sum(axis=1)
+        h=R.render_ir(16000,{**p,"distance":distance},chamber=True,frames=3200,absorption_order=4).sum(axis=1)
         env=H.rms_envelope(h,16000,window_ms=5).mean(axis=1)
         rises.append(int(np.argmax(env >= .5*np.max(env))))
         if distance == .5:
@@ -160,11 +157,12 @@ def test_hall_lti_tv_agreement_and_modulated_pitch():
     sr=8000
     p=params("reverb_hall",rt60_s=.3,rt60_low_mult=1,rt60_high_mult=1)
     x=H.white_noise(sr=sr,seconds=.35,channels=2,seed=71)
-    a=R.process_reverb(x,sr,p,execution="lti")[0]
-    b=R.process_reverb(x,sr,p,execution="tv")[0]
+    a=R.process_reverb(x,sr,p,execution="lti",absorption_order=4,mod_interpolation="lagrange3")[0]
+    b=R.process_reverb(x,sr,p,execution="tv",absorption_order=4,mod_interpolation="lagrange3")[0]
     assert H.null(a,b)["rms_dbfs"] <= -100
     tone=H.sine(440,sr=sr,seconds=.8,channels=2)
-    y=R.process_reverb(tone,sr,{**p,"mod_depth":1,"mod_rate_hz":5,"mix":1})[0]
+    y=R.process_reverb(tone,sr,{**p,"mod_depth":1,"mod_rate_hz":5,"mix":1},
+                       absorption_order=4,mod_interpolation="lagrange3")[0]
     f=H.fundamental_frequency(y[round(.4*sr):],sr,low_hz=400,high_hz=480)
     print("modulated cents",1200*np.log2(f/440))
     assert abs(1200*np.log2(f/440)) <= 10
@@ -275,7 +273,7 @@ def test_common_ct1_through_ct8(kind):
         measurement = {"first_sample":first,"predelay_samples":expected}
         if kind in TYPES[:2]:
             if sr not in rates:
-                h=R.render_ir(sr,p,chamber=kind.endswith("chamber")).sum(axis=1)
+                h=R.render_ir(sr,p,chamber=kind.endswith("chamber"),absorption_order=4).sum(axis=1)
                 rates[sr]=H.rt60(h,sr,band_hz=1000)
             measurement["t20_1000_s"] = rates[sr]
             good = good and abs(rates[sr]/p["rt60_s"]-1) <= .1
@@ -292,20 +290,42 @@ def test_full_scale_feedback_60s_default_decay(kind):
     H.assert_common_tests(kind,params={"rt60_s":.3,"lowcut_hz":20,"highcut_hz":20000},
         neutral={"mix":0},latency_params={"mix":0},seconds=.025,srs=(4000,),
         stages=("bus",),feedback=True,
-        sr_probe=lambda x,y,sr,p: {"passed":np.isfinite(y).all(),"active_t20_s":H.rt60(R.render_ir(sr,p,chamber=kind.endswith("chamber")).sum(axis=1),sr,band_hz=500)})
+        sr_probe=lambda x,y,sr,p: {"passed":np.isfinite(y).all(),"active_t20_s":H.rt60(R.render_ir(sr,p,chamber=kind.endswith("chamber"),absorption_order=4).sum(axis=1),sr,band_hz=500)})
 
 
 @pytest.mark.parametrize("kind,rt", [("reverb_hall",20),("reverb_chamber",8)])
-@pytest.mark.xfail(strict=True, reason="Legal maximum RT60 multipliers fail the 60 s / -120 dBFS CT-8 condition")
-def test_maximum_decay_ct8_blocker(kind,rt):
+def test_maximum_decay_ct8(kind,rt):
     sr=4000
-    p=params(kind,rt60_s=rt,rt60_low_mult=4,rt60_high_mult=4,lowcut_hz=20,highcut_hz=20000,mix=1)
+    p=params(kind,rt60_s=rt,rt60_low_mult=24/rt,rt60_high_mult=24/rt,lowcut_hz=20,highcut_hz=20000,mix=1)
     x=np.zeros((61*sr,2))
     x[:sr]=np.random.Generator(np.random.PCG64(15)).choice([-1.,1.],(sr,2))
-    y=R.FDN(sr,p,chamber=kind.endswith("chamber")).process(x,offline_diffusion=True)
+    y=R.FDN(sr,p,chamber=kind.endswith("chamber"),absorption_order=4).process(x,offline_diffusion=True)
     tail=H.peak_dbfs(y[-sr:])
     print(kind,"maximum decay CT8 core tail dBFS",tail)
     assert np.isfinite(y).all() and tail < -120
+
+
+@pytest.mark.parametrize("kind,rt", [("reverb_hall",20),("reverb_chamber",8)])
+def test_decay_combinations_reject_above_measured_limit(kind,rt):
+    from mankomix.dspx.registry import implementations
+    boundary=params(kind,rt60_s=rt,rt60_low_mult=24/rt,rt60_high_mult=24/rt)
+    assert boundary["rt60_s"] == rt
+    # Multiplier 4 remains available with a compatible base RT60.
+    assert params(kind,rt60_s=6,rt60_low_mult=4,rt60_high_mult=4)["rt60_low_mult"] == 4
+    for changes in ({"rt60_low_mult":4,"rt60_high_mult":4},
+                    {"rt60_low_mult":np.nextafter(24/rt,np.inf)},
+                    {"rt60_high_mult":np.nextafter(24/rt,np.inf)}):
+        p={**boundary,**changes}
+        with pytest.raises(ParamError,match="24 s"):
+            params(kind,**p)
+        with pytest.raises(ParamError,match="24 s"):
+            E.render_chain(np.zeros((8,2)),8000,[{"type":kind,"params":p}],stage="bus")
+        with pytest.raises(ParamError,match="24 s"):
+            implementations()[kind](np.zeros((8,2)),8000,p)
+    # Existing BB-10 clients retain the unrestricted validator and finite IR API.
+    R.validate_rv({**boundary,"rt60_low_mult":4,"rt60_high_mult":4})
+    assert np.isfinite(R.render_ir(8000,{**boundary,"rt60_low_mult":4,"rt60_high_mult":4},
+                                  chamber=kind.endswith("chamber"),frames=320)).all()
 
 
 @pytest.mark.parametrize("kind,mode", [("reverb_gated","nonlin"),("reverb_gated","keyed"),
@@ -349,10 +369,15 @@ def test_sd_valid_endpoints_process_and_silent_key():
 
 
 @pytest.mark.parametrize("kind", TYPES)
-@pytest.mark.xfail(strict=True, reason="The engine passes project seed only; the processor call has no chain item ID")
 def test_chain_item_id_participates_in_random_seed(kind):
     x=H.impulse(sr=8000,seconds=.2,channels=2)
     p={"mix":1,"rt60_s":.3}
     a=E.render_chain(x,8000,[{"id":"room_a","type":kind,"params":p}],stage="bus",seed=81).audio
+    again=E.render_chain(x,8000,[{"id":"room_a","type":kind,"params":p}],stage="bus",seed=81).audio
     b=E.render_chain(x,8000,[{"id":"room_b","type":kind,"params":p}],stage="bus",seed=81).audio
+    project=E.render_chain(x,8000,[{"id":"room_a","type":kind,"params":p}],stage="bus",seed=82).audio
+    parameter=E.render_chain(x,8000,[{"id":"room_a","type":kind,"params":{**p,"seed":1}}],stage="bus",seed=81).audio
+    assert a.tobytes() == again.tobytes()
     assert a.tobytes() != b.tobytes()
+    assert a.tobytes() != project.tobytes()
+    assert a.tobytes() != parameter.tobytes()

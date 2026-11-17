@@ -73,6 +73,10 @@ RV（`rt60_s` 0.2〜20、既定 2.2）に加えて：
 | `mod_depth` | f | 0..1 | 0〜1 | 0 |
 | `mod_rate_hz` | f | Hz | 0.05〜5 | 0.5 |
 
+- RT60 の組合せ制約：`rt60_s × max(1, rt60_low_mult, rt60_high_mult) ≤ 24 s`。各パラメータの単独範囲・既定値は上表のまま。最長帯域 80 s の旧最大組合せは CT-8 に未達だったため、最長帯域を実測済みの 24 s に制限する（60 s で公称 150 dB 減衰）。超過はパラメータ検証時に拒否し、減衰を黙って短縮しない。
+- 帯域別吸収は4次 Butterworth シェルフを使い、倍率4でも帯域内部の RT60 精度を保つ。BB-10 の既存の2次設計は既定 API として維持する。
+- 変調時の帰還読み出しには3次 Lagrange 補間を使う。既存8点 sinc の一部周波数の増幅によって長いRT60の減衰が遅くなることを避ける。BB-10 の補間の既定 API は維持する。
+
 - アルゴリズム：初期反射タップ（`size_m` から）→ 全通過拡散 → 16 本 FDN（互いに素な遅延長を `size_m` と `seed` から決める。直交行列。各線に帯域別吸収フィルタ：宣言 RT60 から線ごとの減衰量を解析的に決める）→ 出力タップの行列でステレオ化
 - 正典：Schroeder「Natural Sounding Artificial Reverberation」JAES 1962／Moorer「About This Reverberation Business」CMJ 1979／Jot & Chaigne「Digital Delay Networks for Designing Artificial Reverberators」AES 90th 1991／Schlecht & Habets「On Lossless Feedback Delay Networks」IEEE TSP 2017／Rocchesso & Smith 1997（IEEE TSAP）／Abel & Huang「A Simple, Robust Measure of Reverberation Echo Density」AES 121st 2006
 - テスト（RT1〜6 に加えて）：(1) 正規化エコー密度（Abel & Huang）が 0.9 に達する時刻 ≤ `size_m` から導く上限（既定で 150 ms） (2) 最初の反射の到達時刻が `size_m` に対して単調 (3) `mod_depth=0` で、`tv` の核で描画した結果と `lti` の結果のヌル ≤ −100 dBFS（核の整合） (4) `mod_depth>0`：定常正弦の尾の周波数偏移 ≤ ±10 セント
@@ -106,6 +110,8 @@ RV（`rt60_s` 0.3〜20、既定 2.5）に加えて：
 `reverb_chamber`｜A｜W2｜S（T03-02 の後。同じ核の別構成）｜Codex｜`lti`
 
 RV（`rt60_s` 0.3〜8、既定 1.8、`predelay_ms` 既定 5）に加えて：`size_m`（f、2〜15、6）、`density`（f、0〜1、0.9）、`rt60_low_mult`（f、0.1〜4、1.0）、`rt60_high_mult`（f、0.1〜4、0.8）、`distance`（f、0〜1、0.5：近いほど初期の立ち上がりが速い）、`width`（f、0〜1、1）。
+
+- RT60 の組合せ制約：T03-02 と同じく `rt60_s × max(1, rt60_low_mult, rt60_high_mult) ≤ 24 s`。最長帯域 32 s の旧最大組合せは CT-8 に未達。単独範囲・既定値は維持し、超過はパラメータ検証時に拒否する。帯域別吸収も T03-02 と同じ4次設計を使う。
 
 - アルゴリズム：離散的な初期反射を置かず、直列全通過で最初から密にしてから 8 本 FDN（短い遅延長）。`distance` は尾の立ち上がり包絡（0〜40 ms）を決める
 - 正典：T03-02 と同じ＋Kuttruff『Room Acoustics』（小空間のエコー密度と固有振動の式）

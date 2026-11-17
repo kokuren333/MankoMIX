@@ -57,7 +57,7 @@ SPECS = [definition("reverb_gated", rv_params(sd=True) + [
     _f("threshold_db", "dBFS", -60, 0, -30, "Dry key gate threshold."),
     _f("hold_ms", "ms", 10, 1000, 150, "Gate hold."),
     _f("release_ms", "ms", 5, 500, 30, "Gate release time constant."),
-])]
+], implemented=True)]
 IMPLS = {"reverb_gated": reverb_gated}
 TIME_VARYING = {"reverb_gated"}
 CROSS_VALIDATE = {"reverb_gated": cross_validate}
