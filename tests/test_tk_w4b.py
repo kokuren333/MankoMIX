@@ -311,10 +311,11 @@ def test_ms1_definition_hashes():
                 'knowledge/rules.json': '15842e10df9a1b1b092a1c06895d741ce99f2452a6dcce72ff59412b0cc6f4eb',
                 'knowledge/objective_metrics.json': '3a854f6b765be37aae9eea1a71a41cc24dfb6d3137936dce8b0b7e2a5b4e0397',
                 'knowledge/mix_rules.json': 'f1789b96eb0b43e3ba625e65d3cc9299d03483cdf35c3159598bbaa8a49f81ef',
-                'profiles/media_profiles.json': '85a52c337ef8ae7d7388bc6baf095c59c95fae8d2e17a33d0e0d4bf7d1452c6d'}
+                'profiles/media_profiles.json': '5b75b36c6627158f7bb3fc712d7bf89e3950cb815ca907f9c5fd9684a37070e4'}
+    # content digests with CRLF normalised to LF, so the check holds on any checkout's line endings
     from pathlib import Path
     for filename, digest in expected.items():
-        assert hashlib.sha256(Path(filename).read_bytes()).hexdigest() == digest
+        assert hashlib.sha256(Path(filename).read_bytes().replace(b'\r\n', b'\n')).hexdigest() == digest
 
 
 def test_existing_adaptive_drive_preview():
