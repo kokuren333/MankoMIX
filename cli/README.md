@@ -171,3 +171,5 @@ python -m mankomix.cli doctor
 <!-- tool-spatial:end -->
 
 座標はx前/y左/z上、正方位は左。info以外は明示されたfloat64 WAVだけを書く。sr・フレーム数を保ち、プロジェクトのミックスグラフには入れない。使わない場合、既存コマンドの結果は従来とバイト同一。変換を使ったか・次数をどう選んだかは検査しない。
+
+W4d編集opの追補（W6b）：`edit_stretch`・`edit_stretch_extreme`・`edit_varispeed`・`edit_reverse`・`edit_fade`・`edit_normalize` は登録済み。指揮書の `stage: edit` に書き、既存の `direction validate`／`apply`／`check` と `direction edit revert` を使う。新しいCLIコマンドはない。必須欄・範囲・既定・派生と静的ゲインの契約は [DIRECTION_FORMAT](../docs/DIRECTION_FORMAT.md) §9.21〜§9.26、現在の登録表は§9.17。W6a時点の未登録表・停止説明は履歴として残す。使わない場合、既存入力の提案・適用・outcomeは従来とバイト同一。これらのopの採用・回数・順序や、数値を音質の改善と判断したかは検査しない。

@@ -1463,6 +1463,36 @@ direction 層のコマンドは CLI 専用（統括の判断 D-24）。MCP の�
 
 以下は追補のop名の一覧。`target` は手の直下、各処理の値は `params` に書く。「必須」は登録宣言上の必須欄であり、params内の条件は続く説明と各specによる。新opの範囲指定は各plannerが解決し、自動較正の新しいつまみにはしない。
 
+#### W4d受入後の登録表（W6b追補）
+
+以下を現在の登録表とする。W4dの6編集opは登録・受入済みで、詳細は§9.21〜§9.26。既存文を残すため、W6a時点の表と停止説明は下の折り畳みに保存する。その「未登録」「停止」は当時の状態を表し、現在の在否には使わない。
+
+<!-- tool-ops:begin -->
+| op | 段 | 必須欄 | 登録状態 | 中身 |
+|---|---|---|---|---|
+| `duck_curve` | mix | target, params | 登録済み | §9.16 |
+| `breath` | mix | target | 登録済み | ブレス候補を検出しフェーダーの線を書く |
+| `drum_replace` | mix | target, params | 登録済み | 打点ごとのサンプルを足したトラックを作る |
+| `edit_debleed` | edit | target, params | 登録済み | 指定した被り元から除去用パワーを推定する |
+| `edit_isolate` | edit | target | 登録済み | 既存の分離モデルによる声／背景の抽出 |
+| `edit_pitch` | edit | target, params | 登録済み | 音符ごとの音高・揺れ・音色・時刻・ゲイン |
+| `level_phrases` | mix | target | 登録済み | 句内は一定、休止中に切り替わるゲイン列 |
+| `ride` | mix | target | 登録済み | レベルを追う有界・傾き制限つきゲイン列 |
+| `vocode` | mix | target, params | 登録済み | 外部キーの包絡で搬送トラックを処理する |
+| `edit_stretch` | edit | target, params | 登録済み | T08-10。§9.21 |
+| `edit_stretch_extreme` | edit | target | 登録済み | T08-11。§9.22 |
+| `edit_varispeed` | edit | target, params | 登録済み | T08-12。§9.23 |
+| `edit_reverse` | edit | target, params | 登録済み | T09-06。§9.24 |
+| `edit_fade` | edit | target, params | 登録済み | T12-04。§9.25 |
+| `edit_normalize` | edit | target, params | 登録済み | T12-05。§9.26 |
+| `edit_align_time` | edit | target, params | 登録済み | T11-01。ガイドに対する時間写像 |
+| `edit_align_pitch` | edit | target, params | 登録済み | T11-02。ガイドに対する音高と時間の写像 |
+| `edit_quantize` | edit | target, params | 登録済み | T11-07。一定テンポの打点の量子化 |
+<!-- tool-ops:end -->
+
+<details>
+<summary>W6a時点の登録表・停止説明（履歴）</summary>
+
 <!-- tool-ops:begin -->
 | op | 段 | 必須欄 | 登録状態 | 中身 |
 |---|---|---|---|---|
@@ -1487,6 +1517,8 @@ direction 層のコマンドは CLI 専用（統括の判断 D-24）。MCP の�
 <!-- tool-ops:end -->
 
 W4dの6 opは、フェード形状・crossの配置変更・groupの静的ゲインに必要な共通口の不足で製品opを追加せず停止した。未登録行は仕様上の予定名であり、上記の適用契約を満たした実装済み機能には数えない。
+
+</details>
 
 `ride`・`level_phrases`・`breath` はトラックを対象に `section` を使える。処理前後の分布・選択した句や候補・適用量・作用しなかった理由を適用記録に残す。
 
@@ -1567,3 +1599,106 @@ direction外の独立CLI。`encode`／`rotate`／`decode`／`convert`／`info` �
 infoは次数・成分別RMS/peakを返すが、音声だけから正規化や並びを推定できないためunknown/undeterminedとする。出力音声のsr・フレーム数を保ち、復号の末尾は入力長で切る。処理の数学的な性質と聴感上の配置の良し悪しは区別する。
 
 使わない場合：コマンドを呼ばない既存入力の結果は従来とバイト同一。検査しないこと：空間変換を使ったか、特定次数を選んだか。CLI専用であり、GUI・MCPの表面は追加しない。
+
+### 9.21 タイムストレッチ（`edit_stretch`）
+
+T08-10。`stage: edit`、登録上の必須欄は `target, params`。`target` は既存トラック（バス・masterは不可）。§9.21〜§9.26の処理値は `params` に書く。区間を使えるopの `section` は手の直下またはparams内のどちらか一方に書き、セクションID、`"t0,t1"` の秒、`{t0_s: ..., t1_s: ...}` を使える。stretch・extreme・varispeed・reverseでは省略時に対象の非ミュートクリップの先頭から末尾までを選ぶ。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `ratio` | 出力長／入力長、0.25〜4。既定なし |
+| `bpm_from` / `bpm_to` | 各20〜400 BPM。両方を指定し、比from/toも0.25〜4 |
+| `map` | 既定 `[]`。非負の `[元秒, 出力秒]` を2〜1024点、両軸とも狭義増加。[0,0]から選択元区間の末尾までを覆う区分線形写像 |
+| `quality` | `standard` / `high`、既定high。WSOLA／位相ロック付き位相ボコーダ |
+| `transients` | 0〜1、既定0.7 |
+| `fit` | `keep_start` / `keep_length`、宣言上の既定keep_start |
+
+ratio・BPM対・空でないmapからちょうど1つを指定する。mapの時刻は選択区間の頭を0とした秒で、区間外への外挿はしない。ratio1・mapなしは空のClipPlanで同一と記録し、派生音声を作らない。
+
+stretch・extreme・varispeedの実配置は統括の尺不変の読み替えに従い、要求したfitを `requested_fit` に残し、BB-18へは `fit: keep_length` を渡す。自然な計算後の長さを記録し、選択区間からはみ出す分を切り、不足は無音で埋める。プロジェクト尺は変えない。派生の出典・パラメータ・コード版・ハッシュ、前後のLUFS-I／サンプルピーク／TP、入力・計算後・配置後フレーム数を台帳に残す。再生成と逆順revertは§9.17の共通契約による。
+
+使わない場合：`edit_stretch` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：伸縮の採用・回数・順序、テンポ変更の音楽的な妥当性や音質の改善。入力範囲・写像・台帳の整合は検査する。
+
+### 9.22 極端タイムストレッチ（`edit_stretch_extreme`）
+
+T08-11。`stage: edit`、登録上の必須欄は `target` のみ。対象・section・fit・派生台帳は§9.21と同じ。`params` はオブジェクトで、`{}` なら以下の既定値を使う。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `ratio` | 2〜200、既定8 |
+| `window_s` | 0.05〜2秒、既定0.25 |
+| `onset` | 0〜1、既定0。過渡検出に応じて窓を短くする度合い |
+| `seed` | 整数0〜65535、既定0 |
+| `max_out_s` | 1〜3600秒、既定600。自然な出力長の上限 |
+| `fit` | `keep_start` / `keep_length`、宣言上の既定keep_start。実配置はkeep_length |
+
+長窓FFT・位相乱数化・重ね合わせと局所エネルギー補正を行う。プロジェクトseed・手のID・seedから導出し、フレームごとに独立したPCG64を使う。同じ入力・種・版で再現する。max_out_sを超える設定は、配置時に切る場合も拒否する。
+
+使わない場合：`edit_stretch_extreme` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：極端な伸縮の採用、seedの選び方、音の好み。上限・決定論・台帳の整合は検査する。
+
+### 9.23 バリスピード（`edit_varispeed`）
+
+T08-12。`stage: edit`、登録上の必須欄は `target, params`。対象・section・fit・派生台帳は§9.21と同じ。速度と音程が連動する編集である。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `speed` | 0.25〜4、既定なし。自然な出力長は入力長/speed |
+| `semitones` | −24〜24、既定なし。speed＝2^(semitones/12) |
+| `ramp` | 既定 `[]`。`[元秒, 速度]` を2〜1024点、元秒は非負・狭義増加、速度は各0.25〜4 |
+| `fit` | `keep_start` / `keep_length`、宣言上の既定keep_start。実配置はkeep_length |
+
+speed・semitones・空でないrampからちょうど1つを指定する。rampは選択区間の元0秒から末尾までを明示し、区分線形速度の時間積分で読み出し位置を決める。定速は既存の高品質polyphase核、可変速は帯域制限付きsinc読み出しを使う。speed1・rampなしは派生音声を作らず同一と記録する。
+
+使わない場合：`edit_varispeed` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：半速・変速の採用や音程の選択、聴感上の改善。入力範囲・rampの端点・台帳の整合は検査する。
+
+### 9.24 区間リバース（`edit_reverse`）
+
+T09-06。`stage: edit`、登録上の必須欄は `target, params`。対象・section・派生台帳は§9.21と同じ。`params: {}` でも使える。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `fade_ms` | 0〜200 ms、既定5。反転後の両端のequal_powerフェード |
+| `tail_ms` | 0〜10000 ms、既定0。元区間の後ろから追加して読む余韻 |
+
+選択区間と元素材のtailを読んで反転し、選択区間の長さに収める。tailはその区間の素材の余白であり、別の隣接クリップを混ぜない。素材の余白不足・プロジェクト末尾超過は拒否する。区間外とプロジェクト尺は変えず、派生資産・測定・再生成用の処方を記録する。
+
+使わない場合：`edit_reverse` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：反転の採用、余韻や効果の好み。区間・素材の余白・台帳の整合は検査する。
+
+### 9.25 フェード／クロスフェード（`edit_fade`）
+
+T12-04。`stage: edit`、登録上の必須欄は `target, params`。targetは既存トラック。params内ではwhereが必須。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `where` | `in` / `out` / `both` / `cross`、既定なし |
+| `in_ms` / `out_ms` | 各0〜60000 ms、既定各10 |
+| `cross_ms` | 1〜5000 ms、既定20 |
+| `shape` | `linear` / `equal_power` / `s_curve` / `exp` / `log`。crossは既定equal_power、それ以外は既定s_curve |
+| `cross_law` | `auto` / `equal_power` / `equal_gain`、既定auto |
+| `clip` | 対象トラック内のクリップID。省略時は対象の非ミュートクリップから選ぶ |
+| `section` | §9.21の区間。crossでは必須で、隣接する1組の編集点だけを選ぶ。点指定はparams.sectionに秒数を書く |
+
+in/out/bothはsectionと交差するクリップの指定端を置換し、長さは各クリップ長までに収める。指定しない端のフェードを保持する。linear／equal_powerを既存の単一fade_curve欄で両端とも表せる場合はClipPlan、それ以外の形状やcrossはBB-18のDerivedPlanを使う。既存edit_trimの切り口を基に処理する。exp／logのfloorは−120 dB。
+
+crossは境目を中心に両素材を重ね、余白が足りなければ拒否する。autoは実際に重なる素材の相関が0.5以上ならequal_gain、未満ならequal_powerを選ぶ。相関・選択law・形状・前後の測定を記録する。プロジェクト尺は変えず、再生成・revertは§9.17による。
+
+使わない場合：`edit_fade` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：フェードの採用・形状の好み、crossが聴感上なめらかと判断したか。入力・余白・台帳の整合は検査する。
+
+### 9.26 静的ノーマライズ（`edit_normalize`）
+
+T12-05。`stage: edit`、登録上の必須欄は `target, params`。targetは既存トラック。params内ではmodeとto_dbが必須。sectionは使えず、クリップ／トラック全体を測る。
+
+| パラメータ | 範囲・既定・意味 |
+|---|---|
+| `mode` | `peak` / `true_peak` / `lufs_i` / `lufs_active` / `rms`、既定なし |
+| `to_db` | −60〜0 dBFS／LUFS、既定なし |
+| `max_gain_db` | 0〜40 dB、既定20。上げ幅の上限 |
+| `ceiling_db` | −12〜0 dBTP、既定−1。lufs_i／lufs_active／rmsのTP上限 |
+| `scope` | `clip` / `track` / `group`、既定track |
+| `group` | 既定 `[]`。targetを含まない重複なしの既存トラックID、最大32 peer＋target。空でない配列はscope:groupでだけ使える |
+
+clipは各クリップ、trackは対象全体、groupは同時刻のrawトラック和を1素材として測る。groupには同じ静的ゲインを全員へ与え、相対バランスを保つ。lufs_i／lufs_activeは既存BS.1770の絶対／相対ゲート付き積分を呼ぶ。無音・測定不能はゲイン0と理由を記録する。上げ幅やTP上限に当たれば抑え、目標へ届かなかった理由を残す。
+
+変更は既存クリップのgain_dbだけで、音声資産や派生cacheを作らず、リミッターを掛けない。同一レシピの再適用は既存台帳から基準を復元し、上限付きのゲインも積み上げない。基準の水準・実適用前後の水準・ゲイン・制限理由・group各メンバーの水準を記録し、group全員を整合検査・revertする。マスター目標・既存検証の定義は変えない。
+
+使わない場合：`edit_normalize` を書かない入力の提案・適用・outcomeは従来とバイト同一。検査しないこと：正規化の採用、特定の水準やscopeを選んだか、目標到達を音質の改善と判断したか。入力・group・台帳の整合と既存の検証契約は維持する。
