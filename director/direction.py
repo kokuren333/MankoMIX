@@ -50,6 +50,7 @@ OPS = {
     "chain_param": ("mix", ("target", "replaces", "params")),
     "chain_remove": ("mix", ("target", "replaces")),
     "gain": ("mix", ("target", "params")),
+    "gain_curve": ("mix", ("target", "params")),
     "pan": ("mix", ("target", "params")),
     "send": ("mix", ("target", "params")),
     "bus_add": ("mix", ("target", "params")),
@@ -503,15 +504,31 @@ SCENE_MAX_SOURCES = 32
 SCENE_DEPTH = (1, 5)
 
 
-def _check_scene(sc: Any, err, *, tracks: dict, has_project: bool) -> None:
+def _check_scene(sc: Any, err, *, tracks: dict, has_project: bool, buses: dict, moves: list) -> None:
     """Form and range of the optional ``scene`` (FBREVIEW FR-4, G-2). Never checked: whether every
     track is listed, whether the moves follow it, whether the result matches it."""
     if not isinstance(sc, dict):
         err("scene", "bad_value", "scene must be an object {note?, sources}")
         return
-    extra = sorted(set(sc) - set(SCENE_KEYS))
+    extra = sorted(set(sc) - (set(SCENE_KEYS) | {"room"}))
     if extra:
         err("scene", "bad_value", f"unknown keys in scene: {', '.join(extra)}")
+    if "room" in sc:
+        room = sc["room"]
+        if not isinstance(room, dict):
+            # Preserve the original rejection location for non-object room declarations.
+            err("scene", "bad_value", "scene.room must be an object {note, bus?}")
+        else:
+            _declaration_object(room, "scene.room", ("note", "bus"), err, ("note",))
+            if "note" in room:
+                _declaration_text(room["note"], "scene.room.note", err)
+            if "bus" in room:
+                bus = room["bus"]
+                if not isinstance(bus, str) or not bus.startswith("bus_"):
+                    err("scene.room.bus", "bad_value", "bus must be an id starting with 'bus_'")
+                elif has_project and bus not in buses and not any(
+                        m.get("op") == "bus_add" and m.get("target") == bus for m in moves):
+                    err("scene.room.bus", "unknown_target", f"unknown bus '{bus}'")
     if "note" in sc and not isinstance(sc["note"], str):
         err("scene.note", "bad_value", "scene.note must be a string")
     if "sources" not in sc:
@@ -559,6 +576,182 @@ def _check_scene(sc: Any, err, *, tracks: dict, has_project: bool) -> None:
             err(where, "missing_field", "a scene source needs azimuth and/or depth")
         if "note" in s and not isinstance(s["note"], str):
             err(f"{where}.note", "bad_value", "note must be a string")
+
+
+def _declaration_object(value: Any, where: str, keys: tuple, err, required: tuple = ()) -> bool:
+    if not isinstance(value, dict):
+        err(where, "bad_value", f"{where} must be an object")
+        return False
+    extra = sorted(set(value) - set(keys))
+    if extra:
+        err(where, "bad_value", f"unknown keys in {where}: {', '.join(extra)}")
+    for key in required:
+        if key not in value:
+            err(f"{where}.{key}", "missing_field", f"{where} needs {key}")
+    return True
+
+
+def _declaration_list(value: Any, where: str, limit: int, err) -> list:
+    if not isinstance(value, list):
+        err(where, "bad_value", f"{where} must be a list")
+        return []
+    if len(value) > limit:
+        err(where, "param_range", f"{where} allows at most {limit} entries (found {len(value)})")
+    return value
+
+
+def _declaration_text(value: Any, where: str, err) -> None:
+    if not isinstance(value, str):
+        err(where, "bad_value", f"{where} must be a string")
+    elif len(value) > 400:
+        err(where, "param_range", f"{where} allows at most 400 characters")
+
+
+def _declaration_track(value: Any, where: str, err, tracks: dict, has_project: bool) -> None:
+    if not S.is_track_target(value):
+        err(where, "bad_value", f"track must be a track id (trk_<stem>), not {value!r}")
+    elif has_project and value not in tracks:
+        err(where, "unknown_target", f"unknown track '{value}'")
+
+
+def _declaration_time(value: Any, where: str, err) -> None:
+    if not _num(value):
+        err(where, "bad_value", f"{where} must be a finite number")
+    elif value < 0:
+        err(where, "param_range", f"{where} must be nonnegative")
+
+
+def _check_frame(fr: Any, err, *, obs: dict, tracks: dict, sections: set, has_project: bool) -> None:
+    """X-01 / G-1: declarations only; no coverage, move consistency or review tier checks."""
+    keys = ("lead", "yield", "keep", "roughness_ok", "scale", "era", "key_words", "mono_keep",
+            "section_roles", "tolerances")
+    if not _declaration_object(fr, "frame", keys, err):
+        return
+    for key in ("lead", "scale"):
+        if key in fr:
+            _declaration_text(fr[key], f"frame.{key}", err)
+    for key in ("yield", "keep", "roughness_ok"):
+        if key in fr:
+            for i, value in enumerate(_declaration_list(fr[key], f"frame.{key}", 16, err)):
+                _declaration_text(value, f"frame.{key}[{i}]", err)
+    if "era" in fr and _declaration_object(fr["era"], "frame.era", ("year", "genre", "stance"), err):
+        era = fr["era"]
+        if "year" in era:
+            year = era["year"]
+            if not isinstance(year, int) or isinstance(year, bool):
+                err("frame.era.year", "bad_value", "year must be an integer 1900 to 2100")
+            elif not 1900 <= year <= 2100:
+                err("frame.era.year", "param_range", "year must be in [1900, 2100]")
+        for key in ("genre", "stance"):
+            if key in era:
+                _declaration_text(era[key], f"frame.era.{key}", err)
+    if "key_words" in fr:
+        for i, value in enumerate(_declaration_list(fr["key_words"], "frame.key_words", 64, err)):
+            where = f"frame.key_words[{i}]"
+            if not _declaration_object(value, where, ("t_s", "text"), err, ("text",)):
+                continue
+            if "text" in value:
+                _declaration_text(value["text"], f"{where}.text", err)
+            if "t_s" in value:
+                _declaration_time(value["t_s"], f"{where}.t_s", err)
+    if "mono_keep" in fr:
+        for i, value in enumerate(_declaration_list(fr["mono_keep"], "frame.mono_keep", 16, err)):
+            _declaration_track(value, f"frame.mono_keep[{i}]", err, tracks, has_project)
+    if "section_roles" in fr:
+        vocabulary = ("lead_melody", "counter", "rhythm", "harmony_bed", "ornament", "double",
+                      "harmony_vocal", "call_response", "unknown")
+        for i, value in enumerate(_declaration_list(fr["section_roles"], "frame.section_roles", 64, err)):
+            where = f"frame.section_roles[{i}]"
+            if not _declaration_object(value, where, ("section", "lead", "roles"), err, ("section", "roles")):
+                continue
+            if "section" in value:
+                sec = value["section"]
+                sw = f"{where}.section"
+                # Same section ids / explicit time pair as moves, without audio-length requirements.
+                if isinstance(sec, str) and sec:
+                    if sec != "all" and has_project and sec not in sections:
+                        err(sw, "unknown_section", f"unknown section '{sec}'")
+                elif isinstance(sec, dict):
+                    _declaration_object(sec, sw, ("t0_s", "t1_s"), err, ("t0_s", "t1_s"))
+                    for key in ("t0_s", "t1_s"):
+                        if key in sec:
+                            _declaration_time(sec[key], f"{sw}.{key}", err)
+                    if (all(_num(sec.get(key)) and sec[key] >= 0 for key in ("t0_s", "t1_s"))
+                            and sec["t0_s"] >= sec["t1_s"]):
+                        err(sw, "param_range", "a time section needs t0_s < t1_s")
+                else:
+                    err(sw, "bad_value", "section must be a section id or {t0_s, t1_s}")
+            if "lead" in value:
+                _declaration_track(value["lead"], f"{where}.lead", err, tracks, has_project)
+            if "roles" in value:
+                roles = value["roles"]
+                if not isinstance(roles, dict):
+                    err(f"{where}.roles", "bad_value", "roles must be an object mapping track ids to role lists")
+                else:
+                    for track, role_list in roles.items():
+                        rw = f"{where}.roles.{track}"
+                        _declaration_track(track, rw, err, tracks, has_project)
+                        for j, role in enumerate(_declaration_list(role_list, rw, 16, err)):
+                            if role not in vocabulary:
+                                err(f"{rw}[{j}]", "bad_value", f"role must be one of {', '.join(vocabulary)}")
+    if "tolerances" in fr:
+        for i, value in enumerate(_declaration_list(fr["tolerances"], "frame.tolerances", 16, err)):
+            where = f"frame.tolerances[{i}]"
+            if not _declaration_object(value, where, ("quantity", "range", "note"), err, ("quantity", "range")):
+                continue
+            if "quantity" in value:
+                qty = value["quantity"]
+                if not isinstance(qty, str) or not qty.startswith("obs:") or qty[4:] not in obs:
+                    err(f"{where}.quantity", "bad_quantity", "quantity must be obs:<id> of an observation in this block")
+            if "range" in value:
+                limits = value["range"]
+                if not _is_range(limits) or not all(_num(x) for x in limits):
+                    err(f"{where}.range", "bad_value", "range must be a finite two-number list")
+                elif limits[0] >= limits[1]:
+                    err(f"{where}.range", "param_range", "range needs lower < upper")
+            if "note" in value:
+                _declaration_text(value["note"], f"{where}.note", err)
+
+
+def _check_triage(tr: Any, err, *, moves: list, tracks: dict, has_project: bool) -> None:
+    """X-12 / G-1: form only, including a fix without a move or a leave with moves."""
+    choices = ("fix", "replace", "regenerate", "leave")
+    if not _declaration_object(tr, "triage", ("decision", "options", "findings"), err, ("decision",)):
+        return
+    if "decision" in tr and tr["decision"] not in choices:
+        err("triage.decision", "bad_value", f"decision must be one of {', '.join(choices)}")
+    if "options" in tr:
+        for i, value in enumerate(_declaration_list(tr["options"], "triage.options", 8, err)):
+            where = f"triage.options[{i}]"
+            if not _declaration_object(value, where, ("choice", "gains", "loses"), err, ("choice", "gains", "loses")):
+                continue
+            if "choice" in value and value["choice"] not in choices:
+                err(f"{where}.choice", "bad_value", f"choice must be one of {', '.join(choices)}")
+            if "gains" in value:
+                _declaration_text(value["gains"], f"{where}.gains", err)
+            if "loses" in value:
+                for j, text in enumerate(_declaration_list(value["loses"], f"{where}.loses", 16, err)):
+                    _declaration_text(text, f"{where}.loses[{j}]", err)
+    if "findings" in tr:
+        move_ids = [m.get("id") for m in moves if isinstance(m, dict)]
+        statuses = ("fix", "unknown", "intentional", "no_change")
+        for i, value in enumerate(_declaration_list(tr["findings"], "triage.findings", 64, err)):
+            where = f"triage.findings[{i}]"
+            if not _declaration_object(value, where, ("what", "track", "t_s", "status", "basis", "move"), err,
+                                       ("what", "status", "basis")):
+                continue
+            for key in ("what", "basis"):
+                if key in value:
+                    _declaration_text(value[key], f"{where}.{key}", err)
+            if "status" in value and value["status"] not in statuses:
+                err(f"{where}.status", "bad_value", f"status must be one of {', '.join(statuses)}")
+            if "track" in value:
+                _declaration_track(value["track"], f"{where}.track", err, tracks, has_project)
+            if "t_s" in value:
+                _declaration_time(value["t_s"], f"{where}.t_s", err)
+            if "move" in value and (not isinstance(value["move"], str) or not value["move"]
+                                    or value["move"] not in move_ids):
+                err(f"{where}.move", "bad_id", "move must name a move id in this block")
 
 
 def _unmeasured_quantities(b: dict, proj: "_Project | None", warn) -> None:
@@ -703,7 +896,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         if o.get("primitive") not in Q.PRIMITIVES and o.get("primitive") not in S.CONTEXT_PRIMITIVES:
             err(f"observations.{oid}", "bad_value", f"unknown primitive '{o.get('primitive')}'")
         # track targets (trk_<stem>) and the context primitives are measured by stemobs (FBREVIEW FR-1 / FR-2)
-        if (o.get("target", "master") != "master" and not S.is_track_target(o.get("target"))
+        if (o.get("target", "master") not in ("master", "mix") and not S.is_track_target(o.get("target"))
                 and o.get("primitive") not in S.CONTEXT_PRIMITIVES):
             warn(f"observations.{oid}", "unsupported", f"target '{o.get('target')}' is not supported in v0 "
                                                        "(only master); the observation will be reported unsupported")
@@ -721,8 +914,9 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
             err(f"observations.{oid}", "unknown_section", f"unknown section '{sec}'")
         if "ref_value" in o and o["ref_value"] is not None and _scalar(o["ref_value"]) is None:
             err(f"observations.{oid}.ref_value", "bad_value", "ref_value must be a finite number (or null)")
-        if ("view" in o or "view_band_hz" in o) and o.get("primitive") not in S.CONTEXT_PRIMITIVES:
-            # the optional view (UPGRADE2 §3.5): the same rule as query.observe, so a written view never
+        if ("view" in o or "view_band_hz" in o) and (o.get("primitive") not in S.CONTEXT_PRIMITIVES
+                                                    or o.get("view") == "side"):
+            # The optional view (UPGRADE2 §3.5 / X-09): the same rule as query.observe, so a written view never
             # fails only at check time
             try:
                 Q.view_spec(o)
@@ -731,7 +925,12 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(f"observations.{oid}.{'view_band_hz' if 'view_band_hz' in msg else 'view'}", "bad_value", msg)
     _validate_reference_fields(b, err)
     if "scene" in b:
-        _check_scene(b["scene"], err, tracks=tracks, has_project=proj is not None)
+        _check_scene(b["scene"], err, tracks=tracks, has_project=proj is not None,
+                     buses=buses, moves=b.get("moves") or [])
+    if "frame" in b:
+        _check_frame(b["frame"], err, obs=obs, tracks=tracks, sections=sections, has_project=proj is not None)
+    if "triage" in b:
+        _check_triage(b["triage"], err, moves=b.get("moves") or [], tracks=tracks, has_project=proj is not None)
 
     def check_quantity(where: str, q: dict):
         qty = q.get("quantity")
@@ -822,7 +1021,8 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "unknown_section", f"unknown section '{sec}'")
             elif isinstance(sec, dict) and not ({"t0_s", "t1_s"} <= set(sec)):
                 err(where, "bad_value", "a time section needs t0_s and t1_s")
-        params, rnotes = resolve_params(m, m.get("params") or {})
+        params, rnotes = (m.get("params") if isinstance(m.get("params"), dict) else {}, []) if op == "gain_curve" \
+            else resolve_params(m, m.get("params") or {})
         notes += rnotes
         # targets
         if op in ("chain_add", "chain_param", "chain_remove", "gain", "pan", "send") and proj:
@@ -898,6 +1098,8 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 err(where, "unknown_target", f"unknown target '{target}'")
             K.check_params(raw, target, where, err, tracks=tracks, buses=buses,
                            bpm=K.floor_bpm(proj.floor_mxp) if proj else None, has_project=proj is not None)
+        elif op == "gain_curve":
+            _check_gain_curve(m, where, err, tracks=tracks, buses=buses, has_project=proj is not None)
         elif op == "place":
             _check_place(m, b, where, err, proj=proj, tracks=tracks, buses=buses, errors=errors)
         # review tier (assigned here, not self-declared). E1 is only the catalog range check: a move
@@ -906,7 +1108,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
         tier = "E2"
         cited = set(re.findall(r"R-\d{2}", str(m.get("basis") or "")))
         if m.get("origin") == "catalog" and cited and cited <= rule_ids and op not in EDIT_OPS and op != "duck" \
-                and op != "place":
+                and op != "place" and op != "gain_curve":
             tier = "E1"
         if op == "master_target":
             prof = _profile((variants[0] if variants else {}).get("profile") or "")
@@ -915,7 +1117,7 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
                 tier = "E3"
         if target == LEAD and ((op == "gain" and sec not in (None, "all"))
                                or (op == "chain_add" and proc in TIME_VARYING) or op in EDIT_OPS
-                               or op == "duck"):
+                               or op == "duck" or op == "gain_curve"):
             tier = "E3"
             lead_e3 = True
         if tier == "E3" and not b.get("listen_for"):
@@ -934,6 +1136,68 @@ def validate(doc: dict, project: str | Path | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # apply
 # ---------------------------------------------------------------------------
+
+def _check_gain_curve(m: dict, where: str, err, *, tracks: dict, buses: dict, has_project: bool) -> None:
+    """G-2: fixed limits, with no range values or calibration knobs."""
+    allowed = {"id", "op", "stage", "target", "params", "aim", "basis", "origin", "expect", "safeguard",
+               "section", "select"}
+    if set(m) - allowed:
+        err(where, "bad_value", "unknown gain_curve move keys: " + ", ".join(sorted(set(m) - allowed)))
+    if "section" in m and m["section"] in (None, "all"):
+        err(where, "section_scope", "gain_curve cannot have section; use params.segments")
+    target = m.get("target")
+    if not S.is_track_target(target) or target in buses:
+        err(where, "bad_target", "gain_curve needs a track target")
+    elif has_project and target not in tracks:
+        err(where, "unknown_target", f"unknown target '{target}'")
+    p = m.get("params")
+    if not isinstance(p, dict):
+        err(where, "bad_value", "gain_curve params must be an object")
+        return
+    if set(p) - {"ramp_ms", "segments"}:
+        err(where, "bad_value", "unknown gain_curve parameters")
+    ramp = p.get("ramp_ms", 20)
+    if not _num(ramp):
+        err(where, "bad_value", "ramp_ms must be a finite number")
+    elif not 5 <= ramp <= 200:
+        err(where, "param_range", "ramp_ms outside [5, 200]")
+    segs = p.get("segments")
+    if not isinstance(segs, list):
+        err(where, "bad_value" if "segments" in p else "missing_field", "segments must be an array")
+        return
+    if not 1 <= len(segs) <= 256:
+        err(where, "param_range", "segments must contain 1 to 256 entries")
+    spans = []
+    for i, seg in enumerate(segs):
+        w = f"{where}.params.segments[{i}]"
+        if not isinstance(seg, dict):
+            err(w, "bad_value", "a segment must be an object")
+            continue
+        if set(seg) - {"t0_s", "t1_s", "delta_db", "why", "hold"}:
+            err(w, "bad_value", "unknown segment keys")
+        for k in ("t0_s", "t1_s", "delta_db", "why"):
+            if k not in seg:
+                err(w, "missing_field", f"segment needs {k}")
+        t0, t1 = seg.get("t0_s"), seg.get("t1_s")
+        if not (_num(t0) and _num(t1)) or not t0 < t1:
+            err(w, "bad_value", "segment times must be finite, with t0_s < t1_s")
+        else:
+            spans.append((t0, t1))
+        delta = seg.get("delta_db")
+        if not _num(delta):
+            err(w, "bad_value", "delta_db must be a finite number (ranges are not supported)")
+        elif not -6 <= delta <= 6:
+            err(w, "param_range", "delta_db outside [-6, 6]")
+        if not isinstance(seg.get("why"), str):
+            err(w, "bad_value", "why must be a string")
+        elif len(seg["why"]) > 200:
+            err(w, "param_range", "why exceeds 200 characters")
+        if "hold" in seg and not isinstance(seg["hold"], bool):
+            err(w, "bad_value", "hold must be a boolean")
+    spans.sort()
+    if any(b[0] < a[1] for a, b in zip(spans, spans[1:])):
+        err(where, "bad_value", "gain_curve segments overlap")
+
 
 def gate_definitions_hash() -> dict:
     root = repo_data_root()
@@ -1030,6 +1294,7 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
 
     seg_gain: dict[str, list] = {}
     ducks: dict[str, list] = {}
+    curves: dict[str, list] = {}
     # new buses first so sends can reach them
     for m in b.get("moves") or []:
         if m.get("op") != "bus_add":
@@ -1119,6 +1384,12 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
         elif op == "master_target":
             record["master_target"] = float(params["target_lufs"])
             record["moves"][mid] = {"op": op, "target_lufs": float(params["target_lufs"])}
+        elif op == "gain_curve":
+            from . import curve
+            length = (proj.data.get("timebase") or {}).get("length_samples")
+            duration = float(length) / proj.rate if length is not None else dur
+            pts = curve.points(proj.rate, params["segments"], params.get("ramp_ms", 20), duration)
+            curves.setdefault(target, []).append((mid, pts))
         elif op == "duck":
             from . import duck as K
             try:
@@ -1152,6 +1423,8 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             continue
         one(m, params)
     for tid, segs in seg_gain.items():
+        if tid in curves:
+            continue
         if tid in ducks:
             continue
         d = track(tid)
@@ -1159,7 +1432,11 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
         d["automation"] = {"gain_db": pts, "owner": OWNER, "reason": f"direction {dir_id}: section gains",
                            "move_ref": [_ref(dir_id, s[3]) for s in segs]}
     for tid, dl in ducks.items():
+        if tid in curves:
+            continue
         _merge_ducks(proj, dir_id, tid, dl, seg_gain.get(tid) or [], cur, track)
+    for tid, cl in curves.items():
+        _merge_curves(proj, dir_id, tid, cl, ducks.get(tid) or [], seg_gain.get(tid) or [], cur, track)
     mix_moves = [m for m in b.get("moves") or [] if OPS.get(m.get("op"), ("",))[0] == "mix"]
     if not mix_moves:
         return None, record, notes
@@ -1182,6 +1459,26 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     prop["status"] = "proposed"
     prop["author"] = "agent"
     return prop, record, notes
+
+
+def _merge_curves(proj: _Project, dir_id: str, tid: str, cl: list, dl: list, segs: list,
+                  cur: dict, track) -> None:
+    """Finalize only gain_curve targets: floor, section gains, ducks, then curves."""
+    from . import duck as K
+    base = cur[tid].get("automation") if isinstance(cur[tid].get("automation"), dict) else {}
+    total = list(base.get("gain_db") or [])
+    refs = base.get("move_ref") or []
+    refs = list(refs) if isinstance(refs, list) else [refs]
+    if segs:
+        total = K.merge_automation(total, _automation(proj.rate, [s[:3] for s in segs], None))
+        refs += [_ref(dir_id, s[3]) for s in segs]
+    for mid, pts in dl + cl:
+        total = K.merge_automation(total, pts)
+        refs.append(_ref(dir_id, mid))
+    d = track(tid)
+    d["automation"] = {"gain_db": total, "owner": OWNER,
+                       "reason": f"direction {dir_id}: floor + section gains + ducking + gain curves",
+                       "move_ref": list(dict.fromkeys(refs))}
 
 
 def _merge_ducks(proj: _Project, dir_id: str, tid: str, dl: list, segs: list, cur: dict, track) -> None:
@@ -1436,7 +1733,8 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     out["loudness"] = {"result_lufs_i": round(lt, 3), "floor_lufs_i": round(lf, 3), "level_match_gain_db": round(match, 3)}
     sections = proj.sections()
     obs_vals: dict = {}
-    # track signals (FBREVIEW FR-1 / FR-2) only when an observation needs them: otherwise nothing is rendered
+    # Track / mix signals only when requested. StemSource reuses its mix render, or builds it
+    # from valid cleanup caches; the delivered masters above are never used as a mix-stage signal.
     src_t = src_f = None
     if any(isinstance(o, dict) and S.needs_stems(o) for o in b.get("observations") or []):
         src_t, src_f = S.StemSource(root, vid), S.StemSource(froot, fv.get("id"))
@@ -1459,12 +1757,31 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     if translation:
         from . import translation as TR
         out["translation"] = TR.block(x, y, sr, match)
+    fr = b.get("frame")
+    if isinstance(fr, dict) and "tolerances" in fr:
+        # X-01: reuse observations; this block is read by no verdict, summary or calibration.
+        rows = []
+        for tolerance in fr["tolerances"]:
+            ov = obs_vals.get(tolerance["quantity"][4:]) or {}
+            values = []
+            for side in ("floor", "result"):
+                measured = ov.get(side) or {}
+                values.append(None if measured.get("status") == "error" else _scalar(measured.get("value")))
+            f, r = values
+            lo, hi = tolerance["range"]
+            rows.append({"quantity": tolerance["quantity"], "range": tolerance["range"],
+                         "floor": None if f is None else round(f, 3),
+                         "result": None if r is None else round(r, 3),
+                         "within": None if f is None or r is None else lo <= r <= hi})
+        out["frame"] = {"tolerances": rows, "note": "参考値。どの判定にも入らない"}
     sc = b.get("scene")
     if isinstance(sc, dict):
         # FBREVIEW FR-4: reference only (read by no verdict, summary or calibration); only with a scene
         if src_t is None:
             src_t, src_f = S.StemSource(root, vid), S.StemSource(froot, fv.get("id"))
         out["scene"] = scene_block(sc, src_t, src_f)
+        if "room" in sc:
+            out["scene"]["room"] = sc["room"]
     tterms, fterms = _terms(root, vid), _terms(froot, fv.get("id"))
 
     def value(qty: str) -> tuple[float | None, float | None, dict | None, dict | None]:

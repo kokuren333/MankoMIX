@@ -27,7 +27,9 @@ results unchanged): ``mono`` puts m = (L+R)/2 on both channels before
 measuring; ``mono_band`` then band-passes it (``_bandpass``, 4th order, zero
 phase) to ``view_band_hz`` (default 150-6000 Hz; lo 80-400, hi 3000-10000).
 ``side_ratio`` / ``correlation`` / ``image_position`` are refused under a mono view
-(no side signal). The view is computed in memory; no audio is written.
+(no side signal). ``side`` puts (L-R)/2 on both channels and supports only
+``band_energy``, ``crest`` and ``loudness``; a silent side is missing data.
+The view is computed in memory; no audio is written.
 """
 
 from __future__ import annotations
@@ -42,8 +44,9 @@ from mankomix.core.measure import loudness as L
 
 PRIMITIVES = ("band_energy", "band_ratio", "crest", "loudness", "side_ratio", "correlation", "image_position")
 LOUDNESS_STATS = ("integrated", "short_p95", "short_p50", "short_max")
-VIEWS = ("stereo", "mono", "mono_band")
+VIEWS = ("stereo", "mono", "mono_band", "side")
 MONO_VIEWS = ("mono", "mono_band")
+SIDE_PRIMITIVES = ("band_energy", "crest", "loudness")
 VIEW_BAND_DEFAULT_HZ = (150.0, 6000.0)
 VIEW_BAND_LO_RANGE_HZ = (80.0, 400.0)
 VIEW_BAND_HI_RANGE_HZ = (3000.0, 10000.0)
@@ -120,6 +123,13 @@ def view_spec(obs: dict) -> tuple[str, tuple[float, float] | None]:
     view = "stereo" if view is None else view
     if not isinstance(view, str) or view not in VIEWS:
         raise QueryError(f"bad_value: unknown view {view!r} (use one of {', '.join(VIEWS)})")
+    if view == "side":
+        if "view_band_hz" in obs:
+            raise QueryError("bad_value: view_band_hz cannot be used with view: side")
+        if obs.get("primitive") not in SIDE_PRIMITIVES:
+            raise QueryError(f"bad_value: {obs.get('primitive')} has no meaning under view 'side' "
+                             f"(use one of {', '.join(SIDE_PRIMITIVES)})")
+        return view, None
     vb = obs.get("view_band_hz")
     if view != "mono_band":
         if vb is not None:
@@ -143,6 +153,9 @@ def view_spec(obs: dict) -> tuple[str, tuple[float, float] | None]:
 
 def apply_view(x: np.ndarray, sr: int, view: str, band: tuple[float, float] | None) -> np.ndarray:
     """The signal as heard through the view (stereo input, stereo output)."""
+    if view == "side":
+        s = (x[:, 0] - x[:, 1]) / 2.0
+        return np.stack([s, s], axis=1)
     if view not in MONO_VIEWS:
         return x
     m = (x[:, 0] + x[:, 1]) / 2.0
@@ -154,6 +167,8 @@ def apply_view(x: np.ndarray, sr: int, view: str, band: tuple[float, float] | No
 def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = None,
             gain_db: float = 0.0) -> dict:
     """Compute one observation. ``gain_db`` is applied first (level matching)."""
+    if obs.get("view") == "side":
+        view_spec(obs)
     prim = obs.get("primitive")
     if prim not in PRIMITIVES:
         raise QueryError(f"unknown primitive '{prim}'")
@@ -167,6 +182,8 @@ def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = 
     dur = x.shape[0] / sr
     t0, t1 = section_range(obs.get("section", "all"), sections, dur)
     seg = x[int(round(t0 * sr)):int(round(t1 * sr))]
+    if view == "side" and float(np.sum(seg ** 2)) <= EPS:
+        return {"status": "error", "reason": "view 'side': the signal is silent in the range"}
     band = obs.get("band_hz")
     mono = seg.mean(axis=1)
     if prim == "band_energy":
@@ -220,8 +237,9 @@ def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = 
         den = math.sqrt(float(np.sum(a * a)) * float(np.sum(b * b)))
         val = float(np.sum(a * b)) / den if den > 0 else 0.0
     unit = "LUFS" if prim == "loudness" else ("" if prim in ("correlation", "image_position") else "dB")
-    return {"status": "ok", "value": round(float(val), 4), "unit": unit, "range_s": [round(t0, 3), round(t1, 3)],
-            "gain_db": round(float(gain_db), 4)}
+    digits = 3 if view == "side" else 4
+    return {"status": "ok", "value": round(float(val), digits), "unit": unit, "range_s": [round(t0, 3), round(t1, 3)],
+            "gain_db": round(float(gain_db), digits)}
 
 
 def integrated_lufs(x: np.ndarray, sr: int) -> float:

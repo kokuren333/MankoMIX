@@ -542,6 +542,46 @@ def cmd_direction_stems_purity(a):
     return _stem_errors(P.stem_purity, _project(a), tracks=a.track)
 
 
+def cmd_direction_stems_stages(a):
+    from mankomix.director import stages as S
+    try:
+        band = [float(v) for v in a.band.split(",")]
+    except ValueError:
+        raise InputError("--band must be lo,hi in Hz") from None
+    return _stem_errors(S.stages, _project(a), variant=a.variant, band=band,
+                        section=_json_arg(a.section), direction=a.direction)
+
+
+def cmd_direction_stems_placement(a):
+    from mankomix.director import placement as P
+    return _stem_errors(P.placement, _project(a), variant=a.variant, direction=a.direction)
+
+
+def cmd_direction_listen_pack(a):
+    from mankomix.director import listen as L
+    excerpts = []
+    for text in a.excerpt or []:
+        try:
+            pair = tuple(float(t) for t in text.split(","))
+        except ValueError:
+            raise InputError("--excerpt must be t0,t1 in seconds") from None
+        if len(pair) != 2:
+            raise InputError("--excerpt must be t0,t1 in seconds")
+        excerpts.append(pair)
+    res = _direction_errors(L.listen_pack, _project(a), a.floor, out=a.out, variant=a.variant,
+                            sections=a.section or (), excerpts=excerpts, match=a.match, kb_roots=a.kb or ())
+    return {"kind": res["kind"], "files": res["files"], "key_path": "key/key.json"}
+
+
+def cmd_direction_listen_record(a):
+    from mankomix.director import listen as L
+    try:
+        answers = json.loads(Path(a.answers_file).read_text(encoding="utf-8"))
+    except OSError:
+        raise InputError("cannot read answers file") from None
+    return _direction_errors(L.listen_record, _project(a), a.direction, answers)
+
+
 def cmd_direction_edit_scan(a):
     from mankomix.director import edit as E
     params = _json_arg(a.params) if a.params else {}
@@ -1074,6 +1114,34 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("purity", cmd_direction_stems_purity,
              "post-clean, pre-chain stem contents on --project; writes nothing; requires valid cleanup caches", ssub)
     sp.add_argument("--track", action="append", help="track id (repeatable; default: all audible stems)")
+    sp = add("stages", cmd_direction_stems_stages,
+             "band energy across track, mix and master stages; writes nothing; requires valid cleanup caches", ssub)
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--band", required=True, help="band limits lo,hi in Hz")
+    sp.add_argument("--section", help="section id or JSON {\"t0_s\", \"t1_s\"}")
+    sp.add_argument("--direction", help="direction Markdown file for reference-only EQ boost context")
+
+    sp = add("placement", cmd_direction_stems_placement,
+             "track placement by floor section; writes nothing; requires valid cleanup caches", ssub)
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--direction", help="direction Markdown file (role copying reserved for the second version)")
+
+    grp_listen = add("listen", None, "export blind listening packs and record listening sessions", gsub)
+    lsub = grp_listen.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")
+    lsub.required = True
+    sp = add("pack", cmd_direction_listen_pack,
+             "export level-matched anonymous excerpts outside project and kb folders; print the key path only", lsub)
+    sp.add_argument("--floor", required=True, help="floor project folder (rendered)")
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--section", action="append", help="floor section id or JSON {t0_s, t1_s} (repeatable)")
+    sp.add_argument("--excerpt", action="append", help="t0,t1 in seconds (repeatable; may combine with --section)")
+    sp.add_argument("--out", required=True, help="export folder outside project and kb folders")
+    sp.add_argument("--match", choices=("integrated", "section", "lead"), default="integrated")
+    sp.add_argument("--kb", action="append", help="additional kb folder to protect from exports (repeatable)")
+    sp = add("record", cmd_direction_listen_record,
+             "append one completed answer template; grade is computed from all recorded conditions", lsub)
+    sp.add_argument("--direction", required=True, help="direction id dir_<12 hex>")
+    sp.add_argument("--from", dest="answers_file", required=True, help="completed answers JSON file (one session)")
 
     # the edit (declutter) stage: read-only scan and revert from the ledger (an optional move, UPGRADE2 §1)
     grp_edit = add("edit", None, "edit stage of a direction (edit_trim / edit_gate): scan a track read-only, "

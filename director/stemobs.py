@@ -10,6 +10,9 @@ signal of that track inside the mix stage, rendered by core
 - ``path: "solo"``: the mix bus output with only that track audible (send
   returns and bus processing included; before the master stage)
 
+``target: "mix"`` measures the whole mix bus output before mastering, at
+gain 0, without a path. Context primitives cannot be used with this target.
+
 The six single-signal primitives of ``query`` are computed exactly as on the
 master (``query.observe`` on that signal). No level matching: a track signal is
 before the master stage, so it is measured at gain 0 (``gain_db: 0.0``,
@@ -59,8 +62,9 @@ def is_track_target(target: Any) -> bool:
 
 
 def needs_stems(obs: dict) -> bool:
-    """True when the observation is measured from the project's tracks (not from a rendered file)."""
-    return is_track_target(obs.get("target", "master")) or obs.get("primitive") in CONTEXT_PRIMITIVES
+    """True when the observation needs the project's track or mix-stage signals."""
+    return (obs.get("target") == "mix" or is_track_target(obs.get("target", "master"))
+            or obs.get("primitive") in CONTEXT_PRIMITIVES)
 
 
 def all_primitives() -> tuple[str, ...]:
@@ -81,6 +85,8 @@ def spec_errors(o: dict) -> list[tuple[str, str, str]]:
     target = o.get("target", "master")
     trk = is_track_target(target)
     out: list[tuple[str, str, str]] = []
+    if target == "mix" and prim in CONTEXT_PRIMITIVES:
+        out.append((".target", "bad_value", f"{prim} cannot be used with target 'mix'"))
     if "path" in o:
         p = o.get("path")
         if prim in CONTEXT_PRIMITIVES:
@@ -90,10 +96,10 @@ def spec_errors(o: dict) -> list[tuple[str, str, str]]:
             out.append((".path", "bad_value", f"path is for a track target (trk_<stem>) only, not '{target}'"))
         elif p not in PATHS:
             out.append((".path", "bad_value", f"unknown path {p!r} (use one of {', '.join(PATHS)})"))
-    if prim in CONTEXT_PRIMITIVES and ("view" in o or "view_band_hz" in o):
+    if prim in CONTEXT_PRIMITIVES and ("view" in o or "view_band_hz" in o) and o.get("view") != "side":
         out.append((".view", "bad_value", f"{prim} has no view"))
     if prim == "masking":
-        if not (trk or target == "all"):
+        if not (trk or target in ("all", "mix")):
             out.append((".target", "bad_target", f"masking needs a track target (trk_<stem>) or 'all', not '{target}'"))
         if "against" in o:
             ag = o.get("against")
@@ -108,10 +114,10 @@ def spec_errors(o: dict) -> list[tuple[str, str, str]]:
         if target == "all" and o.get("band_hz") is not None:
             out.append((".band_hz", "bad_value", "band_hz cannot be used with target 'all'"))
     elif prim == "wet_ratio":
-        if not trk:
+        if not trk and target != "mix":
             out.append((".target", "bad_target", f"wet_ratio needs a track target (trk_<stem>), not '{target}'"))
     elif prim == "image_position":
-        if not (trk or target == "master"):
+        if not (trk or target in ("master", "mix")):
             out.append((".target", "bad_target", f"image_position needs 'master' or a track target, not '{target}'"))
     elif "against" in o:
         out.append((".against", "bad_value", "against is a field of masking only"))
@@ -156,6 +162,7 @@ class StemSource:
         self._tracks: dict[str, dict] = {}
         self._audible: set[str] = set()
         self._dry: tuple[dict, int] | None = None
+        self._mix: tuple[np.ndarray, int] | None = None
         self._solo: dict[tuple[str, bool], tuple[np.ndarray, int]] = {}
         self._meta: tuple[dict, str | None] | None = None
 
@@ -212,9 +219,29 @@ class StemSource:
         self._ready()
         if self._dry is None:
             stems: dict = {}
-            _, sr = self._render(stems_out=stems)
+            mix, sr = self._render(stems_out=stems)
+            self._mix = (mix, sr)
             self._dry = ({k: stems[k] for k in sorted(stems)}, sr)
         return self._dry
+
+    def mix(self) -> tuple[np.ndarray, int]:
+        """Master input, including all audible tracks and bus returns; reuse an existing render."""
+        self._ready()
+        if self._mix is None:
+            self.dry()
+        return self._mix
+
+    def pre_chain(self, tid: str, *, length: int | None = None) -> tuple[np.ndarray, int]:
+        """Cleaned clips before the track chain, fader and pan, with variant overrides."""
+        from mankomix.core import mixrender as MR
+        from mankomix.core.errors import MankoError
+        self.check_track(tid)
+        try:
+            x, sr, _ = MR.render_track(self._pobj, tid, variant_id=self.variant_id,
+                                       apply_chain=False, apply_fader=False, length=length)
+        except MankoError as e:
+            raise StemObsError(str(e)) from None
+        return x, int(sr)
 
     def solo(self, tid: str, sends: bool = True) -> tuple[np.ndarray, int]:
         """The mix bus output with only ``tid`` audible (``sends=False``: its sends emptied)."""
@@ -331,8 +358,10 @@ def _wet_ratio(src: StemSource, obs: dict, sections: list[dict] | None) -> dict:
 
 
 def observe(src: StemSource, obs: dict, *, sections: list[dict] | None = None) -> dict:
-    """One track-context observation on ``src``; errors come back as ``{"status": "error", ...}``."""
+    """One track / mix observation on ``src``; errors return ``{"status": "error", ...}``."""
     try:
+        if obs.get("view") == "side":
+            Q.view_spec(obs)
         errs = spec_errors(obs)
         if errs:
             raise StemObsError(f"{errs[0][1]}: {errs[0][2]}")
@@ -343,12 +372,17 @@ def observe(src: StemSource, obs: dict, *, sections: list[dict] | None = None) -
             return _wet_ratio(src, obs, sections)
         if prim not in Q.PRIMITIVES:
             raise StemObsError(f"unknown primitive '{prim}'")
+        is_mix = obs.get("target") == "mix"
         path = obs.get("path", "dry")
-        x, sr = src.track(obs.get("target"), path)
+        x, sr = src.mix() if is_mix else src.track(obs.get("target"), path)
         sub = {k: v for k, v in obs.items() if k not in ("target", "path")}
         res = Q.observe(x, sr, sub, sections=sections, gain_db=0.0)
         if res.get("status") == "ok":
-            res.update({"gain_db": 0.0, "signal": SIGNAL, "path": path})
+            if is_mix:
+                res["value"] = round(float(res["value"]), 3)
+                res.update({"gain_db": 0.0, "signal": SIGNAL})
+            else:
+                res.update({"gain_db": 0.0, "signal": SIGNAL, "path": path})
         return res
     except (StemObsError, Q.QueryError) as e:
         return {"status": "error", "reason": str(e)}
