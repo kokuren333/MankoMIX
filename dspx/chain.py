@@ -157,3 +157,6 @@ def record_metadata(record, step):
     for key in ("channel", "composite_of", "expansion"):
         if key in step:
             record[key] = copy.deepcopy(step[key])
+    stats = record.get("stats", {})
+    if stats.get("model_id") and stats.get("fallback_used"):
+        record["fallback"] = copy.deepcopy(stats["fallback"])

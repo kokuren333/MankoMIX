@@ -105,6 +105,10 @@ def _prepare(x) -> np.ndarray:
 
 def _backends() -> dict[str, dict]:
     reg = {"reference": reference.IMPLEMENTATIONS}
+    from mankomix.dspx.bb.ml import model_backend
+    reg["model"] = model_backend()
+    reg["reference"] = {t: fn for t, fn in reg["reference"].items()
+                        if t not in reg["model"]}
     try:
         from . import ffmpeg_backend
         if ffmpeg_backend.available():

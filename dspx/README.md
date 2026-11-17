@@ -175,3 +175,78 @@ as an exact published release formula. Spectral flux was not selected:
 the requested release control depends on GR duration and crest and needs
 no additional STFT frame clock. The fixed-release comparator uses zero
 adaptive hold and the stated exponential release time constant.
+
+
+## BB-16 offline model runtime
+
+`bb/ml.py` adds kinds `denoise`, `amp_capture`, `separate` above the existing
+core model catalogue and local BYOW registrations. Legacy `task=separation`
+resolves as `separate`. The core catalogue/defaults and separation workers keep
+their existing contracts. No weights are bundled.
+
+- `model_entry(id, kind=None)` reads metadata only. The `models` asset resolver
+  uses it; validation never downloads or imports ONNX Runtime.
+- `pull(id)` is an explicit user operation delegating to
+  `core.registry.model_pull`; the existing `model pull` CLI also works.
+- `resolve_for_run(id, kind=None)` re-hashes every local file without a cached
+  verification shortcut, checks pinned size and returns core's resolved paths.
+  A missing file/runtime raises `ModelUnavailable`; unknown IDs, wrong kinds,
+  corrupt weights and malformed inference graphs are errors, never fallback.
+- `session(bytes_or_path)` uses CPU only, sequential execution, intra/inter
+  threads 1, disabled graph optimization and deterministic compute. Sessions
+  are created per render. No environment variable can select a GPU provider.
+- `infer(x, sr, resolved)` returns same-length float64 audio and model ID/hash,
+  runtime/code versions, actual provider, chunk geometry, license and caveats.
+  Use `(frames, channels)` input. `infer_blocks(blocks, sr, resolved)` is an
+  **offline context replay** convenience; it concatenates caller blocks before
+  inference. It does not promise independent streaming/excerpt processing.
+- `waveform(x, session, chunk_samples=N, overlap_samples=O)` is a reusable
+  one-input/one-output `[1,1,N]` float32 ONNX adapter. Geometry comes from the
+  caller's pinned registration. Each channel runs independently; sine-squared
+  normalized overlap-add and zero padding are fixed. Stateful/multi-input
+  capture formats require their own adapter; this function does not guess them.
+- `report_records(render_records)` extracts actual model/fallback measurements
+  from engine steps or nested mix manifests, and returns `[]` for legacy input.
+  The standard core Mix Report has no model-processor extension hook yet; its
+  owner must connect this helper before `denoise_ml` can be marked implemented.
+
+The pinned `speech_df3_48k` catalogue entry uses official 48 kHz ONNX graphs
+from revision `7b14b895fe7fc42cab72b4a4c1e49c982bd6404b` of
+[DeepFilterNet](https://github.com/Rikorose/DeepFilterNet), MIT OR Apache-2.0.
+The author's README explicitly grants that license to code **and weights**.
+The optional runtime is pinned to ONNX Runtime 1.30.0 in that entry. No dependency
+or model package is installed by inference. Frontend, normalization and overlap
+arithmetic are float64; the model ABI itself requires float32 tensors.
+
+The adapter uses 960-sample Vorbis windows, 480-sample hops, two-frame feature
+lookahead and 256-frame model chunks with 128-frame overlap, 100 past frames of
+recurrent warmup, zero padding and normalized sine-squared overlap-add. Chunk
+origins are anchored at clip zero. Independent channels and recurrent resets
+can affect stereo image and chunk-local quality; this is recorded, not claimed
+to reproduce the upstream streaming implementation. Resampling uses the existing
+`dsp.reference.export.resample_poly_hq` in both directions and trims to the
+original length. The compensated analysis/synthesis alignment is zero samples.
+
+`procs/denoise_ml.py` declares the required model asset, reduction 0..60 dB
+(default 18), `fallback=denoise|error` (default denoise), and RP controls. It is
+track-only, offline-only, with the `model` backend. Zero amount/reduction bypasses
+weight loading. Model correction is blended by `1-10**(-reduction_db/20)` before
+RP region mixing and delta audition. The fallback calls existing `denoise` with
+`profile=auto` and reduction capped at its declared maximum 40 dB. Records include
+actual fallback parameters/reason, before/after meters, events and residual energy.
+The public definition stays `implemented=False` pending the Mix Report hook.
+
+All three investigated candidates (DeepFilterNet, RNNoise, DTLN) are trained on
+conversational speech. Singing, instruments and mixes are unsuitable: musical
+content can be removed as noise. Use only for narration, dialogue or raw vocal
+recordings; this caveat is fixed in catalogue and execution records. No dedicated
+clothing-rustle weights with verified redistribution rights were selected.
+
+Model-free tests: `python -B -m pytest -q -p no:cacheprovider tests/test_tk_w5a.py`.
+The real-model test runs **only** with `MANKOMIX_W5A_MODEL` pointing to the pinned
+archive, copies it solely into the temporary test home and never downloads.
+It checks two-render byte identity, transport boundaries 64/1024/30001, a known
+input hash and synthetic noise/SNR observations. The baseline hash is for the
+pinned adapter/runtime on the reference Windows CPU environment; an independently
+reviewed known answer for another environment may be supplied via
+`MANKOMIX_W5A_EXPECTED_HASH`. A missing variable skips the optional test.

@@ -36,3 +36,11 @@ def _resolve_ir(asset_id):
 
 
 register("irs", _resolve_ir)
+
+
+def _resolve_model(asset_id):
+    from .bb.ml import model_entry
+    return model_entry(asset_id)
+
+
+register("models", _resolve_model)
