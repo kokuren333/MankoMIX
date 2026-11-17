@@ -131,18 +131,24 @@ def transform(a, p, *, seed=0):
             outmag[t, bins] = mag[t, permutation]
             outphase[t, bins] = phase[t, permutation]
     elif op == 'contrast':
-        reference = np.max(mag[:, inside], axis=1, keepdims=True, initial=0)
-        outmag = reference*(mag/np.maximum(reference, 1e-30))**p['exponent']
+        from mankomix.dspx.bb.spectral_components import lobes
+        _, amplitude = lobes(a)
+        reference = np.max(amplitude[:, inside], axis=1, keepdims=True, initial=0)
+        gain = (np.maximum(amplitude, 1e-30)/np.maximum(reference, 1e-30))**(p['exponent']-1)
+        outmag = mag*gain
     elif op == 'phase':
         if p['phase_mode'] == 'zero':
             outphase.fill(0)
         elif p['phase_mode'] == 'hold' and len(z):
             outphase[:] = phase[:1]
         else:
-            for t in range(len(z)):
-                outphase[t] = event_rng(seed, p['seed'], t).uniform(-np.pi, np.pi, z.shape[1:])
+            outphase = _aligned_random_phases(a, p, seed)
     elif op == 'smear_freq':
-        outmag = smooth_frequency(mag, f, p['width_oct'])
+        from mankomix.dspx.bb.spectral_components import lobes
+        peaks, amplitude = lobes(a)
+        smooth = smooth_frequency(amplitude, f, p['width_oct'])
+        smooth = np.take_along_axis(smooth, peaks, axis=1)
+        outmag = mag*smooth/np.maximum(amplitude, 1e-30)
     weight = p['amount']*band_weights(f, p['lo_hz'], p['hi_hz'])
     # A zero target remains exactly zero at full amount (gate's true silence).
     blended = np.exp((1-weight[None, :, None])*np.log(np.maximum(mag, 1e-30))
@@ -163,6 +169,35 @@ def transform(a, p, *, seed=0):
     out[:, 0] = out[:, 0].real
     if len(a.window) % 2 == 0:
         out[:, -1] = out[:, -1].real
+    return out
+
+
+def _aligned_random_phases(a, p, seed):
+    """Randomize component phase origins, retaining lobe/time coherence.
+
+    Random draws a new origin for each newly observed component, using its
+    absolute frame event. Continuing components retain that draw. Rotating
+    every bin of a lobe together preserves the analysis window response.
+    """
+    from mankomix.dspx.bb.spectral_components import lobes
+    peaks, _ = lobes(a)
+    phase = np.angle(a.spectra)
+    out = phase.copy()
+    for ch in range(phase.shape[2]):
+        previous = np.empty(0, dtype=int)
+        offsets = np.empty(0)
+        for t in range(len(phase)):
+            current = np.unique(peaks[t, :, ch])
+            rng = event_rng(seed, p['seed'], t*phase.shape[2]+ch)
+            new = rng.uniform(-np.pi, np.pi, len(current))
+            if len(previous):
+                right = np.minimum(np.searchsorted(previous, current), len(previous)-1)
+                left = np.maximum(right-1, 0)
+                nearest = np.where(abs(current-previous[left]) <= abs(current-previous[right]), left, right)
+                continuing = abs(current-previous[nearest]) <= 1
+                new[continuing] = offsets[nearest[continuing]]
+            out[t, :, ch] += new[np.searchsorted(current, peaks[t, :, ch])]
+            previous, offsets = current, new
     return out
 
 

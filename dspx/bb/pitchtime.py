@@ -10,14 +10,20 @@ source_positions=None)``: output/input duration ratio; waveform-similarity
 overlap-add, exact rounded output length. Optional strictly increasing source
 positions supply one source sample position per output sample for time warps.
 ``phase_vocoder(x, sr, stretch, window=4096, transients=.7,
-stereo_link=True)``: identity phase locking and spectral-flux phase resets.
+stereo_link=True, *, track_glides=False)``: identity phase locking and
+spectral-flux phase resets. Opt-in glide tracking caps the analysis support at
+2048 @48k and removes negative-frequency leakage for the shortest window.
 window is in samples at 48 kHz. The local centred STFT is deliberately private
 until BB-06 synthesis is available. Both time stretchers return compensated
 audio, and ratio 1 is an exact bypass.
 ``shift(x, sr, semitones=0, cents=0, quality='high', formant=False,
-formant_cents=0, transients=.7, window=4096, stereo_link=True, grain_ms=40)``:
+formant_cents=0, transients=.7, window=4096, stereo_link=True, grain_ms=40,
+*, track_glides=False)``:
 same-length pitch shift. Standard/high stretch then use the existing reference
 polyphase resampler, with a rational ratio of denominator at most 4096.
+Glide tracking opts standard into the phase-locked stretcher, and fast into
+buffered phase-guided dual taps when a coherent moving component is present.
+Existing callers retain the original WSOLA/vocoder/causal-tap behavior.
 ``latency_samples(sr, quality, window=4096, window_ms=40)``: uncompensated
 processing lookahead; fast intentionally does not compensate the dry path.
 ``bend_values(points, frames, sr, interp='linear', glide_ms=0)`` samples an
@@ -332,6 +338,34 @@ def _stft(x, size, hop):
     return fft.rfft(frames*win, axis=-1, workers=1).transpose(0, 2, 1), win
 
 
+def _analytic_stft(x, sr, size, hop):
+    """Separate positive/negative frequencies before a short analysis window.
+
+    A low partial's negative-frequency lobe otherwise perturbs its peak phase
+    as it approaches/leaves a bin. Reflection limits endpoint discontinuities;
+    the half-scaled analytic spectrum has the real STFT's positive-bin gain.
+    """
+    pad = min(len(x)-1, round(sr*.1))
+    if len(x) > 2:
+        extended = np.pad(x, ((pad, pad), (0, 0)), mode='reflect')
+    else:
+        extended = x
+    spectrum = fft.fft(extended, axis=0, workers=1)
+    multiplier = np.zeros(len(extended))
+    multiplier[0] = 1
+    multiplier[1:(len(extended)+1)//2] = 2
+    if len(extended) % 2 == 0:
+        multiplier[len(extended)//2] = 1
+    analytic = fft.ifft(spectrum*multiplier[:, None], axis=0, workers=1)
+    if len(x) > 2:
+        analytic = analytic[pad:-pad]
+    padded = np.pad(analytic, ((size//2, size+size//2), (0, 0)))
+    win = signal.windows.hann(size, sym=False)
+    frames = np.lib.stride_tricks.sliding_window_view(padded, size, axis=0)[::hop]
+    spec = .5*fft.fft(frames*win, axis=-1, workers=1)[..., :size//2+1]
+    return spec.transpose(0, 2, 1), win
+
+
 def _envelope(magnitude, sr, size):
     """Low-quefrency log spectral envelope (local BB-19 integration seam)."""
     logmag = np.log(np.maximum(magnitude, np.max(magnitude, axis=0, keepdims=True)*1e-10+1e-30))
@@ -366,23 +400,31 @@ def _formant_correct(x, sr, ratio, formant_ratio, size):
     return out[size//2:size//2+len(x)]
 
 
-def phase_vocoder(x, sr, stretch, window=4096, transients=.7, stereo_link=True):
+def phase_vocoder(x, sr, stretch, window=4096, transients=.7, stereo_link=True,
+                  *, track_glides=False):
     """Phase propagation with nearest-peak identity locking and onset resets."""
     x = _audio(x)
     stretch = _positive(stretch, 'stretch')
     if not 0 <= transients <= 1:
         raise ValueError('transients must be in [0,1]')
-    size = latency_samples(sr, 'high', window)
+    # The public window remains the buffering bound. A shorter analysis support
+    # limits ridge broadening and peak-owner changes on moving partials.
+    size = latency_samples(sr, 'high', min(window, 2048) if track_glides else window)
     nout = round(len(x)*stretch)
     if stretch == 1 or not len(x):
         return x.copy()
     if not stereo_link and x.shape[1] > 1:
-        return np.column_stack([phase_vocoder(x[:, c:c+1], sr, stretch, window, transients)[:, 0]
+        return np.column_stack([phase_vocoder(x[:, c:c+1], sr, stretch, window, transients,
+                                             track_glides=track_glides)[:, 0]
                                 for c in range(x.shape[1])])
     x, events = _separate_transients(x, sr) if transients > 0 else (x, [])
     hop = max(1, size//8)
-    spec, win = _stft(x, size, hop)
-    ref, _ = _stft(_reference(x)[:, None], size, hop)
+    if track_glides and window < 2048:
+        spec, win = _analytic_stft(x, sr, size, hop)
+        ref, _ = _analytic_stft(_reference(x)[:, None], sr, size, hop)
+    else:
+        spec, win = _stft(x, size, hop)
+        ref, _ = _stft(_reference(x)[:, None], size, hop)
     ref = ref[:, :, 0]
     omega = 2*np.pi*np.arange(size//2+1)/size
     delta = np.angle(ref[1:]*np.conj(ref[:-1]))-omega[None, :]*hop
@@ -444,8 +486,78 @@ def phase_vocoder(x, sr, stretch, window=4096, transients=.7, stereo_link=True):
     return _restore_transients(out[size//2:size//2+nout], events, stretch)
 
 
+def _glide_taps(x, sr, ratio, grain_ms):
+    """Phase-guided dual delay taps for a coherent, moving single component.
+
+    The phase clock is measured from audio, without a frequency trajectory
+    model. Inverting it compensates the changing frequency between the current
+    time and a delayed read. Two complementary Hann taps reset two cycles apart
+    at zero gain. Audio is always read from the input, never resynthesized.
+    Ambiguous clocks (noise, multiple components, silence, or stationary audio)
+    fall back to the ordinary rotating taps. This optional buffered analysis is
+    separate from the causal fast_shift API used inside feedback loops.
+    """
+    if len(x) <= 2*max(5, round(sr*.05)):
+        return None
+    ref = _reference(x)
+    power = np.dot(ref, ref)
+    if power < 1e-30:
+        return None
+    if x.shape[1] > 1:
+        scales = (ref @ x)/power
+        residual = x-ref[:, None]*scales
+        if np.sum(residual*residual) > 1e-8*np.sum(x*x):
+            return None
+    pad = min(len(x)-1, round(sr*.5))
+    analytic = signal.hilbert(np.pad(ref, (pad, pad), mode='reflect'))[pad:-pad]
+    phase = np.unwrap(np.angle(analytic))
+    span = max(5, round(sr*.01) | 1)
+    smooth = signal.savgol_filter(phase, span, 3)
+    amplitude = np.abs(analytic)
+    envelope = signal.savgol_filter(amplitude, span, 3)
+    guard = max(span, round(sr*.05))
+    interior = slice(guard, -guard)
+    level = np.max(amplitude, initial=0)
+    if level < 1e-20:
+        return None
+    # Both phase and envelope must agree with a locally smooth component.
+    # This rejects beating partials rather than assigning them a false F0.
+    if (np.max(np.abs(phase[interior]-smooth[interior])) > .02
+            or np.max(np.abs(amplitude[interior]-envelope[interior])) > .02*level
+            or np.min(envelope[interior]) < .1*level
+            or np.any(np.diff(smooth) <= 0)):
+        return None
+    speed = np.gradient(smooth)
+    if np.ptp(speed[interior]) < .01*np.mean(speed[interior]):
+        return None
+    # At least two cycles must fit in the available grain at its slowest point.
+    if 4*np.pi/np.min(speed[interior]) > grain_ms*sr/1000:
+        return None
+    source = x
+    if ratio > 1:
+        # The time-varying read speed is slightly larger than ratio on rising
+        # glides. Leave transition room and filter before interpolation.
+        sos = signal.ellip(12, .01, 100, min(.99, .94/ratio), output='sos')
+        source = signal.sosfilt(sos, x, axis=0)
+    n = np.arange(len(x), dtype=float)
+    u = np.remainder((1-ratio)*(smooth-smooth[0])/(4*np.pi), 1.)
+    gain = .5-.5*np.cos(2*np.pi*u)
+    first = np.interp(smooth-4*np.pi*u, smooth, n)
+    second = np.interp(smooth-4*np.pi*np.remainder(u+.5, 1.), smooth, n)
+    y = (_read(source, first, 'sinc256')*gain[:, None]
+         +_read(source, second, 'sinc256')*(1-gain[:, None]))
+    # A compact boundary taper avoids hard phase-clock starts/stops. It does
+    # not alter the interior amplitude or delay the dry path.
+    edge = min(round(sr*.04), len(y)//2)
+    ramp = .5-.5*np.cos(np.pi*np.arange(edge)/max(1, edge))
+    y[:edge] *= ramp[:, None]
+    y[-edge:] *= ramp[::-1, None]
+    return y
+
+
 def shift(x, sr, semitones=0, cents=0, quality='high', formant=False,
-          formant_cents=0, transients=.7, window=4096, stereo_link=True, grain_ms=40):
+          formant_cents=0, transients=.7, window=4096, stereo_link=True, grain_ms=40,
+          *, track_glides=False):
     """Same-length pitch shift; zero offset is an unconditional exact bypass."""
     x = _audio(x)
     ratio = 2.**((float(semitones)+float(cents)/100)/12)
@@ -455,6 +567,14 @@ def shift(x, sr, semitones=0, cents=0, quality='high', formant=False,
     if ratio == 1 or not len(x):
         return x.copy()
     if quality == 'fast':
+        if track_glides:
+            if not stereo_link and x.shape[1] > 1:
+                return np.column_stack([shift(x[:, c:c+1], sr, semitones, cents,
+                    quality, grain_ms=grain_ms, track_glides=True)[:, 0]
+                    for c in range(x.shape[1])])
+            guided = _glide_taps(x, sr, ratio, grain_ms)
+            if guided is not None:
+                return guided
         if ratio > 1:
             # Causal anti-alias prefilter; its frequency-dependent phase is
             # intentionally not compensated on the fast wet path.
@@ -465,7 +585,10 @@ def shift(x, sr, semitones=0, cents=0, quality='high', formant=False,
     # duration factor: this explicit convention avoids ambiguous ratio APIs.
     rational = Fraction(float(ratio)).limit_denominator(4096)
     rate = rational.numerator/rational.denominator
-    if quality == 'standard':
+    if track_glides:
+        y = phase_vocoder(x, sr, rate, window if quality == 'high' else 2048,
+                          transients, stereo_link, track_glides=True)
+    elif quality == 'standard':
         y = wsola(x, sr, rate, stereo_link=stereo_link)
     else:
         y = phase_vocoder(x, sr, rate, window, transients, stereo_link)

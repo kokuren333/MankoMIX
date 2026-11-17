@@ -398,16 +398,19 @@ def test_freeze_30s_spectrum_and_no_loop(enabled):
 
 # 統括の判断 D-21(c): scramble permutes bins as its intended effect;
 # stationary-sine envelope preservation is not an acceptance condition.
-@pytest.mark.parametrize('op', [pytest.param(op, marks=pytest.mark.xfail(strict=True,
-    reason='Remaining active-effect S4 miss; see C7b report.'))
-    if op in ('contrast', 'phase', 'smear_freq') else op for op in OPS if op != 'scramble'])
-def test_fx_s4_measured_ripple(enabled, op):
+# 統括の判断 D-23(b): only phase=zero (robotization) is exempt from S4.
+# Hold and random remain active acceptance cases.
+@pytest.mark.parametrize('op,extra', [(op, {}) for op in OPS if op not in ('scramble', 'phase')]
+    + [pytest.param('phase', {'phase_mode': 'hold'}, marks=pytest.mark.xfail(strict=True,
+        reason='Literal frozen per-bin phase conflicts with S4; see C8b report.')),
+       ('phase', {'phase_mode': 'random'})])
+def test_fx_s4_measured_ripple(enabled, op, extra):
     sr = 48000
     x = H.sine(1000, sr=sr, seconds=3)
-    y = render('spectral_fx', x, dict(op=op, amount=1), sr)
+    y = render('spectral_fx', x, dict(op=op, amount=1, **extra), sr)
     envelope = abs(signal.hilbert(y[sr:-sr, 0]))
     ripple = float(20*np.log10(np.max(envelope)/np.min(envelope)))
-    emit('FX_S4', dict(op=op, ripple_db=ripple))
+    emit('FX_S4', dict(op=op, extra=extra, ripple_db=ripple))
     assert ripple <= .05
 
 
@@ -551,6 +554,7 @@ def test_phase_hold_gate_invert_and_active_freeze_full_scale(enabled):
     held = FX.transform(a, p)
     use = (a.frequencies_hz > 100) & (a.frequencies_hz < 5000)
     np.testing.assert_allclose(np.angle(held[:, use]), np.broadcast_to(np.angle(a.spectra[:1, use]), held[:, use].shape), atol=1e-12)
+    np.testing.assert_allclose(abs(held[:, use]), abs(a.spectra[:, use]), atol=1e-12)
     out = render('spectral_fx', x, dict(op='gate', amount=1, invert=True), sr)
     assert (H.band_level(out[sr//4:], sr, 900, 1100)['dbfs']
             -H.band_level(x[sr//4:], sr, 900, 1100)['dbfs']) <= -40

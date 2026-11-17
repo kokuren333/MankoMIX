@@ -1,7 +1,6 @@
 """BB-19 / W3k: independent signal measurements and processor contracts.
 
-Original acceptance numbers are retained as strict xfails for formant_shift.
-The public implementation remains disabled until those measurements pass.
+Original formant_shift acceptance numbers are ordinary closure regressions.
 """
 import numpy as np
 import pytest
@@ -148,7 +147,6 @@ def test_stft_identity_phase_and_raw_latency(sr, nominal):
 
 
 @pytest.mark.parametrize('method', ['cepstrum','true_env','lpc'])
-@pytest.mark.xfail(strict=True,reason='Envelope translation misses the original 3% vowel-peak criterion')
 def test_formant_shift_vowel_peaks_and_harmonic_frequencies(method):
     sr = 16000
     x = H.vowel(150, formants_hz=(700,1200,2600), sr=sr, seconds=1.4)
@@ -177,7 +175,6 @@ def test_formant_noise(method):
 
 
 @pytest.mark.parametrize('method',['cepstrum','true_env','lpc'])
-@pytest.mark.xfail(strict=True,reason='Stationary sine ripple exceeds the original S4 0.05 dB criterion')
 def test_formant_s4(method):
     x = H.sine(1000,-12,sr=16000,seconds=1.)
     y = direct('formant_shift',x,dict(shift_cents=300,envelope=method))[0]

@@ -15,13 +15,19 @@ def latency_samples(sr, p):
 
 def control(analysis, p):
     """Return smoothed/target gain dB, using the BB-03 static curves."""
-    from mankomix.dspx.bb.spectral_control import bin_levels, frame_smooth
+    from mankomix.dspx.bb.spectral_control import frame_smooth
+    from mankomix.dspx.bb.spectral_components import lobes
+    from mankomix.dspx.bb.stft import smooth_frequency
     from mankomix.dspx.bb.dynamics import downward_gain_db, expander_gain_db
-    level = bin_levels(analysis, p['smooth_oct'])
-    if p['stereo_link']:
-        level = np.max(level, axis=2, keepdims=True)
-    tilt = p['threshold_tilt_db_oct']*np.log2(np.maximum(analysis.frequencies_hz, 20)/1000)
-    shifted = level-tilt[None, :, None]
+    peaks, amplitude = lobes(analysis, linked=p['stereo_link'])
+    power = smooth_frequency(amplitude**2, analysis.frequencies_hz, p['smooth_oct'])
+    # Sample the smoothed detector at each component and apply one gain to
+    # its entire window response, including the sidelobes.
+    power = np.take_along_axis(power, peaks, axis=1)
+    level = 10*np.log10(np.maximum(power, 1e-30))
+    center = analysis.frequencies_hz[peaks]
+    tilt = p['threshold_tilt_db_oct']*np.log2(np.maximum(center, 20)/1000)
+    shifted = level-tilt
     if p['mode'] == 'compress':
         target = downward_gain_db(shifted, p['threshold_db'], p['ratio'], p['knee_db'], p['range_db'])
     else:
@@ -40,7 +46,7 @@ def spectral_dynamics(x, sr, p, *, seed=0, compensate=True):
     return finish(x, sr, p, a, db, compensate=compensate)
 
 
-SPECS = [dict(type='spectral_dynamics', implemented=False,
+SPECS = [dict(type='spectral_dynamics', implemented=True,
     description='Coherent-normalized per-bin compressor or downward expander.',
     stages=['track', 'bus', 'master'], master_slot=2, offline_only=False, backends=['reference'],
     realtime=dict(block_ok=False, latency_samples='window_scaled', allocates=True),

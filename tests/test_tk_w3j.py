@@ -1,4 +1,4 @@
-"""W3j measured acceptance; numerical misses remain explicit strict xfails."""
+"""W3j measured acceptance, including the D-23(a) hum-domain closure."""
 import importlib
 import json
 import numpy as np
@@ -331,10 +331,10 @@ def test_guitar_all_zero():
     assert render('guitar_denoise',x,p=p).audio.tobytes()==x.tobytes()
 
 
-@pytest.mark.parametrize('bad',[dict(hum=.001)])
-@pytest.mark.xfail(strict=True,reason='Child dehum minimum depth blocks 0 < hum < .05.')
+@pytest.mark.parametrize('bad',[dict(hum=.001), dict(hum=np.nextafter(.05, 0))])
 def test_guitar_all_positive_domain(bad):
-    assert np.isfinite(render('guitar_denoise',tones(seconds=.1),p=bad).audio).all()
+    with pytest.raises(ParamError, match='hum must be zero or 0.05'):
+        render('guitar_denoise',tones(seconds=.1),p=bad)
 
 
 def test_guitar_squeak_dependency():
@@ -487,7 +487,7 @@ def test_final_publication_flags(monkeypatch):
     for kind in set(TYPES)-{'guitar_denoise'}:
         assert importlib.import_module('mankomix.dspx.procs.'+kind).SPECS[0]['implemented']
     from mankomix.dspx.procs.guitar_denoise import SPECS
-    assert not SPECS[0]['implemented']
+    assert SPECS[0]['implemented']
     monkeypatch.setitem(P.PROCESSORS['guitar_denoise'],'implemented',False)
     with pytest.raises(ChainError,match='not implemented'):
         render('guitar_denoise',tones(seconds=.01))

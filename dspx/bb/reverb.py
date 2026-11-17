@@ -24,6 +24,17 @@ hall opts into 'lagrange3' to avoid gain above unity in the feedback reads.
 IRs have shape (frames, input=2, output=2); processors preserve mono/stereo.
 All states start at zero. DelayLine supplies feedback and fractional reads;
 BB-07 supplies FFT convolution. lti and unmodulated tv use identical kernels.
+
+Additional TV API (existing FDN/AllpassTank behavior is unchanged):
+``validate_freeze(params)`` validates the scheduled interval relationships.
+``freeze_envelope(start_sample, frames, sr, params)`` returns bypass weights.
+``FreezeFDN(sr, params, seed=0).process(stereo)`` retains lossless hold state;
+``state_energy()`` measures active integer delay memory energy.
+``TankAllpass(delay, gain, excursion=0).process(mono, delays=None)`` implements
+a signed lattice; ``tap(start, frames, offset)`` reads its internal memory.
+``VintageTank(sr, params, seed=0).process(stereo)`` is a crossed multitap tank.
+``quantize_tpdf(x, bits, rng)`` applies gated subtractive TPDF quantization.
+``process_freeze`` / ``process_vintage`` expose the usual processor interface.
 """
 from __future__ import annotations
 
@@ -408,3 +419,341 @@ def velvet_ir(sr, duration_ms, params, *, shape="flat", seed=0):
     env[-nf:] *= np.linspace(1, 0, nf)
     h *= env[:, None, None] / math.sqrt(max(1, n/cell))
     return h
+
+
+# Additive TV kernels. Formula source: Dattorro, JAES 45(9), 1997,
+# Fig. 1 and Tables 1/2 (pp. 662-665). Independently implemented from the
+# published signal graph, without consulting any external implementation.
+# Lossless FDN condition: orthogonal scattering and integer unit delays.
+
+
+def validate_freeze(p):
+    """Validate RV tempo and strict, separated freeze intervals (no mutation)."""
+    validate_rv(p)
+    starts, ends = p["freeze_start_s"], p["freeze_end_s"]
+    if len(starts) != len(ends):
+        raise ParamError("freeze arrays must have equal lengths")
+    if any(b <= a for a, b in zip(starts, ends)) or any(
+            b >= a for b, a in zip(ends, starts[1:])):
+        raise ParamError("freeze intervals must be nonempty, ordered and separated")
+
+
+def freeze_envelope(start, frames, sr, params):
+    """Absolute-time bypass envelope; entry/exit ramps start at their events.
+
+    Return (frames,) in [0,1]. Short holds can have overlapping entry/exit
+    ramps; their minimum is used, avoiding a discontinuity at either event.
+    """
+    indices = start + np.arange(frames)
+    fade = max(1, round(params["freeze_fade_ms"]*sr/1000))
+    result = np.zeros(frames)
+    for a, b in zip(params["freeze_start_s"], params["freeze_end_s"]):
+        a, b = round(a*sr), round(b*sr)
+        if b <= a:
+            raise ParamError("freeze interval collapses on sample grid")
+        up = np.clip((indices-a)/fade, 0., 1.)
+        down = np.clip(1-(indices-b)/fade, 0., 1.)
+        result = np.maximum(result, np.minimum(up, down))
+    return result
+
+
+class FreezeFDN(FDN):
+    """Stateful 16-line orthogonal FDN; process(stereo) -> stereo wet.
+
+    Parameters are resolved reverb_freeze parameters. Integer delays and
+    absorption bypass are exact at envelope=1. Modulation is held at zero
+    excursion during freezes, since fractional interpolation is not lossless.
+    state_energy() returns energy in the active integer delay memories only.
+    """
+    def __init__(self, sr, params, *, seed=0):
+        validate_freeze(params)
+        p = dict(params, rt60_low_mult=1, rt60_high_mult=.7,
+                 high_xover_hz=params["damping_hz"], mod_rate_hz=.5)
+        super().__init__(sr, p, seed=seed, absorption_order=4, mod_interpolation="lagrange3")
+        self.loop_position = 0
+
+    def _absorb(self, block):
+        if not self.p["freeze_start_s"]:
+            return super()._absorb(block)
+        frozen = freeze_envelope(self.loop_position, len(block), self.sr, self.p)[:, None]
+        self.loop_position += len(block)
+        absorbed = super()._absorb(block)
+        # Explicit bypass rather than a weighted sum at the unity endpoint.
+        return np.where(frozen == 1, block, absorbed + frozen*(block-absorbed))
+
+    def _integer_process(self, injected):
+        # Reuse BB-09's ring and absolute position. Causal batches have no
+        # within-batch feedback dependency. Unoptimized einsum performs a
+        # fixed scalar reduction in C, without a threaded BLAS dispatch.
+        line = self.line
+        out = np.zeros_like(injected)
+        step = min(1024, int(np.min(self.delays)))
+        channels = np.arange(self.lines)
+        for a in range(0, len(injected), step):
+            b = min(len(injected), a+step)
+            absolute = line.position+np.arange(b-a)
+            ix = absolute[:, None]-self.delays
+            wet = np.where(ix >= 0, line.buffer[ix % len(line.buffer), channels], 0.)
+            routed = np.einsum("ij,nj->ni", self.matrix, self._absorb(wet), optimize=False)
+            line.buffer[absolute % len(line.buffer)] = injected[a:b]+routed
+            line.position += b-a
+            out[a:b] = wet
+        return out
+
+    def process(self, stereo):
+        n = len(stereo)
+        held = freeze_envelope(self.position, n, self.sr, self.p)
+        u = np.asarray(stereo, dtype=np.float64)
+        if self.p["freeze_input"] == "mute":
+            u = np.where(held[:, None] == 1, 0., u)
+        for ap in self.diffusers:
+            u = ap.process(u)
+        # Gate AFTER diffusion, so no new input reaches the tank on a hold.
+        if self.p["freeze_input"] == "mute":
+            u = u*(1-held[:, None])
+        injected = np.zeros((n, self.lines))
+        for i in range(2):
+            injected += u[:, i, None]*self.inject[i]
+        ds = self.delays
+        if self.p["mod_depth"]:
+            t = (self.position+np.arange(n))/self.sr
+            ds = ds + (self.p["mod_depth"]*(1-held)*self.excursion)[:, None]*np.sin(
+                2*np.pi*self.rate*t[:, None]+self.phases)
+        reads = (self.line.process(injected, ds, 1., self._absorb, self.matrix)
+                 if self.p["mod_depth"] else self._integer_process(injected))
+        self.position += n
+        out = np.zeros((n, 2))
+        for i in range(self.lines):
+            out += reads[:, i, None]*self.output[:, i]
+        return out*math.sqrt(2*float(np.mean(self.delays))/self.sr)
+
+    def state_energy(self):
+        total = 0.
+        for i, d in enumerate(self.delays):
+            indices = (self.line.position-np.arange(1, int(d)+1)) % len(self.line.buffer)
+            total += float(np.sum(self.line.buffer[indices, i]**2))
+        return total
+
+
+def _tv_wet_shape(x, wet, sr, p):
+    wet = fractional_delay(wet, round(p["predelay_ms"]*sr/1000), "integer")
+    wet = _wet_filter(wet, sr, p)
+    return wet.mean(axis=1, keepdims=True) if x.shape[1] == 1 else wet
+
+
+def process_freeze(x, sr, params, *, seed=0):
+    """Processor API: (x,sr,params,seed) -> (audio,sr,R-10 stats)."""
+    p = params
+    validate_freeze(p)
+    if not p["mix"]:
+        return x.copy(), sr, {"latency_samples": 0, "bypass": True}
+    normal = dict(p, freeze_start_s=[], freeze_end_s=[], mod_depth=0)
+    h = _tv_measurement_ir("freeze", sr, normal, seed)
+    wet = FreezeFDN(sr, p, seed=seed).process(_stereo(x))
+    wet = _tv_wet_shape(x, wet, sr, p)
+    stats = measure_ir(h, sr, p, modulation_stopped=True)
+    stats.update(execution="tv", fdn_lines=16, measurement_freeze_disabled=True,
+                 freeze_intervals_s=list(map(list, zip(p["freeze_start_s"], p["freeze_end_s"]))),
+                 modulation_stopped_during_freeze=True)
+    return finish(x, wet, sr, p, stats)
+
+
+class _TapMemory:
+    """Integer delay memory with explicit absolute reads and bounded capacity."""
+    def __init__(self, capacity):
+        self.buffer = np.zeros(int(capacity)+2)
+        self.position = 0
+
+    def read(self, start, frames, delay):
+        ix = start+np.arange(frames)-int(delay)
+        return np.where(ix >= 0, self.buffer[ix % len(self.buffer)], 0.)
+
+    def write(self, x):
+        self.buffer[(self.position+np.arange(len(x))) % len(self.buffer)] = x
+        self.position += len(x)
+
+
+class TankAllpass:
+    """Signed Schroeder lattice with optional Lagrange modulation and taps.
+
+    process(x, delays=None) -> y, (all float64, mono frames x 1).
+    tap(start, frames, offset) reads the internal lattice delay memory.
+    The constant-delay transfer is (-g+z^-D)/(1-g*z^-D).
+    """
+    def __init__(self, delay, gain, excursion=0):
+        self.delay, self.gain = int(delay), float(gain)
+        if abs(gain) >= 1:
+            raise ValueError("allpass coefficient magnitude must be < 1")
+        self.line = DelayLine(delay+excursion+2, 1, "lagrange3" if excursion else "integer")
+
+    def process(self, x, delays=None):
+        # DelayLine feedback is nonnegative; a callback supplies signed gain.
+        delayed = self.line.process(x, self.delay if delays is None else delays,
+                                    1., lambda v: self.gain*v)
+        return -self.gain*x+(1-self.gain**2)*delayed
+
+    def tap(self, start, frames, offset):
+        ix = start+np.arange(frames)-int(offset)
+        return np.where(ix >= 0, self.line.buffer[ix % len(self.line.buffer), 0], 0.)
+
+
+def quantize_tpdf(x, bits, rng):
+    """Subtractive TPDF, unit peak full scale; exact-zero gate below 1 LSB.
+
+    Uniform error RMS is LSB/sqrt(12). Random pairs are drawn frame-major,
+    preserving the sequence under block subdivision. No clipping is applied.
+    """
+    if not bits:
+        return x.copy()
+    step = 2.**(1-int(bits))
+    pair = rng.random(np.asarray(x).shape+(2,))
+    dither = (pair[..., 0]-pair[..., 1])*step
+    out = np.rint((x+dither)/step)*step-dither
+    return np.where(np.abs(x) >= step, out, 0.)
+
+
+class _TankLowpass:
+    """The signal graph's first-order direct-form lowpass, initially zero."""
+    def __init__(self, sr, hz):
+        self.pole = math.exp(-2*math.pi*hz/sr) if hz < .45*sr else 0.
+        self.zi = np.zeros((1, 1))
+
+    def __call__(self, x):
+        y, self.zi = signal.lfilter([1-self.pole], [1., -self.pole], x, axis=0, zi=self.zi)
+        return y
+
+
+class _SignedInputAllpass(Allpass):
+    """Reuse the residue-class allpass recurrence with the paper's sign."""
+    def __init__(self, delay, gain):
+        super().__init__(delay, abs(gain), 1)
+        self.gain = float(gain)
+
+
+class VintageTank:
+    """Published four-diffuser figure-eight topology with seven taps per ear.
+
+    VintageTank(sr, resolved_params, seed=0).process(stereo) -> stereo wet.
+    Zero initial state; integer paper delays scale from 29761 Hz. Seed zero
+    selects the canonical geometry; other seeds vary its scale by up to 1%.
+    Frequency
+    controls use explicit Hz filters; bass absorption is an added low shelf.
+    """
+    def __init__(self, sr, params, *, seed=0):
+        self.sr, self.p, self.position = sr, dict(params), 0
+        p = self.p
+        s = modulation_seed(seed, "vintage", p["seed"])
+        geometry = np.random.Generator(np.random.PCG64(s))
+        ratio = 1. if seed == 0 and p["seed"] == 0 else geometry.uniform(.99, 1.01)
+        self.scale = sr/29761*ratio
+        self.length = lambda d: max(1, round(d*self.scale))
+        self.rng = [np.random.Generator(np.random.PCG64(modulation_seed(s, "quant", j))) for j in range(2)]
+        self.phase = np.random.Generator(np.random.PCG64(s)).uniform(0, 2*np.pi)
+        self.inputs = [_SignedInputAllpass(self.length(d), -min(.95, p["input_diffusion"])*r)
+                       for d, r in zip((142, 107, 379, 277), (1, 1, 5/6, 5/6))]
+        self.excursion = sr*.00008/max(.1, p["mod_rate_hz"])
+        self.first = [TankAllpass(self.length(d), min(.95, .7*p["tank_diffusion"]/.6),
+                                 self.excursion if p["mod_depth"] else 0) for d in (672, 908)]
+        self.second = [TankAllpass(self.length(d), -min(.9, .5*p["tank_diffusion"]/.6)) for d in (1800, 2656)]
+        self.long_d = [self.length(d) for d in (4453, 4217)]
+        self.end_d = [self.length(d) for d in (3720, 3163)]
+        self.long = [_TapMemory(d+max(self.end_d)) for d in self.long_d]
+        self.end = [_TapMemory(d+max(self.end_d)) for d in self.end_d]
+        # Two decay locations per branch, four per full figure-eight traversal.
+        traversal = sum(self.length(d) for d in (672,908,4453,4217,1800,2656,3720,3163))
+        self.gain = float(rt60_gain(traversal/4, sr, p["rt60_s"]))
+        self.damp = [_TankLowpass(sr, p["damping_hz"]) for _ in range(2)]
+        self.band = _TankLowpass(sr, p["bandwidth_hz"])
+        # Keep the published one-pole input/tank filters. An additional output
+        # anti-bandwidth filter meets the specified octave rejection, which a
+        # single one-pole filter alone cannot provide. Above .45 sr it bypasses.
+        self.output_sos = (signal.butter(8, p["bandwidth_hz"], fs=sr, output="sos")
+                           if p["bandwidth_hz"] < .45*sr else None)
+        self.output_zi = np.zeros((len(self.output_sos), 2, 2)) if self.output_sos is not None else None
+        self.bass_sos = absorption_sos(traversal/2, sr,
+                                       (p["rt60_s"]*p["bass_mult"], p["rt60_s"], p["rt60_s"]),
+                                       250, min(4000, .4*sr), order=4)
+        self.bass_sos[0, :3] /= self.gain**2
+        self.bass_zi = [np.zeros((len(self.bass_sos), 2)) for _ in range(2)]
+
+    def process(self, stereo):
+        p, n, start = self.p, len(stereo), self.position
+        if not n:
+            return np.zeros((0, 2), dtype=np.float64)
+        mono = self.band(np.mean(stereo, axis=1, keepdims=True))
+        for ap in self.inputs:
+            mono = ap.process(mono)
+        wet = np.zeros((n, 2))
+        # The final pure delays break the outer loop; each batch reads only
+        # existing history before writing its two independent branches.
+        chunk = min(self.length(500), min(self.end_d))
+        for a in range(0, n, chunk):
+            b = min(n, a+chunk); count = b-a; absolute = start+a
+            feedback = [self.end[j].read(absolute, count, self.end_d[j]) for j in range(2)]
+            for j in range(2):
+                u = mono[a:b]+self.gain*feedback[1-j][:, None]
+                ds = None
+                if p["mod_depth"]:
+                    t = (absolute+np.arange(count))/self.sr
+                    ds = (self.first[j].delay + p["mod_depth"]*self.excursion*np.sin(
+                        2*np.pi*p["mod_rate_hz"]*t+self.phase+j*np.pi/2))[:, None]
+                v = self.first[j].process(u, ds)[:, 0]
+                self.long[j].write(v)
+                v = self.long[j].read(absolute, count, self.long_d[j])[:, None]
+                v = self.damp[j](v)*self.gain
+                v[:, 0], self.bass_zi[j] = signal.sosfilt(self.bass_sos, v[:, 0], zi=self.bass_zi[j])
+                v = self.second[j].process(v)
+                v = quantize_tpdf(v, int(p["bits"]), self.rng[j])
+                self.end[j].write(v[:, 0])
+            # Table 2, signed taps, fixed accumulation order.
+            taps = [[(1,0,266,1),(1,0,2974,1),(1,1,1913,-1),(1,2,1996,1),
+                     (0,0,1990,-1),(0,1,187,-1),(0,2,1066,-1)],
+                    [(0,0,353,1),(0,0,3627,1),(0,1,1228,-1),(0,2,2673,1),
+                     (1,0,2111,-1),(1,1,335,-1),(1,2,121,-1)]]
+            for channel in range(2):
+                for branch, location, offset, sign in taps[channel]:
+                    memory = (self.long[branch], self.second[branch], self.end[branch])[location]
+                    read = memory.tap if location == 1 else memory.read
+                    wet[a:b, channel] += .6*sign*read(absolute, count, self.length(offset))
+        self.position += n
+        if self.output_sos is not None:
+            wet, self.output_zi = signal.sosfilt(self.output_sos, wet, axis=0, zi=self.output_zi)
+        return wet
+
+
+@lru_cache(maxsize=4)
+def _cached_tv_ir(kind, sr, items, seed):
+    p = dict(items)
+    # T20 measurement context, not a silently truncated processing tail.
+    seconds = p["rt60_s"]*max(1, p.get("bass_mult", 1))*1.3+.25
+    n = max(1, math.ceil(seconds*sr))
+    pulse = np.zeros((n, 2)); pulse[0] = 1
+    kernel = FreezeFDN(sr, p, seed=seed) if kind == "freeze" else VintageTank(sr, p, seed=seed)
+    h = _tv_wet_shape(pulse, kernel.process(pulse), sr, p)
+    h.setflags(write=False)
+    return h
+
+
+def _tv_measurement_ir(kind, sr, params, seed):
+    p = {k: v for k, v in params.items() if k not in {"mix", "bpm"} and not k.startswith("duck_")}
+    p.update(mod_depth=0)
+    if kind == "freeze":
+        p.update(freeze_start_s=(), freeze_end_s=())
+    else:
+        p.update(bits="0")
+    return _cached_tv_ir(kind, sr, tuple(sorted(p.items())), seed)
+
+
+def process_vintage(x, sr, params, *, seed=0):
+    """Processor API: (x,sr,params,seed) -> (audio,sr,R-10 stats)."""
+    p = params
+    validate_rv(p)
+    if not p["mix"]:
+        return x.copy(), sr, {"latency_samples": 0, "bypass": True}
+    h = _tv_measurement_ir("vintage", sr, p, seed)
+    wet = VintageTank(sr, p, seed=seed).process(_stereo(x))
+    wet = _tv_wet_shape(x, wet, sr, p)
+    stats = measure_ir(h, sr, p, modulation_stopped=True)
+    stats.update(execution="tv", measurement_quantization_disabled=True,
+                 internal_bits=int(p["bits"]), quantization="subtractive_tpdf_zero_gate")
+    return finish(x, wet, sr, p, stats)

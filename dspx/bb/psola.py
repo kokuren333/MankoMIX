@@ -150,9 +150,115 @@ def envelope_transfer(source, target, limit_db=24):
     return np.clip(t/np.maximum(s, 1e-30), 1/bound, bound)
 
 
+def resolved_spectral_envelope(magnitude, sr, method='true_env', order=40, *, window=2048):
+    """Precondition the requested estimator with a window-debiased AR envelope.
+
+    Short-window cepstral smoothing alone broadens narrow resonances. An
+    eight-pole seed removes that curvature before estimating the residual
+    with the selected method/order, then restores it. Its correlation is
+    divided by the Hann autocorrelation, undoing analysis-window broadening.
+    A grid capped at 16 kHz keeps the low-frequency pole fit conditioned at
+    high sample rates; above that grid the residual models the spectrum.
+    This is opt-in: spectral_envelope retains its original behavior.
+    """
+    m = np.asarray(magnitude, dtype=np.float64)
+    if (m.ndim not in (1, 2) or len(m) < 3 or not np.isfinite(m).all()
+            or np.any(m < 0) or sr <= 0 or order < 1
+            or method not in ('cepstrum', 'lpc', 'true_env')):
+        raise ParamError('invalid spectral envelope input')
+    mono = m.ndim == 1
+    m = m[:, None] if mono else m
+    n = 2*(len(m)-1)
+    if n != window:
+        raise ParamError('envelope spectrum must match the Hann window')
+    from .stft import sqrt_hann
+    ref_sr = min(sr, 16000)
+    ref_n = max(4, 4*round(n*ref_sr/sr/4))
+    ref_f = fft.rfftfreq(ref_n, 1/ref_sr)
+    f = fft.rfftfreq(n, 1/sr)
+    w = sqrt_hann(ref_n)**2
+    count = min(8, ref_n//2-1)
+    wc = np.correlate(w, w, mode='full')[ref_n-1:ref_n+count]
+    wc /= wc[0]
+    seed = np.empty_like(m)
+    low_env = np.empty((len(ref_f), m.shape[1])) if method == 'lpc' and ref_sr < sr else None
+    for c in range(m.shape[1]):
+        ref_m = np.interp(ref_f, f, m[:, c])
+        r = fft.irfft(ref_m**2, ref_n, workers=1)[:count+1]/wc
+        a, _, error = _levinson(r, count)
+        response = np.maximum(abs(fft.rfft(a, ref_n, workers=1)), 1e-15)
+        ref_seed = np.maximum(np.sqrt(error)/response, 1e-30)
+        seed[:, c] = np.interp(f, ref_f, ref_seed)
+        if low_env is not None:
+            low_env[:, c] = ref_seed*spectral_envelope(ref_m/ref_seed, ref_sr, method, order)
+    seed = np.maximum(seed, 1e-30)
+    env = seed*spectral_envelope(m/seed, sr, method, order)
+    if low_env is not None:
+        # The residual all-pole fit needs the same conditioning as its seed.
+        # Crossfade back to the full-band model over the grid's last octave.
+        blend = np.clip((f-ref_sr/4)/(ref_sr/4), 0, 1)
+        for c in range(m.shape[1]):
+            low = np.interp(f, ref_f, low_env[:, c])
+            env[:, c] = np.exp((1-blend)*np.log(np.maximum(low, 1e-30))
+                               +blend*np.log(np.maximum(env[:, c], 1e-30)))
+    return env[:, 0] if mono else env
+
+
+def _resolved_envelope_shift(x, sr, cents, method, order, n, lo_hz, hi_hz, target):
+    """Hann WOLA and component-coherent, bounded real envelope gains."""
+    from dataclasses import replace
+    from . import stft as S
+
+    def analyze(v):
+        a = S.analyze(v, sr, window=n)
+        # BB-06's default sqrt-Hann path remains unchanged. Multiplying once
+        # more yields a Hann analysis/synthesis pair with lower sidelobes.
+        blocks = fft.irfft(a.spectra, n, axis=1, workers=1)*a.window[None, :, None]
+        return replace(a, window=a.window**2,
+                       spectra=fft.rfft(blocks, axis=1, workers=1))
+
+    a = analyze(x)
+    other = analyze(target) if target is not None else a
+    if other.spectra.shape != a.spectra.shape:
+        raise ParamError('envelope donor must match audio shape')
+    f = a.frequencies_hz
+    weights = ((f >= lo_hz) & (f <= hi_hz)).astype(float)
+    if lo_hz:
+        weights *= .5-.5*np.cos(np.pi*np.clip(3*np.log2(np.maximum(f, 1e-30)/lo_hz), 0, 1))
+    weights *= .5-.5*np.cos(np.pi*np.clip(3*np.log2(hi_hz/np.maximum(f, 1e-30)), 0, 1))
+    # Five centers cover +/- half a window. Together with centered analysis,
+    # the latest required input stays within the declared one-window buffer.
+    mags = np.sqrt(np.maximum(0, ndimage.uniform_filter1d(abs(a.spectra)**2, 5, axis=0, mode='nearest')))
+    donors = (np.sqrt(np.maximum(0, ndimage.uniform_filter1d(abs(other.spectra)**2, 5, axis=0, mode='nearest')))
+              if target is not None else mags)
+    gains = np.ones_like(mags)
+    for i, m in enumerate(mags):
+        env = resolved_spectral_envelope(m, sr, method, order, window=n)
+        donor = resolved_spectral_envelope(donors[i], sr, method, order, window=n) if target is not None else env
+        shifted = np.column_stack([np.interp(f/2**(cents/1200), f, e) for e in donor.T])
+        logs = np.log(envelope_transfer(env, shifted))
+        for c in range(x.shape[1]):
+            peaks = signal.find_peaks(m[:, c], prominence=np.max(m[:, c])*1e-6, distance=3)[0]
+            if len(peaks):
+                # A sinusoid occupies several window bins. Give its whole
+                # region one gain evaluated at its spectral peak bin,
+                # preserving its phase and avoiding hop-synchronous beating.
+                bounds = np.r_[0, (peaks[1:]+peaks[:-1])//2, len(f)]
+                values = logs[peaks, c].copy()
+                for j, value in enumerate(values):
+                    logs[bounds[j]:bounds[j+1], c] = value
+        gains[i] = np.exp(logs*weights[:, None])
+    gains = S.smooth_gains(gains, sr, a.hop_samples, f, time_ms=20)
+    return S.synthesize(a, a.spectra*gains), n
+
+
 def shift_envelope(x, sr, cents, *, method='true_env', order=40, window=2048,
-                   lo_hz=100, hi_hz=10000, target=None):
-    """Move E(f) to E(f/ratio), or transfer target audio's centered envelope."""
+                   lo_hz=100, hi_hz=10000, target=None, resolved=False):
+    """Move E(f) to E(f/ratio), or transfer target audio's centered envelope.
+
+    resolved=True opts into window-debiased estimation and component gains;
+    the default preserves the original shared pitch/harmony processing.
+    """
     from . import stft as S
     x = _audio(x, sr)
     if not np.isfinite(cents) or not 0 <= lo_hz < hi_hz:
@@ -160,6 +266,8 @@ def shift_envelope(x, sr, cents, *, method='true_env', order=40, window=2048,
     if (cents == 0 and target is None) or not len(x) or not np.any(x):
         return x.copy(), 0
     n = S.window_samples(window, sr)
+    if resolved:
+        return _resolved_envelope_shift(x, sr, cents, method, order, n, lo_hz, hi_hz, target)
     a = S.analyze(x, sr, window=n)
     other = S.analyze(target, sr, window=n) if target is not None else a
     if other.spectra.shape != a.spectra.shape:

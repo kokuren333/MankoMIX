@@ -13,7 +13,7 @@ def formant_shift(x, sr, p, *, seed=0):
     if p['mix'] == 0 or p['shift_cents'] == 0:
         return x.copy(), sr, {'latency_samples': 0}
     wet, delay = shift_envelope(x, sr, p['shift_cents'], method=p['envelope'],
-        order=p['order'], window=p['window'], lo_hz=p['lo_hz'], hi_hz=p['hi_hz'])
+        order=p['order'], window=p['window'], lo_hz=p['lo_hz'], hi_hz=p['hi_hz'], resolved=True)
     return (wet if p['mix'] == 1 else x+p['mix']*(wet-x)), sr, dict(
         latency_samples=delay, latency_compensated=True, envelope=p['envelope'])
 
@@ -27,7 +27,7 @@ def raw_formant_shift(x, sr, p, *, seed=0):
 
 SPECS = [dict(type='formant_shift', description='Translate the spectral envelope.',
     stages=['track', 'bus'], master_slot=None, offline_only=False,
-    backends=['reference'], implemented=False,
+    backends=['reference'], implemented=True,
     realtime=dict(block_ok=False, latency_samples=0, allocates=True,
         latency_rule='Nonzero shift and mix: one window scaled to sr, internally compensated; bypass: 0.'),
     params=[_f('shift_cents', 'cents', -1200, 1200, 0, 'Envelope shift; zero bypasses.'),

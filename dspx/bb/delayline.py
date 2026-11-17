@@ -10,6 +10,8 @@ feedback=0, loop=None, matrix=None, block_size=1024)``: persistent causal
 feedback line. Delays are scalar, channel vector, or frames x channels.
 ``loop(block)`` processes each delayed block before feedback; it must preserve
 shape and state across calls. Matrix maps delayed channels to written channels.
+Optional ``route(block)`` replaces matrix accumulation for a specialised
+bounded routing operation; the default computation is unchanged.
 The returned wet signal precedes loop processing. Integer reads need >=1 sample;
 fractional reads need >=2 (Lagrange) / >=4 (sinc8) / >=128 (sinc256) samples.
 ``LoopFilter(sr, channels, lowcut=0, highcut=0)``: persistent 12 dB/oct loop EQ.
@@ -113,7 +115,12 @@ class DelayLine:
         self.buffer = np.zeros((int(np.ceil(max_delay)) + 16, channels))
         self.position = 0
 
-    def process(self, x, delays, feedback=0.0, loop=None, matrix=None, block_size=1024):
+    def process(self, x, delays, feedback=0.0, loop=None, matrix=None, block_size=1024, *, route=None):
+        """Process the line; optional route(block) replaces matrix routing.
+
+        The default retains the original scalar accumulation order exactly.
+        A supplied route must preserve shape and implement its own gain bound.
+        """
         x = np.asarray(x, dtype=np.float64)
         if x.ndim != 2 or x.shape[1] != self.channels or not np.isfinite(x).all():
             raise ValueError("invalid audio shape or nonfinite input")
@@ -149,10 +156,15 @@ class DelayLine:
             processed = wet if loop is None else np.asarray(loop(wet), dtype=np.float64)
             if processed.shape != wet.shape:
                 raise ValueError("loop callback must preserve shape")
-            routed = np.zeros_like(wet)
-            for target in range(self.channels):
-                for source in range(self.channels):
-                    routed[:, target] += processed[:, source] * mat[target, source]
+            if route is None:
+                routed = np.zeros_like(wet)
+                for target in range(self.channels):
+                    for source in range(self.channels):
+                        routed[:, target] += processed[:, source] * mat[target, source]
+            else:
+                routed = np.asarray(route(processed), dtype=np.float64)
+                if routed.shape != processed.shape:
+                    raise ValueError('route callback must preserve shape')
             self.buffer[absolute % len(self.buffer)] = x[start:end] + feedback * routed
             out[start:end] = wet
             self.position += end - start

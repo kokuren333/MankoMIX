@@ -8,7 +8,7 @@ import pytest
 from scipy import signal
 
 from mankomix.dsp import engine as E, processors as P
-from mankomix.dsp.errors import ParamError, ChainError
+from mankomix.dsp.errors import ParamError
 from mankomix.dspx.bb import pitchtime as B
 from mankomix.dspx.procs import pitch_shift as PS, pitch_curve as PC
 from mankomix.dspx.procs import harmonizer as HA, micro_pitch as MP
@@ -175,10 +175,7 @@ def test_linked_stereo_correlation():
 
 @pytest.mark.parametrize('quality', QUALITY)
 @pytest.mark.parametrize('semitones', [-12, 12])
-def test_sweep_acceptance(quality, semitones, request):
-    if quality != 'high' or semitones != 12:
-        request.node.add_marker(pytest.mark.xfail(strict=True,
-            reason='Log sweep instantaneous frequency exceeds +/-5 cents'))
+def test_sweep_acceptance(quality, semitones):
     sr, seconds = 24000, 4
     t = np.arange(sr*seconds)/sr
     x = .2*signal.chirp(t, 100, seconds, 8000, method='logarithmic')[:, None]
@@ -417,13 +414,8 @@ def test_parameter_defaults_and_bounds(enabled, kind):
 
 @pytest.mark.parametrize('kind', KINDS)
 def test_public_acceptance_status(kind):
-    if kind == 'pitch_shift':
-        assert P.describe(kind)['implemented'] is False
-        with pytest.raises(ChainError):
-            render(kind, np.zeros((32, 1)))
-    else:
-        assert P.describe(kind)['implemented'] is True
-        assert np.isfinite(render(kind, np.zeros((32, 1)))).all()
+    assert P.describe(kind)['implemented'] is True
+    assert np.isfinite(render(kind, np.zeros((32, 1)))).all()
 
 
 @pytest.mark.parametrize('kind', ['micro_pitch', 'harmonizer'])

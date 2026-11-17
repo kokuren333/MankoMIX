@@ -4,6 +4,8 @@ from mankomix.dspx.params import _f
 
 
 def validate(p):
+    if 0 < p['hum'] < .05:
+        raise ParamError('hum must be zero or 0.05..1')
     if 0 < p['hum_hz'] < 40:
         raise ParamError('hum_hz must be zero or 40..70')
 
@@ -24,11 +26,11 @@ def expand(p):
     return out
 
 
-SPECS = [dict(type='guitar_denoise',implemented=False,composite=True,
+SPECS = [dict(type='guitar_denoise',implemented=True,composite=True,
     description='Fixed hum/noise/gate/string-noise/pick composite.',stages=['track','bus'],master_slot=None,
     offline_only=True,backends=['reference'],realtime=dict(block_ok=False,allocates=True,latency_samples='variable',
         latency_rule='Expanded children compensate their declared latency.'),params=[
-    _f('hum',None,0,1,.5,'Hum amount.'),_f('hum_hz','Hz',0,70,0,'Zero auto, otherwise 40..70.'),
+    _f('hum',None,0,1,.5,'Hum amount: zero or 0.05..1.'),_f('hum_hz','Hz',0,70,0,'Zero auto, otherwise 40..70.'),
     _f('amp_noise',None,0,1,.3,'Amplifier noise amount.'),_f('gate_threshold_db','dBFS',-80,0,-55,'Gate threshold.'),
     _f('squeak',None,0,1,0,'String-noise amount.'),_f('pick',None,0,1,0,'Pick attenuation.')])]
 IMPLS = {}

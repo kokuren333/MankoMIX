@@ -152,8 +152,7 @@ def test_frame_clock_tau_across_rates(sr, window):
 
 
 @pytest.mark.parametrize('sr', [44100, 48000, 96000])
-@pytest.mark.parametrize('window', [pytest.param(1024, marks=pytest.mark.xfail(strict=True,
-    reason='Short-window acoustic GR is 6.36 dB instead of 8 +/-0.5; type remains False')), 2048, 4096])
+@pytest.mark.parametrize('window', [1024, 2048, 4096])
 def test_dynamics_acoustics_across_rates(sr, window):
     n = S.window_samples(window, sr)
     freq = round(1000*n/sr)*sr/n
@@ -211,9 +210,7 @@ def test_s3_outside_band(kind, freq):
 
 
 @pytest.mark.parametrize('kind,window', [
-    pytest.param(kind, window, marks=pytest.mark.xfail(strict=True,
-        reason='S4 exceeds 0.05 dB at an allowed window; type remains False'))
-    if kind == 'spectral_dynamics' and window in (1024, 4096) else (kind, window)
+    (kind, window)
     for kind in MODULES for window in (1024, 2048, 4096)])
 def test_s4_stationary_sine_frame_ripple(kind, window):
     sr = 48000

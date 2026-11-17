@@ -17,7 +17,7 @@ def pitch_shift(x, sr, p, *, seed=0):
     lookahead = latency_samples(sr, p['quality'], p['window'])
     if p['mix'] == 0 or p['semitones']+p['cents']/100 == 0:
         return x.copy(), sr, {'latency_samples': 0, 'quality': p['quality']}
-    wet = shift(x, sr, **{k: p[k] for k in (
+    wet = shift(x, sr, track_glides=True, **{k: p[k] for k in (
         'semitones', 'cents', 'quality', 'formant', 'formant_cents',
         'transients', 'window', 'stereo_link')})
     y = wet if p['mix'] == 1 else x+(wet-x)*p['mix']
@@ -55,3 +55,4 @@ SPECS = [definition('pitch_shift', [
     'Neutral/mix=0: 0; fast: 0; standard: round(.040*sr); high: round(window*sr/48000). '
     'Offline centered processing compensates the lookahead internally.')]
 IMPLS = {'pitch_shift': pitch_shift}
+SPECS[0]['implemented'] = True
