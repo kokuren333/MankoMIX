@@ -13,12 +13,6 @@ ENDS = dict(filter=(200, 8000), pan=(-1, 1), width=(0, 1),
             drive=(0, 18), crush=(2000, 48000), time=(0, 1))
 
 
-@pytest.fixture(autouse=True)
-def candidates(monkeypatch):
-    # The pending target-default contract bridge keeps this candidate private.
-    monkeypatch.setitem(P.PROCESSORS['curve_shaper'], 'implemented', True)
-
-
 def render(name, x, sr, p=None, *, seed=17, item='w2g2', stage='bus'):
     return render_chain(x, sr, [dict(id=item, type=name, params=p or {})], stage=stage, seed=seed)
 
@@ -409,22 +403,23 @@ def test_curve_smoothing_tempo_and_long_clock():
 
 
 @pytest.mark.parametrize('target', TARGETS)
-def test_target_default_resolver_and_proposed_schema(target):
+def test_target_defaults_and_conditional_schema(target):
     from mankomix.dspx.procs.curve_shaper import resolve_target_params, target_schema, TARGETS as limits
     from jsonschema import Draft202012Validator
     raw = dict(target=target, note='none')
     resolved = resolve_target_params(raw)
     assert (resolved['lo'], resolved['hi']) == ENDS[target]
     assert raw == dict(target=target, note='none')
-    # Validate and render the proposed normalizer's actual output before the
-    # shared contract hook is authorized. No defaults are guessed from values.
-    y = render('curve_shaper', H.sine(sr=48000, seconds=.005), 48000, dict(resolved, amount=1)).audio
+    actual = P.validate_params('curve_shaper', raw)
+    assert (actual['lo'], actual['hi']) == ENDS[target]
+    y = render('curve_shaper', H.sine(sr=48000, seconds=.005), 48000, dict(raw, amount=1)).audio
     assert np.isfinite(y).all()
     explicit = resolve_target_params(dict(target='crush', lo=200, hi=8000))
     assert explicit['lo'] == 200 and explicit['hi'] == 8000
-    schema = dict(type='object', properties={
-        'target': dict(enum=list(TARGETS)), 'lo': dict(type='number'), 'hi': dict(type='number')},
-        allOf=target_schema())
+    variant = next(v for v in P.graph_schema()['items']['oneOf']
+                   if v['properties']['type']['const'] == 'curve_shaper')
+    schema = variant['properties']['params']
+    assert schema['allOf'] == target_schema()
     Draft202012Validator(schema).validate(resolved)
     lower, upper = limits[target][:2]
     for key, bad in (('lo', lower-1), ('hi', upper+1)):

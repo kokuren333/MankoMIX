@@ -6,7 +6,8 @@ and compressor_gain preserve the existing compressor's RMS and arithmetic.
 API: detector, level_db, envelope, dual_envelope, smooth_gain, static_curve_db,
 downward_gain_db, upward_gain_db, expander_gain_db, bilateral_gain_db,
 compressor_gain, gate_gain, transient_gain, delay_audio, apply_gain.
-GainSmoother and GateState retain their state across process() calls.
+GainSmoother, GateState and AdaptiveReleaseState retain state across calls.
+bounded_lookahead_gain supplies the bounded order-statistics safety control.
 Program release smoothly interpolates fast/slow tau according to a smoothed
 absolute gain demand; it never changes the fixed-release default path.
 Algorithms are independently expressed from one-pole recurrences and
@@ -267,3 +268,91 @@ def delay_audio(x, samples):
 def apply_gain(x, gain_db, output_db=0):
     """Exact unity at zero dB; signed gain may be linked or per-channel."""
     return x * np.exp((gain_db + output_db) * (math.log(10)/20))
+
+
+class AdaptiveReleaseState:
+    """Causal two-stage control, initially zero; process(demand_db, peak).
+
+    Inputs are nonnegative (frames, channels). Returns slow GR, release tau
+    in ms, and persistence. A 100 ms leaky GR integral / decaying GR maximum
+    estimates duty; a 100 ms power / peak-squared ratio estimates inverse
+    crest. persistence=clip(3*duty,0,1)*clip(4*inverse_crest,0,1).
+    tau=min+(max-min)*adapt*persistence. A continuous 20 ms maximum hold,
+    scaled by adapt*persistence, prevents low-frequency carrier ripple.
+    transient assigns isolated demand to the subsequent fast safety stage.
+    adapt=0 disables both adaptive tau and hold. State survives arbitrary
+    process() boundaries; channel count must remain constant.
+
+    Independent design from one-pole envelope / program-release principles
+    in Giannoulis et al., JAES 2012; the duty/crest mapping and constants are
+    explicit design choices, not a transcription of an external algorithm.
+    """
+    def __init__(self, sr, release_min_ms=30, release_max_ms=600,
+                 adapt=.7, transient=.3):
+        if (sr <= 0 or not np.isfinite([sr, release_min_ms, release_max_ms, adapt, transient]).all()
+                or not 0 < release_min_ms <= release_max_ms or not 0 <= adapt <= 1
+                or not 0 <= transient <= 1):
+            raise ParamError('invalid adaptive release configuration')
+        self.sr = sr
+        self.minimum, self.maximum = release_min_ms, release_max_ms
+        self.adapt, self.transient = adapt, transient
+        self.state = None
+
+    def process(self, demand_db, peak):
+        d, p = np.asarray(demand_db, dtype=np.float64), np.asarray(peak, dtype=np.float64)
+        if d.ndim != 2 or d.shape != p.shape or not np.isfinite(d).all() or not np.isfinite(p).all() or np.any(d < 0) or np.any(p < 0):
+            raise ParamError('adaptive control requires matching nonnegative finite arrays')
+        if self.state is None:
+            self.state = np.zeros((6, d.shape[1]))
+        if self.state.shape[1] != d.shape[1]:
+            raise ParamError('adaptive control channel count changed')
+        out, taus, persistence = np.empty_like(d), np.empty_like(d), np.empty_like(d)
+        a = coef(100, self.sr)
+        for i in range(len(d)):
+            for c in range(d.shape[1]):
+                integral, maximum, power, amplitude, gr, hold = self.state[:, c]
+                integral = a*integral + (1-a)*d[i, c]
+                maximum = max(d[i, c], a*maximum)
+                power = a*power + (1-a)*p[i, c]**2
+                amplitude = max(p[i, c], a*amplitude)
+                duty = min(1., 3*integral/max(maximum, 1e-30))
+                crest = min(1., 4*power/max(amplitude*amplitude, 1e-30))
+                persist = duty*crest
+                tau = self.minimum+(self.maximum-self.minimum)*self.adapt*persist
+                target = d[i, c]*(1-self.transient*(1-self.adapt*persist))
+                if target >= gr:
+                    gr = target
+                    hold = .020*self.sr*self.adapt*persist
+                elif hold > 0:
+                    hold = max(0., hold-1)
+                else:
+                    gr = max(target, coef(tau, self.sr)*gr)
+                self.state[:, c] = integral, maximum, power, amplitude, gr, hold
+                out[i, c], taus[i, c], persistence[i, c] = gr, tau, persist
+        return out, taus, persistence
+
+
+def bounded_lookahead_gain(required, sr, lookahead_ms):
+    """Minimum dilation + unit-sum Hann; returns gain <= required.
+
+    required is (frames, channels), 0..1. Radius r=floor(round(ms*sr/1000)/2)
+    gives bounded future context 2*r. Unity padding preserves exact bypass.
+    This is the order-statistics construction of Hamalainen, DAFx-02,
+    independently expressed with scipy.ndimage public operations.
+    """
+    from scipy import ndimage
+    required = np.asarray(required, dtype=np.float64)
+    if (required.ndim != 2 or not np.isfinite(required).all()
+            or np.any(required < 0) or np.any(required > 1)
+            or not np.isfinite([sr, lookahead_ms]).all() or sr <= 0 or lookahead_ms < 0):
+        raise ParamError('invalid bounded lookahead control')
+    if not len(required):
+        return required.copy()
+    r = round(lookahead_ms*sr/1000)//2
+    control = ndimage.minimum_filter1d(required, size=2*r+1, axis=0,
+                                      mode='constant', cval=1.)
+    w = np.hanning(2*r+3)[1:-1]
+    w /= np.sum(w)
+    # Filter the attenuation to preserve unity bit-for-bit.
+    gain = 1-ndimage.convolve1d(1-control, w, axis=0, mode='constant', cval=0.)
+    return np.maximum(0., np.minimum(gain, required))

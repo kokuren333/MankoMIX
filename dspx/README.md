@@ -140,3 +140,33 @@ The existing BB-13 polyphase implementation is reused unchanged.
   `dspx/bb/nonlinear.py:transformer_flux` documents the ODE, chain rule and
   chosen constants. The specified transformer paper's full text was not
   available; none of its equations or implementation code is claimed here.
+
+## Adaptive limiter (W3d) sources
+
+
+No external implementation code was copied or ported. No dependency was added.
+The added BB-03 helpers use the existing SciPy 1.18.1 public API
+(`scipy.ndimage.minimum_filter1d`, `convolve1d`; BSD-3-Clause), and NumPy.
+The processor reuses the repository's `dsp/reference/truepeak.py` without
+changing its interpolator, detector or measurement functions.
+
+Algorithm literature used for independent implementation and selection:
+
+- Hämäläinen, DAFx-02, sections 3.2–3.4: order-statistics control and averaging.
+  [Author's paper](https://users.aalto.fi/~hamalap5/dafx2002/dafx_hamalainen.pdf).
+  The implementation uses a minimum filter on gain and a nonnegative Hann
+  average. It does not port the paper's implementation.
+- Giannoulis, Massberg, Reiss, JAES 60(6), 2012, section 2.3: single and
+  dual release networks, and decoupled peak release.
+  [Paper](https://www.eecs.qmul.ac.uk/~josh/documents/2012/GiannoulisMassbergReiss-dynamicrangecompression-JAES2012.pdf).
+- Giannoulis, Massberg, Reiss, JAES 61(10), 2013, sections 2.1.2–2.1.4:
+  crest-based automation (equation 8) and spectral-flux-based automation.
+  [Paper](https://www.eecs.qmul.ac.uk/~josh/documents/2013/Giannoulis%20Massberg%20Reiss%20-%20dynamic%20range%20compression%20automation%20-%20JAES%202013.pdf).
+
+The duty/crest combination, 100 ms history, duty/crest scale factors 3/4,
+20 ms adaptive hold and transient allocation in `AdaptiveReleaseState`
+are explicit local design choices from the task specification, not claimed
+as an exact published release formula. Spectral flux was not selected:
+the requested release control depends on GR duration and crest and needs
+no additional STFT frame clock. The fixed-release comparator uses zero
+adaptive hold and the stated exponential release time constant.

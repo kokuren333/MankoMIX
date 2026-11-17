@@ -147,3 +147,214 @@ def interpolate(x, missing, *, order=32, context=512, lower=None, upper=None):
                         raise ParamError('AR interpolation did not converge')
             result[idx, channel] = estimate
     return result[:, 0] if mono else result
+
+
+def local_model(x, order=32, *, error_floor=1e-10):
+    """Burg model with a prediction-error floor to avoid tonal overfitting.
+
+    order is an upper bound. Stop when innovation energy is below error_floor
+    (default 1e-10) of input power, or coefficients exceed 1e4.
+    Existing burg/interpolate behavior is unchanged.
+    """
+    v = np.asarray(x, dtype=np.float64)
+    a = np.array([1.])
+    f, b = v[1:].copy(), v[:-1].copy()
+    power = float(np.mean(v*v)) if len(v) else 0
+    for _ in range(min(order, max(0, len(v)//4))):
+        den = float(f @ f+b @ b)
+        if not len(f) or den <= max(np.finfo(float).tiny, 2*len(f)*power*error_floor):
+            break
+        k = np.clip(-2*float(b @ f)/den, -.999999, .999999)
+        new = np.r_[a, 0.]+k*np.r_[0., a[::-1]]
+        if np.max(abs(new)) > 1e4:
+            break
+        a = new
+        nf, nb = f+k*b, b+k*f
+        f, b = nf[1:], nb[:-1]
+    return a
+
+
+def masked_burg(x, missing, order=32):
+    """Burg estimation pooling only contiguous observed windows of a vector.
+
+    Invalid windows are excluded at every recursion, never concatenated across
+    missing samples. Returns a bounded-order model; no input is modified.
+    """
+    v = np.asarray(x, dtype=np.float64)
+    good = ~np.asarray(missing, dtype=bool)
+    a = np.array([1.])
+    f, b = v[1:].copy(), v[:-1].copy()
+    valid = good[1:] & good[:-1]
+    power = float(np.mean(v[good]**2)) if good.any() else 0
+    for _ in range(min(order, max(0, len(v)-2))):
+        if np.count_nonzero(valid) < max(8, 2*len(a)):
+            break
+        den = float(f[valid] @ f[valid]+b[valid] @ b[valid])
+        if den <= max(np.finfo(float).tiny, 2*np.count_nonzero(valid)*power*1e-10):
+            break
+        k = np.clip(-2*float(b[valid] @ f[valid])/den, -.999999, .999999)
+        new = np.r_[a, 0.]+k*np.r_[0., a[::-1]]
+        if np.max(abs(new)) > 1e4:
+            break
+        a = new
+        nf, nb = f+k*b, b+k*f
+        f, b = nf[1:], nb[:-1]
+        valid = valid[1:] & valid[:-1]
+    return a
+
+
+def observed_model(x, missing, order=32):
+    """Refine an observed-only Burg model by reliable-window covariance LS.
+
+    Try orders up to the Burg order, selecting the smallest with relative
+    innovation below 1e-16; otherwise use the minimum BIC. Clipped windows are
+    omitted. This avoids Burg boundary bias on many short clean fragments.
+    """
+    v = np.asarray(x, dtype=np.float64)
+    missing = np.asarray(missing, dtype=bool)
+    initial = masked_burg(v, missing, order)
+    best, criterion = initial, np.inf
+    for p in range(1, min(order, max(4, len(initial)-1))+1):
+        if len(v) <= p:
+            break
+        frames = np.lib.stride_tricks.sliding_window_view(v, p+1)
+        valid = ~np.lib.stride_tricks.sliding_window_view(missing, p+1).any(axis=1)
+        if np.count_nonzero(valid) < max(16, 3*p):
+            break
+        data = frames[valid]
+        coeff = linalg.lstsq(data[:, :-1][:, ::-1], -data[:, -1], cond=1e-9, lapack_driver='gelsy')[0]
+        model = np.r_[1., coeff]
+        if np.max(abs(model)) > 1e4 or np.max(abs(np.roots(model))) > 1.00001:
+            continue
+        error = data[:, -1]+data[:, :-1][:, ::-1] @ coeff
+        ratio = float(np.sum(error**2))/max(float(np.sum(data[:, -1]**2)), 1e-30)
+        bic = len(data)*np.log(max(ratio, 1e-30))+p*np.log(len(data))
+        if bic < criterion:
+            best, criterion = model, bic
+        if ratio < 1e-16:
+            return model
+    return best
+
+
+def innovation_gap(left, right, length, *, order=32):
+    """AR continuation driven by deterministically replayed context residuals.
+
+    Returns (continuation, residual/input power ratio). It supplies variance
+    missing from the conditional-mean LSAR solution on noise-like contexts.
+    No random generator or external state is used. Directional continuations
+    use equal-power mixing, then match the clean-context RMS.
+    """
+    values, ratios = [], []
+    for context in (np.asarray(left), np.asarray(right)[::-1]):
+        model = local_model(context, order)
+        p = len(model)-1
+        errors = residual(context, model)[p:]
+        power = float(np.mean(context**2)) if len(context) else 0
+        ratios.append(float(np.mean(errors**2))/power if power and len(errors) else 0)
+        drive = np.resize(errors, length) if len(errors) else np.zeros(length)
+        zi = signal.lfiltic([1.], model, context[-p:][::-1]) if p else np.empty(0)
+        values.append(signal.lfilter([1.], model, drive, zi=zi)[0])
+    w = (np.arange(length)+1)/(length+1)
+    y = np.cos(w*np.pi/2)*values[0]+np.sin(w*np.pi/2)*values[1][::-1]
+    target = np.r_[left, right]
+    power = float(np.mean(target**2)) if len(target) else 0
+    actual = float(np.mean(y*y)) if len(y) else 0
+    if actual:
+        y *= np.sqrt(power/actual)
+    return y, min(ratios)
+
+
+def lsar_gap(left, right, length, *, order=32, lower=None, upper=None, iterations=8, models=None):
+    """Joint bidirectional LSAR for a mono gap, optional active-set bounds.
+
+    Clean left/right contexts exclude all other gaps. Constraints apply to
+    the unknowns only. At each of at most eight solves, newly violated bounds
+    are fixed, then free variables are solved again. Returns (estimate, info).
+    The unconstrained sparse normal solve uses a 1e-12 diagonal ridge centered
+    on the forward/backward prediction blend. No randomness is introduced.
+    models=[forward,backward] optionally supplies observed-only coefficients.
+    Unbounded gaps above 4096 samples use an implicit FFT normal operator
+    (CG, at most 512 steps); info includes convergence. Local fits here use
+    local_model(error_floor=1e-20).
+    """
+    left, right = np.asarray(left, dtype=np.float64), np.asarray(right, dtype=np.float64)
+    if length < 0 or order < 1 or not 1 <= iterations <= 8:
+        raise ParamError('invalid gap length, order or iteration count')
+    low = np.broadcast_to(-np.inf if lower is None else lower, (length,)).copy()
+    high = np.broadcast_to(np.inf if upper is None else upper, (length,)).copy()
+    if np.any(low > high) or np.isnan(low).any() or np.isnan(high).any():
+        raise ParamError('invalid gap bounds')
+    if not length:
+        return np.empty(0), {'iterations': 0, 'orders': [0, 0]}
+    models = [local_model(left, order, error_floor=1e-20), local_model(right[::-1], order, error_floor=1e-20)] if models is None else models
+    f = predict(left, models[0], length)
+    b = predict(right[::-1], models[1], length)[::-1]
+    w = (np.arange(length)+1)/(length+1)
+    prior = (1-w)*f+w*b
+    source = np.r_[left, np.zeros(length), right]
+    lo, hi = len(left), len(left)+length
+    if (length > 4096 and len(left) >= max(map(len, models))-1 and
+            len(right) >= max(map(len, models))-1 and
+            not np.isfinite(low).any() and not np.isfinite(high).any()):
+        # Full convolution support permits an implicit normal operator. This
+        # avoids materializing O(length*order) Python entries on 500 ms gaps.
+        from scipy.sparse.linalg import LinearOperator, cg
+        ridge = max(1., sum(float(a @ a) for a in models))*1e-12
+        rhs = np.zeros(length)
+        for reverse, model in zip((False, True), models):
+            known = source[::-1] if reverse else source
+            start = len(right) if reverse else lo
+            error = residual(known, model)[start:start+length+len(model)-1]
+            contribution = -signal.correlate(error, model, mode='valid', method='fft')
+            rhs += contribution[::-1] if reverse else contribution
+        def multiply(v):
+            result = ridge*v
+            for reverse, model in zip((False, True), models):
+                u = v[::-1] if reverse else v
+                error = signal.fftconvolve(u, model)
+                value = signal.correlate(error, model, mode='valid', method='fft')
+                result = result+(value[::-1] if reverse else value)
+            return result
+        operator = LinearOperator((length, length), matvec=multiply, dtype=np.float64)
+        estimate, status = cg(operator, rhs+ridge*prior, x0=prior, rtol=1e-9, atol=1e-12, maxiter=512)
+        if status < 0 or not np.isfinite(estimate).all():
+            raise ParamError('implicit LSAR solve failed')
+        return estimate, {'iterations': 1, 'orders': [len(a)-1 for a in models],
+                          'solver': 'implicit_cg', 'converged': status == 0}
+    rows, cols, vals, targets = [], [], [], []
+    for reverse, model in zip((False, True), models):
+        p = len(model)-1
+        times = range(max(0, lo-p), hi) if reverse else range(lo, min(len(source), hi+p))
+        for t in times:
+            pos = t+np.arange(p+1) if reverse else t-np.arange(p+1)
+            if pos.min() < 0 or pos.max() >= len(source):
+                continue
+            unknown = (pos >= lo) & (pos < hi)
+            row = len(targets)
+            rows.extend([row]*int(unknown.sum()))
+            cols.extend((pos[unknown]-lo).tolist())
+            vals.extend(model[unknown].tolist())
+            targets.append(-float(model[~unknown] @ source[pos[~unknown]]))
+    if not targets:
+        estimate = np.linspace(left[-1] if len(left) else 0, right[0] if len(right) else 0, length+2)[1:-1]
+        return np.clip(estimate, low, high), {'iterations': 0, 'orders': [0, 0]}
+    mat = sparse.csr_matrix((vals, (rows, cols)), shape=(len(targets), length))
+    normal = (mat.T @ mat).tocsc()
+    ridge = max(1., float(np.mean(normal.diagonal())))*1e-12
+    normal = normal+sparse.eye(length, format='csc')*ridge
+    rhs = np.asarray(mat.T @ np.asarray(targets))+ridge*prior
+    fixed = np.zeros(length, bool)
+    estimate = prior.copy()
+    count = 0
+    for count in range(1, iterations+1):
+        free = ~fixed
+        if free.any():
+            estimate[free] = spsolve(normal[free][:, free], rhs[free]-normal[free][:, fixed] @ estimate[fixed])
+        if not np.isfinite(estimate).all():
+            raise ParamError('LSAR gap solve produced nonfinite samples')
+        violated = (estimate < low) | (estimate > high)
+        if not violated.any():
+            break
+        estimate = np.clip(estimate, low, high)
+        fixed |= violated
+    return np.clip(estimate, low, high), {'iterations': count, 'orders': [len(a)-1 for a in models]}

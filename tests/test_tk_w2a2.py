@@ -12,7 +12,7 @@ from tests import toolimpl_harness as H
 
 EQ = ('passive_eq', 'inductor_eq', 'proportional_eq', 'baxandall_eq')
 TYPES = EQ+('transformer',)
-PUBLIC = dict.fromkeys(EQ, False) | {'baxandall_eq': True, 'transformer': True}
+PUBLIC = dict.fromkeys(TYPES, True)
 ACTIVE = dict(passive_eq=dict(low_boost_db=6, low_atten_db=6, high_boost_db=9, high_atten_db=4),
               inductor_eq=dict(hpf_hz=80, low_db=6, mid_db=-9, high_db=6),
               proportional_eq=dict(gain_db=9), baxandall_eq=dict(bass_db=5, treble_db=-5),
@@ -40,12 +40,6 @@ CONTRACT = dict(
         lf_emphasis=(0,1,.7), hf_resonance_db=(0,6,0), hf_resonance_hz=(15000,60000,30000)))
 for _kind in EQ:
     CONTRACT[_kind].update(drive_db=(0,12,0), output_db=(-24,12,0))
-
-
-@pytest.fixture(autouse=True)
-def candidates_through_engine(monkeypatch):
-    for kind in TYPES:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
 
 
 def render(kind, x, p=None, sr=48000, stage='track'):
@@ -80,8 +74,15 @@ def spectral(y, f=1000, sr=48000):
 
 def digital_response(kind, p, hz, sr):
     """Steady-state physical Hz response, including both resampling FIRs."""
-    h = signal.sosfreqz(A.design_sos(kind,p,sr), worN=hz, fs=2*sr)[1]
-    fir = abs(signal.freqz(N._os_filter(2), worN=hz, fs=2*sr)[1])**2
+    if kind == 'baxandall_eq':
+        h = signal.sosfreqz(A.design_sos(kind,p,sr), worN=hz, fs=2*sr)[1]
+        fir = abs(signal.freqz(N._os_filter(2), worN=hz, fs=2*sr)[1])**2
+    else:
+        factor = 32
+        h = signal.sosfreqz(A.precision_design_sos(kind,p,sr), worN=hz, fs=factor*sr)[1]
+        fir = abs(signal.freqz(N._precision_os_filter(factor), worN=hz, fs=factor*sr)[1])
+        fir *= abs(signal.freqz(N._precision_os_filter(factor//2), worN=hz, fs=factor*sr)[1])
+        fir *= abs(signal.freqz(N._precision_final_filter(), worN=hz, fs=2*sr)[1])
     return h*fir
 
 
@@ -163,10 +164,9 @@ def test_proportional_width_relationship():
 
 
 @pytest.mark.parametrize('kind',EDGE)
-def test_unmet_candidates_are_not_publicly_renderable(kind,monkeypatch):
-    monkeypatch.setitem(P.PROCESSORS[kind],'implemented',False)
-    with pytest.raises(ChainError,match='not implemented'):
-        render(kind,np.zeros((100,1)))
+def test_closed_candidates_are_publicly_renderable(kind):
+    assert P.describe(kind)['implemented']
+    assert not np.any(render(kind,np.zeros((100,1)),EDGE[kind]))
 
 
 @pytest.mark.parametrize('kind',EQ)
@@ -176,9 +176,11 @@ def test_zero_drive_is_linear_and_post_eq_tanh(kind):
     quiet = render(kind,x*.1,ACTIVE[kind])
     np.testing.assert_allclose(quiet,y*.1,atol=3e-12,rtol=2e-10)
     p = P.validate_params(kind,{**ACTIVE[kind], 'drive_db':9})
-    sos = A.design_sos(kind,p,48000)
+    legacy = kind == 'baxandall_eq'
+    sos = A.design_sos(kind,p,48000) if legacy else A.precision_design_sos(kind,p,48000)
     g = 10**(9/20)
-    expected = N.oversampled(x,2,lambda u:np.tanh(g*signal.sosfilt(sos,u,axis=0))/g)
+    os = N.oversampled if legacy else N.precision_oversampled
+    expected = os(x,2 if legacy else 32,lambda u:np.tanh(g*signal.sosfilt(sos,u,axis=0))/g)
     assert render(kind,x,p).tobytes() == expected.tobytes()
     assert not np.allclose(expected,y,atol=1e-5)
 
@@ -198,10 +200,9 @@ def test_measured_audio_matches_prewarped_sos(kind,sr):
 
 @pytest.mark.parametrize('kind', ['passive_eq','inductor_eq','proportional_eq'])
 @pytest.mark.parametrize('sr',[44100,48000,96000])
-@pytest.mark.xfail(strict=True,reason='2x center-prewarped SOS exceeds 0.2 dB against unwarped physical H(jw) at allowed high settings')
-def test_unmet_physical_analog_response(kind,sr):
+def test_physical_analog_response(kind,sr):
     result = response_error(kind,EDGE[kind],sr)
-    print('UNMET_ANALOG',kind,sr,json.dumps(result,sort_keys=True))
+    print('PHYSICAL_ANALOG',kind,sr,json.dumps(result,sort_keys=True))
     assert result['error_db'] <= .2
 
 

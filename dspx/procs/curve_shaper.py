@@ -23,7 +23,7 @@ def resolve_target_params(params):
     """
     out = dict(params or {})
     target = out.get('target', 'filter')
-    if target in TARGETS:
+    if isinstance(target, str) and target in TARGETS:
         out.setdefault('lo', TARGETS[target][2])
         out.setdefault('hi', TARGETS[target][3])
     return out
@@ -237,7 +237,7 @@ def parameters():
         _f('mix', None, 0, 1, 1, 'Wet proportion.')]
 
 
-SPECS = [definition('curve_shaper', parameters())]
+SPECS = [definition('curve_shaper', parameters(), implemented=True)]
 TIME_VARYING = {'curve_shaper'}
 IMPLS = {'curve_shaper': curve_shaper}
 CROSS_VALIDATE = {'curve_shaper': validate}

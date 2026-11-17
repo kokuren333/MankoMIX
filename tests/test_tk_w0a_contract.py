@@ -288,6 +288,13 @@ def test_describe_and_existing_schema_unchanged_when_extensions_removed(register
     for variant in schema["items"]["oneOf"]:
         assert "channel" in variant["properties"]
         variant["properties"].pop("channel")
+        if variant["properties"]["type"]["const"] == "curve_shaper":
+            from mankomix.dspx.procs.curve_shaper import target_schema
+            params = variant["properties"]["params"]
+            assert params.pop("allOf") == target_schema()
+            for endpoint, default in (("lo", 200), ("hi", 8000)):
+                assert "default" not in params["properties"][endpoint]
+                params["properties"][endpoint]["default"] = default
     assert _bytes(schema) == _bytes(base)
 
 

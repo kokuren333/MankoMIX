@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "hrtfs": [
+    {
+      "id": "model_sphere",
+      "sha256": "9e73104a6fad11caec00841cae1b46054813224f513e4ef823141a5220189daa",
+      "kind": "structural",
+      "channels": 2,
+      "model_version": 1,
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "dspx/bb/hrtf.py",
+        "note": "Canonical model descriptor; original equations and coefficients, no measured audio."
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "dspx/bb/hrtf.py",
+            "note": "Original structural model and generated coefficients released under the repository Apache-2.0 license."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -393,8 +393,7 @@ def test_pending_chorus_coherent_voice_rms():
     assert max(values)-min(values)<=1
 
 
-@pytest.mark.xfail(strict=True, reason='BBD zero-delay clipping requires an infinite-clock limit')
-def test_pending_chorus_bbd_zero_delay():
+def test_chorus_bbd_zero_delay():
     # At phase .75 the first BBD voice clips its requested delay to zero.
     y=run('chorus',tone(sr=8000,seconds=.01),model='bbd',delay_ms=2,depth_ms=10,
           depth=1,phase=.75,voices=1).audio

@@ -6,6 +6,9 @@ from mankomix.dsp.errors import ParamError
 
 def validate_params(type, params, legacy):
     from mankomix.dsp import processors as P
+    if type == "curve_shaper":
+        from .procs.curve_shaper import resolve_target_params
+        params = resolve_target_params(params)
     out = legacy(type, params)
     for spec in P.PROCESSORS[type]["params"]:
         pid, kind = spec["id"], spec["type"]
@@ -60,4 +63,10 @@ def graph_schema(legacy):
     schema = legacy()
     for variant in schema["items"]["oneOf"]:
         variant["properties"]["channel"] = {"enum": ["stereo", "mid", "side", "left", "right"]}
+        if variant["properties"]["type"]["const"] == "curve_shaper":
+            from .procs.curve_shaper import target_schema
+            params = variant["properties"]["params"]
+            params["allOf"] = target_schema()
+            for endpoint in ("lo", "hi"):
+                params["properties"][endpoint].pop("default", None)
     return schema

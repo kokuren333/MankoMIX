@@ -3,8 +3,8 @@ from mankomix.dspx.params import _e, _f
 
 
 def passive_eq(x, sr, p, *, seed=0):
-    from mankomix.dspx.bb.analog_eq import process
-    return process('passive_eq', x, sr, p)
+    from mankomix.dspx.bb.analog_eq import precision_process
+    return precision_process('passive_eq', x, sr, p)
 
 
 def _spec():
@@ -22,4 +22,6 @@ def _spec():
 
 
 SPECS = [_spec()]
+SPECS[0]['implemented'] = True
+SPECS[0]['realtime']['latency_rule'] = '32x precision FIR round trip 352 samples, compensated offline; neutral bypass.'
 IMPLS = {'passive_eq': passive_eq}

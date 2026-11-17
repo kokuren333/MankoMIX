@@ -152,3 +152,41 @@ def process(kind, x, sr, p):
                  section_count=len(sos), model='generic_normalized_rc_rlc',
                  circuit_source_verified=False)
     return y, sr, stats
+
+
+def precision_design_sos(kind, p, sr, factor=32):
+    """Opt-in prewarped RC/LC SOS at factor*sr; legacy design is unchanged."""
+    result = []
+    for sec in sections(kind, p):
+        b, a = sec.coefficients()
+        w = 2*factor*sr*np.tan(np.pi*sec.freq_hz/(factor*sr))
+        bd, ad = signal.bilinear(b, a, fs=factor*sr/w)
+        result.extend(signal.tf2sos(bd, ad))
+    return np.asarray(result, dtype=np.float64).reshape(-1, 6)
+
+
+def precision_process(kind, x, sr, p):
+    """32x physical-frequency EQ with compensated BB-13 precision resampling.
+
+    This separate entry point leaves every existing shared function intact.
+    Higher rate bounds bilinear warping even for the narrowest 20 kHz peak.
+    """
+    from mankomix.dspx.bb.nonlinear import precision_oversampled, precision_oversampling_info
+    factor = 32
+    sos = precision_design_sos(kind, p, sr, factor)
+    drive = p['drive_db']
+    active = bool(len(sos) or drive)
+    def callback(u):
+        wet = signal.sosfilt(sos, u, axis=0) if len(sos) else u
+        if drive:
+            g = 10.0**(drive/20)
+            wet = np.tanh(g*wet)/g
+        return wet
+    y = precision_oversampled(x, factor, callback) if active else x.copy()
+    if p['output_db']:
+        y = y*10.0**(p['output_db']/20)
+    stats = dict(precision_oversampling_info(factor if active else 1),
+                 eq_oversample=factor, saturation_bypassed=drive == 0,
+                 eq_bypassed=len(sos) == 0, section_count=len(sos),
+                 model='generic_normalized_rc_rlc', circuit_source_verified=False)
+    return y, sr, stats

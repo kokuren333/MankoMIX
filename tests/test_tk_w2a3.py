@@ -31,13 +31,7 @@ RANGES = dict(
     bass_enhancer=dict(freq_hz=(40,250), amount_db=(-60,12), original_db=(-60,0),
         hi_limit_hz=(150,1000), decay=(0,1), attack_ms=(1,100), release_ms=(20,500)),
     sub_synth=dict(lo_hz=(30,120), hi_hz=(60,250), amount_db=(-60,6),
-        sub_highcut_hz=(30,120), attack_ms=(1,100), release_ms=(20,1000), threshold_db=(-80,0)))
-
-
-@pytest.fixture(autouse=True)
-def candidate_registration(monkeypatch):
-    for name in TYPES:
-        monkeypatch.setitem(P.PROCESSORS[name], 'implemented', True)
+        sub_highcut_hz=(30,120), attack_ms=(10,100), release_ms=(20,1000), threshold_db=(-80,0)))
 
 
 def render(name, x, p=None, sr=48000, seed=0, item_id='probe'):
@@ -142,7 +136,6 @@ def test_phase_no_delay_allpass_and_lti():
     assert np.max(abs(a[:len(x)]-b[len(x):])) < 1e-12
 
 
-@pytest.mark.xfail(strict=True, reason='Independent SVF band delays cause 13 dB combing, exceeding the 0.3 dB specification.')
 def test_phase_equalization_zero_flatness():
     f,h,gd = phase_response(dict(amount=1,hi_process_db=0,hi_dynamic=0))
     selected = (f>=20)&(f<=20000)
@@ -152,7 +145,6 @@ def test_phase_equalization_zero_flatness():
     assert ripple <= .3
 
 
-@pytest.mark.xfail(strict=True, reason='SVF group delay adds to the musical delays; the requested absolute delay limits are unmet.')
 def test_phase_group_delay():
     f,h,gd = phase_response(dict(amount=1,hi_process_db=0,hi_dynamic=0))
     delays = [float(gd[np.argmin(abs(f-v))]) for v in (40,600,10000)]
@@ -303,8 +295,7 @@ def test_sub_frequency_harmonics_threshold_outside_mono_dc(mode):
     ratio=db(np.linalg.norm([amp(d,f) for f in (80,120,160,200,240,280)])/amp(d,40))
     print('SUB_SPECTRUM',mode,measured,ratio)
     assert abs(measured-40)<=.5
-    if mode == 'tracked':
-        assert ratio<=-40
+    assert ratio<=-40
     assert db(abs(np.mean(d)))<=-80
     quiet=tone(80,-60)
     assert render('sub_synth',quiet,dict(amount_db=0,mode=mode)).tobytes()==quiet.tobytes()
@@ -313,10 +304,7 @@ def test_sub_frequency_harmonics_threshold_outside_mono_dc(mode):
     assert np.max(abs(delta[:,0]-delta[:,1]))<2e-16
 
 
-@pytest.mark.parametrize('mode',[
-    pytest.param('divider',marks=pytest.mark.xfail(strict=True,
-        reason='Boundary-excited divider release and finite-record DC correction leak into steady out-of-band input.')),
-    'tracked'])
+@pytest.mark.parametrize('mode',['divider','tracked'])
 def test_sub_outside_band(mode):
     values=[]
     for f in (30,200):
@@ -326,7 +314,6 @@ def test_sub_outside_band(mode):
     assert max(values)<=-80
 
 
-@pytest.mark.xfail(strict=True, reason='Default four-pole divider output does not suppress its 120 Hz third harmonic by 40 dB.')
 def test_sub_divider_harmonic_rejection():
     x=tone(80)
     d=render('sub_synth',x,dict(amount_db=0))-x
@@ -336,7 +323,6 @@ def test_sub_divider_harmonic_rejection():
 
 
 @pytest.mark.parametrize('mode',['divider','tracked'])
-@pytest.mark.xfail(strict=True, reason='Band selection, held divider polarity or unvoiced tracking and output LPF alter the end-to-end envelope times.')
 def test_sub_burst_times(mode):
     sr=48000
     x=tone(80,seconds=3); x[:sr//2]=0; x[2*sr:]=0
@@ -350,15 +336,11 @@ def test_sub_burst_times(mode):
     assert abs(attack/10-1)<=.2 and abs(release/150-1)<=.2
 
 
-def test_public_flags_match_acceptance(monkeypatch):
+def test_public_flags_match_acceptance():
     for name in TYPES:
         module=importlib.import_module('mankomix.dspx.procs.'+name)
-        expected = name in ('console_bus','bass_enhancer')
-        assert module.SPECS[0]['implemented'] == expected
-        monkeypatch.setitem(P.PROCESSORS[name],'implemented',expected)
-        if not expected:
-            with pytest.raises(Exception,match='not implemented|not_implemented'):
-                render(name,tone(seconds=.1))
+        assert module.SPECS[0]['implemented'] is True
+        assert P.describe(name)['implemented'] is True
 
 
 @pytest.mark.parametrize('sr',[44100,48000,96000])
