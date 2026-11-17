@@ -11,7 +11,7 @@ from mankomix.director._observations_w4b import PRIMITIVES
 from mankomix.dsp import processors as P
 
 ROOT = Path(__file__).resolve().parents[1]
-GENERATOR = ROOT / "_private/tool_impl/impl/status_table.py"
+GENERATOR = ROOT / "tools/tool_status_table.py"
 
 
 def section(path, marker):

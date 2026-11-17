@@ -8,6 +8,10 @@
 | `license_audit.py` | 依存とライセンスの監査（SPEC §13、§13.4、D-057、D-060）。Python のコア依存の閉包と各 extra（`test`、`test-crosscheck`、`separation`）、コアが読み込むネイティブ部品（libsndfile など）、コアの import 境界（librosa、soxr、torch などを worker の外で import しない）、`gui/package-lock.json` の npm 依存（runtime / dev）、`third_party/` の LICENSE と ORIGIN.md、モデルレジストリ（`core/registry.py` の検証）、FFmpeg を同梱していないこと、を調べる。許可リスト外・未確認のライセンスがあれば終了コード 1。生成物は `licenses/THIRD_PARTY_LICENSES.md`、`licenses/python.json`、`licenses/npm.json`（手で編集しない）。審査済みの例外は `licenses/exceptions.json`（理由と根拠 URL が必須）。`python -I tools/license_audit.py`（生成して書き出す）、`python -I tools/license_audit.py --check`（CI。コミット済みの生成物との差分でも失敗する） |
 | `make_icons.py` | GUI のアイコン一式（D-067、SPEC §11.5）。`gui/public/icons/` に CyberSprite から意味の合うアイコンをそのままコピーし、MankoMIX 固有のアイコンを同じ 16×16・ui-icons 11 色パレットで CyberSprite の CLI により描いて書き出す（設計データはこのスクリプト内、由来は `gui/public/icons/manifest.json` と `NOTICE`）。`build` は隣に CyberSprite が必要。`check` は標準ライブラリだけで寸法・パレット・設計との一致・ハッシュ・由来を検査する（CI も実行）。`python -I tools/make_icons.py build`、`python -I tools/make_icons.py check` |
 | `build_native.py` | ネイティブ DSP 核（`dsp/native/`）を Release でビルドし、`dsp/build/lib/` に置く。Windows は Visual Studio（vswhere、vcvars64）、Linux / macOS は PATH 上の CMake と C++17 コンパイラを使う。`python -I tools/build_native.py [--clean] [--verbose]` |
+| `tool_status_table.py` | 「無いツール 143 件」の実装状況の表（`docs/tool_impl/README.md` の自動生成部分）。各型の `implemented` は実行時の `describe()`、op・コマンドは登録表から取る（手で書かない）。`python -X utf8 tools/tool_status_table.py`（再生成）、`--check`（差分の検査） |
+| `generate_synthetic_irs.py` | 同梱の自作合成 IR（`registry/irs.json` の `official` の項目）を決定的に生成し、記録済みの sha256 と照合する。音声本体はコミットしない |
+| `generate_synthetic_samples.py` | `drum_replace` 用の自作合成ワンショット（`registry/samples.json`）を決定的に生成し、sha256 を照合する。音声本体はコミットしない |
+| `register_hrtf.py` | 持ち込みの HRTF（SOFA から変換した配列）を `registry/hrtfs.json` の規則でローカル登録する（同梱は自作の球頭モデルだけ） |
 
 コミットの前に実行する（CI も同じものを実行する。`.github/workflows/ci.yml`）:
 

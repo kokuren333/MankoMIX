@@ -17,7 +17,7 @@
 
 型の `implemented` は実行時の `describe()` から取得する。op・コマンド・観察量には同名のフラグがないため、登録の有無を表示する。登録は実録音での品質の保証ではない。
 
-再生成: `python -X utf8 _private/tool_impl/impl/status_table.py`。検査だけなら `--check`。対応表は同スクリプト、名前と ID は各 spec、型の真偽と表面の在否は実装の宣言を正とする。
+再生成: `python -X utf8 tools/tool_status_table.py`。検査だけなら `--check`。対応表は同スクリプト、名前と ID は各 spec、型の真偽と表面の在否は実装の宣言を正とする。
 
 T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する（件数は143のまま）。GUI の3部分は OQ-3（D-28）で保留。T10-15 の衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）。
 
