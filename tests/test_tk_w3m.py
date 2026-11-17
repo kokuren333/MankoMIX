@@ -209,8 +209,7 @@ def test_harmonic_ownership_and_ambiguous_overlap():
     assert b1.tobytes() == b2.tobytes() and o1.tobytes() == o2.tobytes() and count > 0
 
 
-@pytest.mark.parametrize('window', [pytest.param(8192, marks=pytest.mark.xfail(strict=True,
-    reason='Default-window overlapping C fifth / E fourth loses >1 dB.')), 16384])
+@pytest.mark.parametrize('window', [4096, 8192, 16384])
 def test_triad_harmonic_frequencies_and_unchanged_levels(window):
     sr = 12000
     x, roots = chord(sr, 4)
@@ -391,11 +390,16 @@ def test_parameter_endpoints_active_and_empty(kind):
 
 
 @pytest.mark.parametrize('kind', list(MODULES))
-def test_unaccepted_processors_are_blocked(kind):
-    assert not MODULES[kind].SPECS[0]['implemented']
-    assert not P.describe(kind)['implemented']
-    with pytest.raises(ChainError, match='not implemented|not_implemented'):
-        render(kind, np.zeros((20, 1)))
+def test_processor_acceptance_registration(kind):
+    accepted = kind == 'poly_retune'
+    assert MODULES[kind].SPECS[0]['implemented'] is accepted
+    assert P.describe(kind)['implemented'] is accepted
+    if accepted:
+        x = np.zeros((20, 1))
+        assert render(kind, x).tobytes() == x.tobytes()
+    else:
+        with pytest.raises(ChainError, match='not implemented|not_implemented'):
+            render(kind, np.zeros((20, 1)))
 
 
 def test_bb_rejects_invalid_inputs():

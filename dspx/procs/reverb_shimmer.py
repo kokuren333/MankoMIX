@@ -15,7 +15,7 @@ def _specs():
         _f('grain_ms', 'ms', 20, 200, 80, 'Dual-tap grain length.'),
         _f('diffusion', None, 0, 1, .8, 'Allpass input diffusion.'),
         _f('damping_hz', 'Hz', 1000, 20000, 7000, 'Feedback high-band absorption and shift safety edge.'),
-        _f('mod_depth', None, 0, 1, .2, 'FDN delay modulation depth.')], implemented=False)]
+        _f('mod_depth', None, 0, 1, .2, 'FDN delay modulation depth.')], implemented=True)]
 
 
 SPECS = _specs()

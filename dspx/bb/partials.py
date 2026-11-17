@@ -57,7 +57,7 @@ def harmonic_groups(frequencies, amplitudes, bin_hz, *, max_harmonic=12):
 
 
 def retune_regions(analysis, mapping, *, a4_hz=440, strength=1, lo_hz=60,
-                   hi_hz=12000, min_peak_db=-60, transients=.7):
+                   hi_hz=12000, min_peak_db=-60, transients=.7, resolve_close=False):
     """Return (delta spectra, diagnostics) on the existing BB-06 WOLA grid.
 
     Shared energy reference preserves stereo/antiphase. Frequencies come from
@@ -65,6 +65,8 @@ def retune_regions(analysis, mapping, *, a4_hz=440, strength=1, lo_hz=60,
     exact periodic DFT interpolation (IFFT, complex modulation, FFT), with
     integrated shift phase and identical channel operations. Unshifted bins
     are never subtracted. Outside the effect band delta is exactly zero.
+    resolve_close=True jointly fits neighboring lobes, including group-predicted
+    hidden peaks; the default retains the original region-only behavior.
     """
     from mankomix.dspx.bb.pitchtime import _reference
     from mankomix.dspx.bb import stft
@@ -115,6 +117,34 @@ def retune_regions(analysis, mapping, *, a4_hz=440, strength=1, lo_hz=60,
         # Sorted bin order remains the grouping order; clamp phase outliers locally.
         frequency = np.clip(frequency, (peaks-.5)*bin_hz, (peaks+.5)*bin_hz)
         bases, owner, overlap = harmonic_groups(frequency, mag[peaks], bin_hz)
+        observed = np.ones(len(peaks), dtype=bool)
+        if resolve_close and len(bases):
+            # Use the isolated root to reduce phase bias in close harmonics.
+            for i in np.flatnonzero(owner >= 0):
+                base = bases[owner[i]]
+                h = round(frequency[i]/base)
+                if h > 1 and abs(frequency[i]-h*base) < .6*bin_hz:
+                    frequency[i] = h*base
+            # A close pair can form one observed maximum. Permit a second
+            # lobe only when an observed harmonic group predicts it beside
+            # that maximum. Its fitted amplitude still has to clear min_peak.
+            extra_f, extra_o = [], []
+            for group, base in enumerate(bases):
+                for h in range(2, 13):
+                    candidate = base*h
+                    distance = np.min(abs(frequency-candidate))
+                    if lo_hz <= candidate <= min(hi_hz, a.sr/2-bin_hz) and .5*bin_hz < distance < 2.5*bin_hz:
+                        if all(abs(candidate-v) > .65*bin_hz for v in extra_f):
+                            extra_f.append(candidate)
+                            extra_o.append(group)
+            if extra_f:
+                frequency = np.r_[frequency, extra_f]
+                owner = np.r_[owner, extra_o]
+                observed = np.r_[observed, np.zeros(len(extra_f), dtype=bool)]
+                peaks = np.r_[peaks, np.rint(np.array(extra_f)/bin_hz).astype(int)]
+                order = np.argsort(frequency, kind='stable')
+                frequency, owner, peaks = frequency[order], owner[order], peaks[order]
+                observed = observed[order]
         group_max = max(group_max, len(bases))
         ambiguous += int(overlap > 0)
         root = frequency.copy()
@@ -135,8 +165,26 @@ def retune_regions(analysis, mapping, *, a4_hz=440, strength=1, lo_hz=60,
         flux = np.sum(np.maximum(mag-previous_mag, 0))/max(float(np.sum(previous_mag)), 1e-30)
         broadband = np.mean(mag > mag.max()*.1) > .2
         opening = transients if broadband and flux > 1.05-transients else 0.
+        resolved = set()
+        if resolve_close and not opening:
+            # Fit neighboring window lobes jointly instead of cutting their
+            # overlapping energy at a midpoint. Legacy callers stay unchanged.
+            for cluster in np.split(np.arange(len(peaks)), np.flatnonzero(np.diff(peaks) > 4)+1):
+                if not 2 <= len(cluster) <= 6 or not np.any(abs(shifts[cluster]) > 1e-10):
+                    continue
+                correction = _resolve_cluster(spectrum, a.window, a.sr,
+                    frequency[cluster], shifts[cluster], phase[cluster],
+                    mag.max()*10**(min_peak_db/20))
+                if correction is not None:
+                    delta[t] += correction
+                    resolved.update(cluster.tolist())
+                    shifted += int(np.count_nonzero(abs(shifts[cluster]) > 1e-10))
         for i, peak in enumerate(peaks):
+            if i in resolved:
+                continue
             if abs(shifts[i]) < 1e-10:
+                continue
+            if not observed[i]:
                 continue
             where = int(np.searchsorted(all_peaks, peak))
             left = 1 if where == 0 else int((all_peaks[where-1]+peak)//2+1)
@@ -162,3 +210,37 @@ def retune_regions(analysis, mapping, *, a4_hz=440, strength=1, lo_hz=60,
         previous_mag = mag
     return delta, dict(group_count_max=group_max, ambiguous_peak_frames=ambiguous,
                        shifted_peak_frames=shifted)
+
+
+def _resolve_cluster(spectrum, window, sr, frequencies, shifts, phases, min_magnitude=0):
+    """Fit distinct neighboring positive-frequency lobes with serial solves.
+
+    Rejected ill-separated or poorly fitted clusters use the original region
+    translation. This is a local sinusoidal model, not shared-harmonic source
+    separation. All channels share the frequencies, with independent weights.
+    """
+    from mankomix.dspx.bb.dereverberation import _loaded_solve
+    n = len(window)
+    if np.min(np.diff(frequencies)) < .5*sr/n:
+        return None
+    time = (np.arange(n)-n//2)/sr
+    waves = window[:, None]*np.exp(2j*np.pi*time[:, None]*frequencies)
+    atoms = fft.fft(waves, axis=0, workers=1)[:n//2+1]
+    left = max(1, int(np.floor(frequencies.min()*n/sr))-5)
+    right = min(n//2, int(np.ceil(frequencies.max()*n/sr))+6)
+    design = atoms[left:right]
+    target = spectrum[left:right]
+    normal = np.einsum('ti,tj->ij', design.conj(), design, optimize=False)
+    cross = np.einsum('ti,tc->ic', design.conj(), target, optimize=False)
+    coef = _loaded_solve(normal+np.eye(len(frequencies))*float(np.trace(normal).real)*1e-10, cross)
+    residual = target-np.einsum('ti,ic->tc', design, coef, optimize=False)
+    if np.sum(abs(residual)**2) > .02*np.sum(abs(target)**2):
+        return None
+    correction = np.zeros_like(spectrum)
+    for i in range(len(frequencies)):
+        if (abs(shifts[i]) < 1e-10
+                or np.max(abs(coef[i]))*np.max(abs(atoms[:, i])) < min_magnitude):
+            continue
+        moved = fft.fft(waves[:, i]*np.exp(1j*(2*np.pi*shifts[i]*time+phases[i])), workers=1)[:n//2+1]
+        correction += (moved-atoms[:, i])[:, None]*coef[i]
+    return correction

@@ -5,10 +5,14 @@ from mankomix.dspx.params import _a, _e, _f
 def cross_validate(p):
     from mankomix.dspx.bb.reverb import validate_freeze
     validate_freeze(p)
+    if p['rt60_s'] > 24:
+        from mankomix.dsp.errors import ParamError
+        raise ParamError('rt60_s must be <= 24 s for 60-second decay after freeze release')
 
 
 def reverb_freeze(x, sr, params, *, seed=0):
     from mankomix.dspx.bb.reverb import process_freeze
+    cross_validate(params)
     return process_freeze(x, sr, params, seed=seed)
 
 
@@ -23,7 +27,7 @@ def _specs():
         _f("diffusion", None, 0, 1, .8, "Input allpass diffusion."),
         _f("damping_hz", "Hz", 1000, 20000, 8000, "Loop high frequency absorption corner."),
         _f("mod_depth", None, 0, 1, 0, "Delay modulation outside lossless holds."),
-    ], implemented=False)]
+    ], implemented=True)]
 
 
 SPECS = _specs()

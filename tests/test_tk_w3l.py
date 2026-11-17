@@ -4,7 +4,7 @@ import pytest
 from scipy import signal
 
 from mankomix.dsp import processors as P, engine as E
-from mankomix.dsp.errors import ParamError, ChainError
+from mankomix.dsp.errors import ParamError
 from mankomix.dspx.procs import pitch_delay as D, reverb_shimmer as S
 from mankomix.dspx.bb.pitchtime_stream import FastShift
 from mankomix.dspx.bb.shiftloop import LoopShift
@@ -13,12 +13,6 @@ from tests import toolimpl_harness as H
 
 KINDS = ('pitch_delay', 'reverb_shimmer')
 MODULES = dict(zip(KINDS, (D, S)))
-
-
-@pytest.fixture
-def enabled(monkeypatch):
-    for kind in KINDS:
-        monkeypatch.setitem(P.PROCESSORS[kind], 'implemented', True)
 
 
 def direct(kind, x, params=None, sr=16000, seed=19):
@@ -197,7 +191,6 @@ def test_shimmer_zero_matches_hall_kernel():
     assert null['peak_dbfs'] <= -100
 
 
-@pytest.mark.xfail(strict=True, reason='Mono tail interference makes the early octave ratio nonmonotone at large shimmer amounts.')
 def test_shimmer_octave_grows_with_time_and_amount():
     sr = 8000
     x = burst(sr, seconds=2., length=.15)
@@ -232,7 +225,7 @@ def test_shimmer_bb11_shift_precision(semitones):
 
 
 @pytest.mark.parametrize('kind', KINDS)
-def test_common_tests(enabled, kind):
+def test_common_tests(kind):
     params = (dict(rt60_s=.5, shimmer=0) if kind == 'reverb_shimmer'
               else dict(time_ms=25, feedback=.5, shift_semitones=12))
     def probe(x, y, sr, p):
@@ -364,7 +357,7 @@ def test_relationship_rejections():
         direct('reverb_shimmer', x, dict(bpm=10), 16000)
 
 
-def test_shimmer_seed_engine_id_and_decay(enabled):
+def test_shimmer_seed_engine_id_and_decay():
     sr = 8000
     x = H.impulse(sr=sr, seconds=1.4, channels=2)
     p = dict(rt60_s=.5, shimmer=.4, mod_depth=0, mix=1)
@@ -382,7 +375,7 @@ def test_shimmer_seed_engine_id_and_decay(enabled):
 
 
 @pytest.mark.parametrize('kind', KINDS)
-def test_sd_wet_only(enabled, kind):
+def test_sd_wet_only(kind):
     sr = 8000
     x = H.sine(440, -6, sr=sr, seconds=.6, channels=2)
     p = dict(rt60_s=.5, mix=1, shimmer=.4) if kind == 'reverb_shimmer' else dict(time_ms=20, feedback=.3, mix=1)
@@ -398,14 +391,10 @@ def test_sd_wet_only(enabled, kind):
 def test_normal_registration_matches_acceptance():
     # The final declaration is checked explicitly after all acceptance probes.
     assert P.describe('pitch_delay')['implemented']
-    assert not P.describe('reverb_shimmer')['implemented']
-    for kind in KINDS:
-        if not P.describe(kind)['implemented']:
-            with pytest.raises(ChainError, match='not implemented'):
-                H.render(kind, np.zeros((64, 1)), 8000)
+    assert P.describe('reverb_shimmer')['implemented']
 
 
-def test_active_default_measurement_and_context_excerpt(enabled):
+def test_active_default_measurement_and_context_excerpt():
     sr = 4800
     x = burst(sr, seconds=.35)
     x = np.repeat(x, 2, axis=1)

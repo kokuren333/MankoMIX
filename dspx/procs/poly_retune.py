@@ -1,4 +1,4 @@
-"""T08-06 experimental harmonic-group retuning by peak-region translation."""
+"""T08-06 harmonic-group retuning with joint fitting of close peak regions."""
 import numpy as np
 from mankomix.dsp.errors import ParamError
 from mankomix.dspx.params import _f, _e, _a
@@ -26,7 +26,7 @@ def poly_retune(x, sr, p, *, seed=0, compensate=True):
     if p['strength'] and np.any(p['map']) and len(x) and np.any(x):
         sustained, events = _separate_transients(x, sr) if p['transients'] else (x, [])
         a = stft.analyze(sustained, sr, window=n)
-        delta, info = partials.retune_regions(a, p['map'], **{k: p[k] for k in (
+        delta, info = partials.retune_regions(a, p['map'], resolve_close=True, **{k: p[k] for k in (
             'a4_hz', 'strength', 'lo_hz', 'hi_hz', 'min_peak_db', 'transients')})
         y = sustained+stft.synthesize(a, delta)
         y = _restore_transients(y, events, 1)
@@ -35,8 +35,8 @@ def poly_retune(x, sr, p, *, seed=0, compensate=True):
     return y, sr, dict(**info, latency_samples=n, latency_compensated=compensate)
 
 
-SPECS = [dict(type='poly_retune', implemented=False,
-    description='Experimental polyphonic harmonic-group peak-region retuning.',
+SPECS = [dict(type='poly_retune', implemented=True,
+    description='Polyphonic harmonic-group peak-region retuning.',
     stages=['track', 'bus'], master_slot=None, offline_only=True, backends=['reference'],
     realtime=dict(block_ok=False, latency_samples='window_scaled', allocates=True),
     params=[

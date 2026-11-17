@@ -46,7 +46,11 @@ class ShimmerFDN(FDN):
         from mankomix.dspx.bb.shiftloop import LoopShift
         super().__init__(sr, hall_params(p), seed=seed, absorption_order=4, mod_interpolation='lagrange3')
         self.line = _FDNLine(self.line.max_delay, self.lines, self.line.method)
-        self.amount = p['shimmer'] if p['shift_semitones'] else 0.
+        # Reserve equal headroom for the ordinary return and for energy that
+        # has already been shifted on earlier traversals. A unity shifted
+        # send overfeeds higher octaves and depletes the first shifted band
+        # as the control rises. The control remains continuous over 0..1.
+        self.amount = .5*p['shimmer'] if p['shift_semitones'] else 0.
         self.shifter = LoopShift(sr, self.lines, semitones=p['shift_semitones'],
                                  grain_ms=p['grain_ms'], highcut_hz=p['damping_hz'])
         # Absolute cap specified by T03-06, plus a conservative history-aware
