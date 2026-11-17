@@ -11,6 +11,8 @@ memory through StemSource, without regenerating caches or changing existing path
 
 from __future__ import annotations
 
+import copy
+import json
 import math
 
 import numpy as np
@@ -175,13 +177,68 @@ class PlacementInputError(S.StemObsError):
     """Placement inputs cannot be read without changing the project."""
 
 
+def _grid_step(proj) -> float | None:
+    """Read core.remix:project_music's existing cache, without computing/writing.
+
+    Reuse its static-sum asset/hash key and cache version. The floor proposal
+    retains BPM but drops confidence, so it cannot establish the 0.5 threshold.
+    """
+    from mankomix.core import mixrender as MR
+    from mankomix.core.hashing import canonical_hash
+    from mankomix.core.remix import ANALYSIS_CACHE_VERSION, _cache_path
+
+    ids = []
+    fullmix = MR.fullmix_asset_id(proj.data)
+    for track in MR.stem_tracks(proj.data):
+        for clip in track.get("clips") or []:
+            aid = clip.get("asset")
+            if aid not in ids and aid != fullmix:
+                ids.append(aid)
+    assets = {a["id"]: a for a in proj.data.get("assets") or []}
+    key = canonical_hash({"static_sum": [[aid, assets[aid].get("sha256")] for aid in ids]})[:24]
+    path = _cache_path(proj, key)
+    if not path.is_file():
+        return None
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    if stored.get("version") != ANALYSIS_CACHE_VERSION:
+        return None
+    music = stored.get("music") or {}
+    bpm, confidence = music.get("bpm"), music.get("bpm_confidence")
+    if (isinstance(bpm, (int, float)) and not isinstance(bpm, bool)
+            and math.isfinite(bpm) and bpm > 0
+            and isinstance(confidence, (int, float)) and not isinstance(confidence, bool)
+            and math.isfinite(confidence) and confidence >= 0.5):
+        return 60.0 / bpm / 4.0
+    return None
+
+
+def _declared(rows, section):
+    """Copy matching source rows, without inferring roles or merging declarations.
+
+    String sections match by ID. Time ranges match every floor section with
+    positive overlap (touching endpoints do not match). Preserve source order,
+    keys, lead, roles and duplicates, including other tracks' declarations.
+    """
+    matched = []
+    for row in rows:
+        ref = row.get("section")
+        match = ref == section["id"] if isinstance(ref, str) else (
+            isinstance(ref, dict) and
+            max(float(ref["t0_s"]), section["t0_s"]) <
+            min(float(ref["t1_s"]), section["t1_s"]))
+        if match:
+            matched.append(copy.deepcopy(row))
+    return matched or None
+
+
 def placement(project, *, variant=None, direction=None) -> dict:
     """Describe each audible dry track in the floor proposal's sections (X-03).
 
     Frame activity is measured within each section using the shared edit-stage
     definition. Active energy is the sum of active frame mean-square powers;
     level_active_db is the dB of their arithmetic mean, never a mean of dB.
-    Onset, sustain and declared roles are reserved as null for the second version.
+    Onsets and runs use the shared detectors within each section. Grid offsets
+    are signed milliseconds against the nearest sixteenth from project time 0.
     """
     from mankomix.core.errors import MankoError
     from .direction import DirectionError, _Project, parse_document
@@ -192,10 +249,11 @@ def placement(project, *, variant=None, direction=None) -> dict:
         pv = proj.variant(variant)
         if variant is not None and pv is None:
             raise PlacementInputError(f"unknown variant '{variant}'")
+        role_rows = []
         if direction is not None:
-            # Check track references even while role copying is reserved for v2.
             frame = parse_document(direction)["block"].get("frame") or {}
-            for row in frame.get("section_roles") or []:
+            role_rows = frame.get("section_roles") or []
+            for row in role_rows:
                 refs = list(row.get("roles") or {})
                 if row.get("lead") is not None:
                     refs.append(row["lead"])
@@ -203,6 +261,8 @@ def placement(project, *, variant=None, direction=None) -> dict:
                     if tid not in proj.tracks():
                         raise PlacementInputError(f"unknown track '{tid}'")
         src = _source(project, (pv or {}).get("id"))
+        if not src._audible:
+            raise PlacementInputError("no audible stem tracks")
         stems, sr = src.dry()
         if not stems:
             raise PlacementInputError("no audible stem tracks")
@@ -216,12 +276,13 @@ def placement(project, *, variant=None, direction=None) -> dict:
             sections.append({"id": sec["id"], "t0_s": round(t0, 3), "t1_s": round(t1, 3)})
             spans.append((int(round(t0 * sr)), int(round(t1 * sr))))
         ids = sorted(stems)
+        grid_step = _grid_step(proj)
         cells = {tid: {} for tid in ids}
         for sec, (i0, i1) in zip(sections, spans):
             energies = {}
             for tid in ids:
                 cut = stems[tid][i0:i1]
-                mask, _, levels = activity(cut, sr)
+                mask, frame_times, levels = activity(cut, sr)
                 cell = None
                 if mask.any():
                     # Undo the edit-stage log floor before summing physical power.
@@ -229,12 +290,24 @@ def placement(project, *, variant=None, direction=None) -> dict:
                     energy = float(powers.sum())
                     energies[tid] = energy
                     position, side = image(cut)
+                    attacks = onsets(cut, sr)
+                    seconds = (i1 - i0) / sr
+                    offset = None
+                    if grid_step is not None and attacks:
+                        absolute = np.asarray(attacks) + i0 / sr
+                        offsets = absolute - np.floor(absolute / grid_step + 0.5) * grid_step
+                        offset = round(float(np.median(offsets)) * 1000.0, 3)
+                    lengths = [max(0.0, min(end, len(cut) / sr) - start) * 1000.0
+                               for start, end in runs(mask, frame_times)]
                     cell = {"active_ratio": round(float(mask.mean()), 3),
                             "level_active_db": round(10.0 * math.log10(float(powers.mean())), 3),
                             "activity_share": None, **band_shares(cut, sr),
-                            "onset": None, "sustain": None,
+                            "onset": {"count": len(attacks),
+                                      "per_s": round(len(attacks) / seconds, 3),
+                                      "grid_offset_ms_median": offset},
+                            "sustain": {"run_ms_median": round(float(np.median(lengths)), 3)},
                             "image_position": position, "side_ratio_db": side,
-                            "declared_roles": None}
+                            "declared_roles": _declared(role_rows, sec)}
                 cells[tid][sec["id"]] = cell
             total = sum(energies.values())
             for tid, energy in energies.items():

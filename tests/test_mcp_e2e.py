@@ -786,11 +786,14 @@ CLI_TO_MCP: dict[str, str | None] = {
     "direction stems purity": "direction_stems_purity",
     "direction stems stages": "direction_stems_stages",
     "direction stems placement": "direction_stems_placement",
+    "direction stems phrases": "direction_stems_phrases",
+    "direction wiring": "direction_wiring",
     "direction listen pack": "direction_listen_pack", "direction listen record": "direction_listen_record",
 }
 # CLI flags that select a different core function (and so a different MCP tool).
 CLI_FLAG_COMMANDS = {"verify --last": ("verify", "--last"), "separate --records": ("separate", "--records")}
 KNOWN_CLI_ONLY = {
+    "direction wiring": "X-13: read-only direction wiring is CLI only; MCP exposure is a separate delivery",
     "route": "CLI 'route' (core api.route, mastering route selection R-21) has no MCP tool: mcp/tools.py SPECS has "
              "no entry for api.route, against SPEC 10.1 (no feature on one face only)",
     **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core; minimal implementation of the "
@@ -807,7 +810,7 @@ KNOWN_CLI_ONLY = {
     **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core). C-5: the read-only "
           "stem commands are CLI only; no MCP exposure in this update"
        for c in ("direction stems observe", "direction stems relate", "direction stems purity", "direction stems stages",
-                 "direction stems placement")},
+                 "direction stems placement", "direction stems phrases")},
     **{c: f"CLI '{c}' belongs to the direction layer (director/, outside the core). X-11: listening "
           "commands are CLI only; MCP exposure is a separate delivery"
        for c in ("direction listen pack", "direction listen record")},

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+NOTE = "先に計算して書いても、見つけ間違いと直しすぎは起きる。効き目は実証していない"
+
 
 def points(rate: int, segments: list[dict], ramp_ms: float = 20.0,
            duration_s: float | None = None) -> list[list]:

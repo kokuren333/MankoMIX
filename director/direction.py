@@ -1390,6 +1390,10 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             duration = float(length) / proj.rate if length is not None else dur
             pts = curve.points(proj.rate, params["segments"], params.get("ramp_ms", 20), duration)
             curves.setdefault(target, []).append((mid, pts))
+            record["moves"][mid] = {"op": op, "track": target, "ramp_ms": params.get("ramp_ms", 20),
+                                    "segments": [{**copy.deepcopy(s), "applied": not s.get("hold", False)}
+                                                 for s in params["segments"]], "points": len(pts)}
+            notes.append(f"{mid}: {curve.NOTE}")
         elif op == "duck":
             from . import duck as K
             try:
@@ -1700,7 +1704,8 @@ def reference_distance(block: dict, obs_vals: dict) -> dict | None:
 
 
 def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, variant: str | None = None,
-          delivery: str = "hires_native", translation: bool = False) -> dict:
+          delivery: str = "hires_native", translation: bool = False, edit_list: bool = False,
+          contour: bool = False) -> dict:
     """Judge the applied direction against the floor -> ``directions/dir_<id>.outcome.json``.
 
     ``translation``: add the ``translation`` block (UPGRADE2 §3.5; reference only, read by no verdict,
@@ -1757,6 +1762,13 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
     if translation:
         from . import translation as TR
         out["translation"] = TR.block(x, y, sr, match)
+    if edit_list:
+        from . import editlist as EL
+        out["edit_list"] = EL.block(doc, proj, fproj, rec, result_source=src_t, floor_source=src_f,
+                                    variant=vid, floor_variant=fv.get("id"))
+    if contour:
+        from . import contour as CT
+        out["contour"] = CT.block(x, y, sr, match, fproj.sections())
     fr = b.get("frame")
     if isinstance(fr, dict) and "tolerances" in fr:
         # X-01: reuse observations; this block is read by no verdict, summary or calibration.
@@ -1839,6 +1851,7 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
         op = m.get("op")
         if op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
                 or (op == "gain" and m.get("section") not in (None, "all")) \
+                or op == "gain_curve" \
                 or (op == "duck" and (recorded.get(m.get("id")) or {}).get("hits") != 0):
             if m.get("id") not in refs:
                 missing.append(m.get("id"))

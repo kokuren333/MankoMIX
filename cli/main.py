@@ -473,7 +473,9 @@ def cmd_direction_apply(a):
 def cmd_direction_check(a):
     from mankomix.director import direction as D
     return _direction_errors(D.check, _project(a), a.floor, a.file, variant=a.variant, delivery=a.delivery,
-                             translation=bool(getattr(a, "translation", False)))
+                             translation=bool(getattr(a, "translation", False)),
+                             edit_list=bool(getattr(a, "edit_list", False)),
+                             contour=bool(getattr(a, "contour", False)))
 
 
 def cmd_direction_query(a):
@@ -490,6 +492,12 @@ def cmd_direction_query(a):
     for o in items:
         out.append({"id": o.get("id"), **_direction_errors(Q.observe, x, sr, o, sections=sections)})
     return {"kind": "observations", "file": Path(a.audio).name, "observations": out}
+
+
+def cmd_direction_wiring(a):
+    from mankomix.director import wiring as W
+    return _direction_errors(W.wiring, _project(a), variant=a.variant,
+                             direction=a.direction, format=a.format)
 
 
 def _edit_errors(fn, *args, **kw):
@@ -534,7 +542,8 @@ def cmd_direction_stems_observe(a):
 
 def cmd_direction_stems_relate(a):
     from mankomix.director import relate as R
-    return _stem_errors(R.stem_relate, _project(a), variant=a.variant, section=_json_arg(a.section), top=a.top)
+    return _stem_errors(R.stem_relate, _project(a), variant=a.variant, section=_json_arg(a.section), top=a.top,
+                        axes=bool(getattr(a, "axes", False)))
 
 
 def cmd_direction_stems_purity(a):
@@ -555,6 +564,11 @@ def cmd_direction_stems_stages(a):
 def cmd_direction_stems_placement(a):
     from mankomix.director import placement as P
     return _stem_errors(P.placement, _project(a), variant=a.variant, direction=a.direction)
+
+
+def cmd_direction_stems_phrases(a):
+    from mankomix.director import phrases as P
+    return _stem_errors(P.phrases, _project(a), a.track, min_gap_ms=a.min_gap_ms)
 
 
 def cmd_direction_listen_pack(a):
@@ -1093,11 +1107,23 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--delivery", default="hires_native", help="delivery file to compare (default hires_native)")
     sp.add_argument("--translation", action="store_true",
                     help="add the translation block (mono / small-speaker view; reference only, in no verdict)")
+    sp.add_argument("--edit-list", action="store_true",
+                    help="add the time-varying edit list (reference only, in no verdict)")
+    sp.add_argument("--contour", action="store_true",
+                    help="add section contours and gaps (reference only, in no verdict)")
     sp = add("query", cmd_direction_query,
              "observation quantities on an audio file (band_energy, band_ratio, crest, loudness, side_ratio, "
              "correlation); --project resolves section ids", gsub)
     sp.add_argument("audio", help="audio file")
     sp.add_argument("spec", help="observation JSON (object or list) or @file")
+
+    sp = gsub.add_parser("wiring", parents=[_common()], conflict_handler="resolve",
+                         help="derive routing, sends, ducking and bus chains; writes nothing")
+    sp.set_defaults(func=cmd_direction_wiring)
+    sp.add_argument("--variant", help="variant id (default: the project's first variant)")
+    sp.add_argument("--direction", help="direction Markdown file with planned moves to overlay")
+    sp.add_argument("--format", choices=("json", "mermaid"), default=argparse.SUPPRESS,
+                    help="wiring output format (default: json)")
 
     grp_stems = add("stems", None, "read-only stem observations, cross-track relations and contents", gsub)
     ssub = grp_stems.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")
@@ -1111,6 +1137,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--variant", help="variant id (default: the project's first variant)")
     sp.add_argument("--section", help="section id or JSON {\"t0_s\", \"t1_s\"}")
     sp.add_argument("--top", type=int, default=3, help="number of top maskers per track (1 to 8; default: 3)")
+    sp.add_argument("--axes", action="store_true", help="include descriptive band, time, length and space overlap axes")
     sp = add("purity", cmd_direction_stems_purity,
              "post-clean, pre-chain stem contents on --project; writes nothing; requires valid cleanup caches", ssub)
     sp.add_argument("--track", action="append", help="track id (repeatable; default: all audible stems)")
@@ -1124,7 +1151,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("placement", cmd_direction_stems_placement,
              "track placement by floor section; writes nothing; requires valid cleanup caches", ssub)
     sp.add_argument("--variant", help="variant id (default: the project's first variant)")
-    sp.add_argument("--direction", help="direction Markdown file (role copying reserved for the second version)")
+    sp.add_argument("--direction", help="direction Markdown file whose frame.section_roles are copied as written into declared_roles (no matching or verdict)")
+
+    sp = add("phrases", cmd_direction_stems_phrases,
+             "describe track phrases; writes nothing; requires valid cleanup caches; suggests no gain", ssub)
+    sp.add_argument("--track", required=True, help="audible track id")
+    sp.add_argument("--min-gap-ms", type=float, default=250.0,
+                    help="join activity gaps shorter than this (milliseconds; default: 250)")
 
     grp_listen = add("listen", None, "export blind listening packs and record listening sessions", gsub)
     lsub = grp_listen.add_subparsers(dest="refcommand", metavar="SUBCOMMAND")
@@ -1285,6 +1318,10 @@ def main(argv: list[str] | None = None) -> int:
         command = " ".join(x for x in (getattr(args, "command", None), getattr(args, "subcommand", None),
                                        getattr(args, "refcommand", None)) if x)
         result = args.func(args)
+        if command == "direction wiring" and fmt == "mermaid":
+            sys.stdout.write(result)
+            sys.stdout.flush()
+            return EXIT_OK
         _emit(result, fmt, command)
         if command == "doctor" and result.get("status") == "error":
             return EXIT_ENV_ERROR

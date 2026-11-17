@@ -155,3 +155,50 @@ def test_same_read_results(faces):
     m_cli = cli("measure", str(root / "export" / "1 Drums.wav"))
     m_mcp = mcp("measure_audio", path="export/1 Drums.wav", detail="full")
     assert m_cli == m_mcp
+
+
+@pytest.fixture(scope="module")
+def direction_mcp(tmp_path_factory):
+    mcp = Mcp(tmp_path_factory.mktemp("direction_faces"))
+    listed = {tool["name"] for tool in mcp.rpc("tools/list", {})["result"]["tools"]}
+    return mcp, listed
+
+
+@pytest.mark.parametrize("command, tool", [
+    ("direction stems observe", "direction_stems_observe"),
+    ("direction stems relate", "direction_stems_relate"),
+    ("direction stems purity", "direction_stems_purity"),
+    ("direction listen pack", "direction_listen_pack"),
+    ("direction listen record", "direction_listen_record"),
+    ("direction stems stages", "direction_stems_stages"),
+    ("direction stems placement", "direction_stems_placement"),
+    ("direction stems phrases", "direction_stems_phrases"),
+    ("direction wiring", "direction_wiring"),
+    ("direction check", "direction_check"),
+])
+def test_direction_commands_remain_documented_cli_only(direction_mcp, command, tool):
+    """New direction commands follow the three original previews' CLI-only policy."""
+    from tests.test_mcp_e2e import CLI_TO_MCP, KNOWN_CLI_ONLY
+
+    assert CLI_TO_MCP[command] == tool
+    reason = KNOWN_CLI_ONLY[command]
+    assert reason.strip() and "MCP" in reason
+    mcp, listed = direction_mcp
+    assert tool not in listed, reason
+    assert mcp(tool, expect_error=True)["error"] == "unknown_tool"
+
+
+@pytest.mark.parametrize("command, required, flag", [
+    ("direction stems relate", [], "--axes"),
+    ("direction check", ["direction.md", "--floor", "floor"], "--edit-list"),
+    ("direction check", ["direction.md", "--floor", "floor"], "--contour"),
+])
+def test_direction_flags_belong_to_cli_only_commands(command, required, flag):
+    """Optional direction flags retain their parent command's MCP registration."""
+    from tests.test_mcp_e2e import CLI_TO_MCP, KNOWN_CLI_ONLY
+
+    args = cli_main.build_parser().parse_args([*command.split(), *required, flag])
+    assert getattr(args, flag.removeprefix("--").replace("-", "_")) is True
+    assert command in KNOWN_CLI_ONLY
+    assert CLI_TO_MCP[command].startswith("direction_")
+    assert f"{command} {flag}" not in CLI_TO_MCP
