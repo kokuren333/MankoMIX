@@ -789,10 +789,15 @@ CLI_TO_MCP: dict[str, str | None] = {
     "direction stems phrases": "direction_stems_phrases",
     "direction wiring": "direction_wiring",
     "direction listen pack": "direction_listen_pack", "direction listen record": "direction_listen_record",
+    **{f"spatial ambi {op}": f"spatial_ambi_{op}"
+       for op in ("encode", "rotate", "decode", "convert", "info")},
 }
 # CLI flags that select a different core function (and so a different MCP tool).
 CLI_FLAG_COMMANDS = {"verify --last": ("verify", "--last"), "separate --records": ("separate", "--records")}
 KNOWN_CLI_ONLY = {
+    **{f"spatial ambi {op}": "W4h / T05-07: project-independent file conversion is CLI only; "
+                             "MCP exposure is a separate delivery (OD-10: outside the mix graph)"
+       for op in ("encode", "rotate", "decode", "convert", "info")},
     "direction wiring": "X-13: read-only direction wiring is CLI only; MCP exposure is a separate delivery",
     "route": "CLI 'route' (core api.route, mastering route selection R-21) has no MCP tool: mcp/tools.py SPECS has "
              "no entry for api.route, against SPEC 10.1 (no feature on one face only)",
@@ -824,7 +829,7 @@ CLI_TO_MCP.update({name: planned for name, (planned, reason) in _extension_cli.i
 KNOWN_CLI_ONLY.update({name: reason for name, (planned, reason) in _extension_cli.items()})
 
 # Include every extension prefix; preserve direct executable groups such as query.
-NESTED_GROUPS = tuple(sorted({"direction ref", "direction edit", "direction stems", "direction listen"} | {
+NESTED_GROUPS = tuple(sorted({"direction ref", "direction edit", "direction stems", "direction listen", "spatial ambi"} | {
     ' '.join(name.split()[:n]) for name in _extension_cli for n in range(2, len(name.split()))
 }, key=lambda name: (len(name.split()), name)))
 

@@ -1237,6 +1237,9 @@ def build_parser() -> argparse.ArgumentParser:
     from mankomix.director.commands import register as register_direction_commands
     register_direction_commands(direction_parser, common, _project)
 
+    from mankomix.director.ambi import register as register_spatial_commands
+    register_spatial_commands(sub, common)
+
     grp = add("kb", None, "experience store kb/: index, lint, search and show")
     gsub = grp.add_subparsers(dest="subcommand", metavar="SUBCOMMAND")
     gsub.required = True

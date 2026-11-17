@@ -85,6 +85,12 @@ def spec_errors(o: dict) -> list[tuple[str, str, str]]:
     target = o.get("target", "master")
     trk = is_track_target(target)
     out: list[tuple[str, str, str]] = []
+    if prim in Q.EXT_PRIMITIVES:
+        from ._observations_w4b import params
+        try:
+            params(prim, o.get("params", {}))
+        except Q.QueryError as e:
+            out.append((".params", "bad_value", str(e)))
     if target == "mix" and prim in CONTEXT_PRIMITIVES:
         out.append((".target", "bad_value", f"{prim} cannot be used with target 'mix'"))
     if "path" in o:
@@ -379,7 +385,8 @@ def observe(src: StemSource, obs: dict, *, sections: list[dict] | None = None) -
         res = Q.observe(x, sr, sub, sections=sections, gain_db=0.0)
         if res.get("status") == "ok":
             if is_mix:
-                res["value"] = round(float(res["value"]), 3)
+                if prim not in Q.EXT_PRIMITIVES:
+                    res["value"] = round(float(res["value"]), 3)
                 res.update({"gain_db": 0.0, "signal": SIGNAL})
             else:
                 res.update({"gain_db": 0.0, "signal": SIGNAL, "path": path})

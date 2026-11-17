@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "id": "synth_kick_a",
+      "sha256": "4683a9671a84aff8b65d0dca1ab619d06429ebf9e8a6847c4806ce205a883eb0",
+      "sr": 48000,
+      "channels": 1,
+      "length_s": 0.4,
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "tools/generate_synthetic_samples.py",
+        "args": {
+          "sr": 48000,
+          "seed": 2411
+        }
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "tools/generate_synthetic_samples.py",
+            "note": "Original mathematical synthesis; no third-party audio. Generator and output use the repository Apache-2.0 license."
+          }
+        ]
+      }
+    },
+    {
+      "id": "synth_snare_a",
+      "sha256": "84775d1d4c6d079111d3ccafe078c93685a00ea2329cab5a7d84c39736d6f32e",
+      "sr": 48000,
+      "channels": 1,
+      "length_s": 0.4,
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "tools/generate_synthetic_samples.py",
+        "args": {
+          "sr": 48000,
+          "seed": 2411
+        }
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "tools/generate_synthetic_samples.py",
+            "note": "Original mathematical synthesis; no third-party audio. Generator and output use the repository Apache-2.0 license."
+          }
+        ]
+      }
+    },
+    {
+      "id": "synth_hat_a",
+      "sha256": "56b68ff27e3d8d81be8c26733d0e3fa248137b8572cc7a4892c6d7f65e3583ad",
+      "sr": 48000,
+      "channels": 1,
+      "length_s": 0.4,
+      "tier": "official",
+      "origin": {
+        "type": "synthetic",
+        "generator": "tools/generate_synthetic_samples.py",
+        "args": {
+          "sr": 48000,
+          "seed": 2411
+        }
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "checked_on": "2026-11-17",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "kind": "original_synthesis",
+            "path": "tools/generate_synthetic_samples.py",
+            "note": "Original mathematical synthesis; no third-party audio. Generator and output use the repository Apache-2.0 license."
+          }
+        ]
+      }
+    }
+  ]
+}

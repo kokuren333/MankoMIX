@@ -43,6 +43,8 @@ from scipy import signal as _sig
 from mankomix.core.measure import loudness as L
 
 PRIMITIVES = ("band_energy", "band_ratio", "crest", "loudness", "side_ratio", "correlation", "image_position")
+from ._observations_w4b import PRIMITIVES as EXT_PRIMITIVES
+PRIMITIVES += EXT_PRIMITIVES
 LOUDNESS_STATS = ("integrated", "short_p95", "short_p50", "short_max")
 VIEWS = ("stereo", "mono", "mono_band", "side")
 MONO_VIEWS = ("mono", "mono_band")
@@ -51,6 +53,7 @@ VIEW_BAND_DEFAULT_HZ = (150.0, 6000.0)
 VIEW_BAND_LO_RANGE_HZ = (80.0, 400.0)
 VIEW_BAND_HI_RANGE_HZ = (3000.0, 10000.0)
 STEREO_ONLY_PRIMITIVES = ("side_ratio", "correlation", "image_position")
+STEREO_ONLY_PRIMITIVES += ("mono_loss", "correlation_bands")
 FRAME = 8192
 EPS = 1e-20
 
@@ -182,6 +185,12 @@ def observe(x: np.ndarray, sr: int, obs: dict, *, sections: list[dict] | None = 
     dur = x.shape[0] / sr
     t0, t1 = section_range(obs.get("section", "all"), sections, dur)
     seg = x[int(round(t0 * sr)):int(round(t1 * sr))]
+    if prim in EXT_PRIMITIVES:
+        from ._observations_w4b import observe as extended_observe
+        from mankomix.core.measure.vector import json_safe
+        result = extended_observe(x, sr, obs, round(t0 * sr), round(t1 * sr))
+        result.update(range_s=[round(t0, 3), round(t1, 3)], gain_db=float(gain_db))
+        return json_safe(result)
     if view == "side" and float(np.sum(seg ** 2)) <= EPS:
         return {"status": "error", "reason": "view 'side': the signal is silent in the range"}
     band = obs.get("band_hz")
