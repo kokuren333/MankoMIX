@@ -1321,7 +1321,12 @@ def main(argv: list[str] | None = None) -> int:
         fmt, debug = args.format, args.debug
         command = " ".join(x for x in (getattr(args, "command", None), getattr(args, "subcommand", None),
                                        getattr(args, "refcommand", None)) if x)
-        result = args.func(args)
+        if (Path(getattr(args, 'project', None) or '.') / 'assets' / 'derived').is_dir():
+            from mankomix.director.derived import control_context
+            with control_context(getattr(args, 'project', None)):
+                result = args.func(args)
+        else:
+            result = args.func(args)
         if command == "direction wiring" and fmt == "mermaid":
             sys.stdout.write(result)
             sys.stdout.flush()

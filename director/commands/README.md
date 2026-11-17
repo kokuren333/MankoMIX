@@ -26,7 +26,8 @@ COMMANDS = [{
 
 The CLI registers new groups automatically, and reuses existing groups (`ref`,
 `edit`, etc.). Paths may have more than two components. Each component uses
-lowercase letters, digits and hyphens. Global `--project`, `--actor`, `--format`
+lowercase letters, digits, underscores and hyphens (for example,
+`("query", "limiter_headroom")`). Global `--project`, `--actor`, `--format`
 and `--debug` work before or after the command. Existing command leaves cannot
 be replaced. The existing `direction query AUDIO SPEC` invocation remains valid;
 known new `query` subcommand names take precedence in that position. When query
@@ -51,8 +52,10 @@ a project context (explicit `--project`, or the current project directory).
   `project.json`, `journal.jsonl` and every `directions/` ledger/document. Added,
   removed and modified files, directory entries and symlinks count as writes.
   Do not even create analysis caches. Prefer in-memory renders/measurements.
-* `"out_only"`: `add_args` must define `--out`, and the user must provide it. Only
-  that file or directory subtree can change. Creating its missing parent
+* `"out_only"`: `add_args` must define an **optional** `--out`. If omitted, return
+  JSON only and make no filesystem changes; the full project read-only guard
+  still runs, including on callback failure. If supplied, only that file or
+  directory subtree can change. Creating its missing parent
   directories is allowed. `--out` cannot overlap project.json, journal.jsonl or
   directions/, cannot be the project directory, and cannot overwrite an existing
   path inside the project. Other project files must remain identical. For an

@@ -1300,7 +1300,7 @@ def _automation(rate: int, segs: list[tuple[float, float, float]], base: list | 
     return pts
 
 
-def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[dict, dict, list[str]]:
+def build_proposal(proj: _Project, doc: dict, sel: dict | None = None, *, _plans=None) -> tuple[dict, dict, list[str]]:
     """(mix proposal or None, record, notes). The record lists, per move, what it wrote.
 
     ``sel``: range values chosen by calibration (``director.calibrate``); without it every range
@@ -1496,6 +1496,18 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
             if not isinstance(result, X.MixResult) or not isinstance(result.record, dict):
                 raise DirectionError(f"{m['op']}: expand must return MixResult with a record")
             target, trace = m.get("target"), []
+            resources, planned = {}, {}
+            declarations = result.chain
+            if result.nodes is not None or result.controls:
+                from .xops import _resources as XR
+                from . import derived as BB
+                pending, resources = XR.prepare(proj, dir_id, m, result)
+                planned = XR.planned_controls(pending)
+                declarations = XR.chain(result, pending)
+                if _plans is not None:
+                    _plans[m['id']] = pending
+                trace.extend('track:' + tid for tid in resources.get('nodes', {}).get('tracks', []))
+                trace.extend('clip:' + cid for cid in resources.get('nodes', {}).get('clips', []))
             if result.points:
                 from .duck import merge_automation
                 if target not in cur:
@@ -1503,11 +1515,19 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
                 points = merge_automation([], result.points)
                 xautomation.setdefault(target, []).append((m['id'], points))
                 trace.append(f"automation:{target}")
-            for i, declaration in enumerate(result.chain):
+            for i, declaration in enumerate(declarations):
                 ptype = declaration["type"]
-                params = P.validate_params(ptype, declaration.get("params") or {})
+                if planned:
+                    with BB.control_context(proj.root, planned):
+                        params = P.validate_params(ptype, declaration.get("params") or {})
+                else:
+                    params = P.validate_params(ptype, declaration.get("params") or {})
                 errors = []
-                _check_proc_params(ptype, params, _holder_stage(target), m['id'], errors)
+                if planned:
+                    with BB.control_context(proj.root, planned):
+                        _check_proc_params(ptype, params, _holder_stage(target), m['id'], errors)
+                else:
+                    _check_proc_params(ptype, params, _holder_stage(target), m['id'], errors)
                 if target == "master" or ptype in MASTER_ONLY or errors:
                     raise DirectionError(f"{m['op']}: invalid chain declaration")
                 item = _item(dir_id, m, ptype, params, target, f".x{i + 1}")
@@ -1519,6 +1539,8 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
                 trace.append(item['id'])
             record['moves'][m['id']] = {**copy.deepcopy(result.record), "op": m['op'],
                                         "track": target, "trace": trace}
+            if resources:
+                record['moves'][m['id']]['resources'] = resources
             notes.extend(result.notes)
             continue
         params, n = resolve_params(m, m.get("params") or {}, sel, ptype=_move_processor(m, proj))
@@ -1598,7 +1620,11 @@ def build_proposal(proj: _Project, doc: dict, sel: dict | None = None) -> tuple[
     prop["measurements"] = copy.deepcopy(fm.get("measurements"))
     prop["direction"] = {"id": dir_id, "floor_proposal": proj.floor_mxp_id}
     prop["operations"] = ["approve_and_apply", "reject_and_request_alternative"]
-    prop["proposal_id"] = "mxp_" + canonical_hash({"direction": dir_id, "changes": ch})[:12]
+    identity = {"direction": dir_id, "changes": ch}
+    resources = {mid: row['resources'] for mid, row in record['moves'].items() if row.get('resources')}
+    if resources:
+        identity['resources'] = resources
+    prop["proposal_id"] = "mxp_" + canonical_hash(identity)[:12]
     prop["status"] = "proposed"
     prop["author"] = "agent"
     return prop, record, notes
@@ -1650,6 +1676,11 @@ def _merge_ducks(proj: _Project, dir_id: str, tid: str, dl: list, segs: list, cu
 def _director_items(data: dict) -> list[dict]:
     out = []
     for t in data.get("tracks") or []:
+        if t.get('owner') == OWNER and t.get('move_ref'):
+            out.append({'holder': t.get('id'), 'id': 'track:' + t['id'], 'move_ref': t['move_ref']})
+        for clip in t.get('clips') or []:
+            if clip.get('owner') == OWNER and clip.get('move_ref'):
+                out.append({'holder': t.get('id'), 'id': 'clip:' + clip['id'], 'move_ref': clip['move_ref']})
         for it in t.get("chain") or []:
             if it.get("owner") == OWNER or it.get("move_ref"):
                 out.append({"holder": t.get("id"), **it})
@@ -1711,7 +1742,7 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
                 raise DirectionError(f"{move['id']}: {exc}") from exc
             edits['record'][move['id']] = row
             edits['summary']['moves'] += 1
-            kind = 'derived' if row['kind'] == 'derived' else 'clip_edits'
+            kind = 'derived_groups' if row['kind'] == 'derived_group' else 'derived' if row['kind'] == 'derived' else 'clip_edits'
             edits['summary'][kind] = edits['summary'].get(kind, 0) + 1
         proj = _Project(root)
     cal = None
@@ -1723,7 +1754,8 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
     apath = Path(doc["path"]).parent / "analysis.md"
     if apath.is_file():
         shutil.copyfile(apath, ddir / f"{doc['id']}.analysis.md")
-    prop, record, notes = build_proposal(proj, doc, sel=(cal or {}).get("selection"))
+    pending_mix = {}
+    prop, record, notes = build_proposal(proj, doc, sel=(cal or {}).get("selection"), _plans=pending_mix)
     out: dict = {"kind": "direction_apply", "id": doc["id"], "applied": True, "notes": notes,
                  "gate_definitions": gate_definitions_hash(), "floor_mix_proposal": proj.floor_mxp_id}
     if cal is not None:
@@ -1739,13 +1771,22 @@ def apply(project: str | Path, doc_path: str | Path, *, actor: str = "agent", va
                        "note": r.get("note")})
         out["cleanup"] = cl
     if prop is not None:
-        mixplan.save_mix_proposal(_ApiProj(root), prop)
-        r = api.plan_apply(str(root), prop["proposal_id"], actor=actor)
-        if isinstance(r, dict) and r.get("error"):
-            raise DirectionError(f"plan apply failed: {r.get('error')}")
-        if prop["changes"].get("bus_overrides"):
-            from .duck_curve import apply_bus_overrides
-            apply_bus_overrides(root, prop["changes"]["bus_overrides"], actor)
+        from contextlib import nullcontext
+        if pending_mix:
+            from . import derived as BB
+        with BB.transaction(root, actor=actor) if pending_mix else nullcontext():
+            if pending_mix:
+                from .xops import _resources as XR
+                moves = {m['id']: m for m in doc['block']['moves']}
+                for mid, pending in pending_mix.items():
+                    XR.apply(root, doc, moves[mid], pending, actor=actor)
+            mixplan.save_mix_proposal(_ApiProj(root), prop)
+            r = api.plan_apply(str(root), prop["proposal_id"], actor=actor)
+            if isinstance(r, dict) and r.get("error"):
+                raise DirectionError(f"plan apply failed: {r.get('error')}")
+            if prop["changes"].get("bus_overrides"):
+                from .duck_curve import apply_bus_overrides
+                apply_bus_overrides(root, prop["changes"]["bus_overrides"], actor)
         out["mix_proposal"] = prop["proposal_id"]
         out["mix_changes_sha256"] = canonical_hash(prop["changes"])[:16]
     variant = (doc["block"].get("variants") or [{}])[0]
@@ -2013,12 +2054,18 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
             if extensions[op].stage == 'mix':
                 traced = traced and isinstance(row.get('trace'), list) and all(
                     item in refs.get(m.get('id'), []) for item in row.get('trace', []))
+                if row.get('resources'):
+                    from .xops import _resources as XR
+                    traced = traced and XR.check(root, doc['id'], m['id'], row['resources'])
             else:
                 lp = root / DIRECTIONS_DIR / f"{doc['id']}.edits.json"
-                group = 'clip_edits' if row.get('kind') == 'clip_edit' else 'derived'
+                group = 'derived_groups' if row.get('kind') == 'derived_group' else 'clip_edits' if row.get('kind') == 'clip_edit' else 'derived'
                 entry = ((_read_json(lp).get(group) or {}).get(m.get('id')) or {}) if lp.is_file() else {}
                 traced = traced and entry.get('op') == op and entry.get('status') == 'applied' \
                     and entry.get('result') == row.get('result')
+                if group == 'derived_groups':
+                    from .xops import _group
+                    traced = traced and _group.check(root, doc['id'], m['id'], row)
             if not traced:
                 missing.append(m.get('id'))
         elif op in ("chain_add", "chain_param", "send", "bus_add") or (op == "pan" and str(m.get("target")).startswith("bus_")) \
@@ -2052,6 +2099,9 @@ def check(project: str | Path, floor: str | Path, doc_path: str | Path, *, varia
         if led.get('derived'):
             out['edits']['derived'] = {mid: {k: row.get(k) for k in ('op', 'track', 'status', 'key', 'result')}
                                        for mid, row in led['derived'].items()}
+        if led.get('derived_groups'):
+            out['edits']['derived_groups'] = {mid: {k: row.get(k) for k in ('op', 'members', 'mapping_sha256', 'status')}
+                                              for mid, row in led['derived_groups'].items()}
         if led.get('clip_edits'):
             out['edits']['clip_edits'] = {mid: {k: row.get(k) for k in ('op', 'track', 'status', 'params')}
                                           for mid, row in led['clip_edits'].items()}

@@ -40,7 +40,7 @@ def _validate(rows):
             raise ImportError('command declaration must be a dict')
         path = row.get('path')
         if not isinstance(path, tuple) or not path or not all(
-                isinstance(p, str) and re.fullmatch(r'[a-z][a-z0-9-]*', p) for p in path):
+                isinstance(p, str) and re.fullmatch(r'[a-z][a-z0-9_-]*', p) for p in path):
             raise ImportError('command path must be a nonempty tuple of CLI names')
         if path in seen or any(path[:len(p)] == p or p[:len(path)] == path for p in seen):
             raise ImportError(f'duplicate/overlapping direction command: {path}')
@@ -92,9 +92,7 @@ def execute(row, args, project):
     """Detect project writes, including on exceptions; out_only permits just --out."""
     root = Path(project).resolve()
     output = None
-    if row['writes'] == 'out_only':
-        if not getattr(args, 'out', None):
-            raise InputError('this command requires an explicit --out')
+    if row['writes'] == 'out_only' and getattr(args, 'out', None):
         output = Path(args.out).resolve()
         protected = [root / name for name in ('project.json', 'journal.jsonl', 'directions')]
         if output == root or any(output == p or output in p.parents or p in output.parents for p in protected):

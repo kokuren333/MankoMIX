@@ -40,6 +40,46 @@ class MixResult:
     points: list = field(default_factory=list)
     chain: list[dict] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    nodes: NodePlan | None = None
+    controls: list[ControlPlan] = field(default_factory=list)
+
+
+@dataclass
+class AudioPlan:
+    """Generated, already tuned/polarity-adjusted project-rate audio."""
+    name: str
+    audio: object
+    sample_rate: int
+    params: dict = field(default_factory=dict)
+    code_version: str = "1"
+    sources: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class NodePlan:
+    """Local names join assets, new tracks and additive clip placements."""
+    tracks: list[dict] = field(default_factory=list)
+    assets: list[AudioPlan] = field(default_factory=list)
+    clips: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class ControlPlan:
+    name: str
+    track: str
+    start: int
+    end: int
+    params: dict
+    calculate: Callable
+    code_version: str
+
+
+@dataclass
+class DerivedBundle:
+    """One frozen JSON mapping/cut list, with a DerivedPlan per affected track."""
+    plans: dict[str, DerivedPlan]
+    mapping: dict
+    record: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -118,20 +158,26 @@ def specs(builtins=()):
 def apply_edit(root, doc, move, spec, *, actor):
     """All derived edits use BB-18's cache, source checks, placement and ledger."""
     from .. import derived, edit
-    foreign = edit._live_foreign_edit(root, doc['id'], {move['target']})
+    targets = {move['target'], *(move.get('params', {}).get('group') or [])}
+    foreign = edit._live_foreign_edit(root, doc['id'], targets)
     if foreign is not None:
         raise ValueError('track still holds another direction edit; revert it first')
     for path in sorted((root / 'directions').glob('*.edits.json')):
         ledger = json.loads(path.read_text(encoding='utf-8'))
         if ledger.get('direction') != doc['id'] and any(
-                row.get('track') == move['target'] and row.get('status') == 'applied'
+                row.get('track') in targets and row.get('status') == 'applied'
                 for kind in ('derived', 'clip_edits') for row in ledger.get(kind, {}).values()):
             raise ValueError('track still holds another direction extension edit; revert it first')
     plan = spec.derive(root, copy.deepcopy(move))
-    if not isinstance(plan, (ClipPlan, DerivedPlan)) or not isinstance(plan.record, dict):
+    if not isinstance(plan, (ClipPlan, DerivedPlan, DerivedBundle)) or not isinstance(plan.record, dict):
         raise ValueError(f"{move['op']}: expected an edit plan with a JSON record")
     details = json.loads(derived._json(plan.record))
-    if isinstance(plan, ClipPlan):
+    if isinstance(plan, DerivedBundle):
+        from . import _group
+        row = _group.apply(root, doc, move, spec, plan, actor=actor)
+    elif len(targets) > 1:
+        raise ValueError('group edits require a DerivedBundle')
+    elif isinstance(plan, ClipPlan):
         row = _apply_clips(root, doc, move, spec, plan, actor)
     else:
         row = derived.apply(root, doc["id"], move["id"], move["target"], plan.start, plan.end,
@@ -140,10 +186,14 @@ def apply_edit(root, doc, move, spec, *, actor):
     # Record cross-kind order so interleaved clip-only and derived edits revert safely.
     path = edit.ledger_path(root, doc['id'])
     ledger = derived._ledger(root, doc['id'])
-    group = 'clip_edits' if isinstance(plan, ClipPlan) else 'derived'
+    group = 'derived_groups' if isinstance(plan, DerivedBundle) else 'clip_edits' if isinstance(plan, ClipPlan) else 'derived'
     ledger[group][move['id']]['details'] = details
     ledger.setdefault('xop_order', []).append(move['id'])
     derived._save(path, ledger)
+    if isinstance(plan, DerivedBundle):
+        return {**details, **{k: copy.deepcopy(row[k]) for k in
+                ('kind', 'op', 'track', 'members', 'mapping', 'mapping_sha256', 'status')},
+                'ledger': f"directions/{doc['id']}.edits.json"}
     if isinstance(plan, ClipPlan):
         return {**details, "op": move['op'], "track": move['target'], "kind": "clip_edit", "status": row['status'],
                 "params": row['params'], "ledger": f"directions/{doc['id']}.edits.json"}
@@ -157,7 +207,7 @@ def _apply_clips(root, doc, move, spec, plan, actor):
     from mankomix.core.project import Project
     from .. import derived, edit
     ledger = derived._ledger(root, doc['id'])
-    if any(move['id'] in ledger.get(key, {}) for key in ('moves', 'derived', 'clip_edits')):
+    if any(move['id'] in ledger.get(key, {}) for key in ('moves', 'derived', 'clip_edits', 'derived_groups')):
         raise ValueError('move already has an edit ledger record')
     project = Project.open(root)
     ti = next(i for i, t in enumerate(project.data['tracks']) if t['id'] == move['target'])
@@ -190,20 +240,23 @@ def revert_edits(root, direction, move=None, *, actor='human'):
     from mankomix.core.project import Project
     from .. import derived, edit
     ledger = derived._ledger(root, direction)
-    rows = {**ledger.get('derived', {}), **ledger.get('clip_edits', {})}
+    from . import _group
+    rows = {**ledger.get('derived', {}), **ledger.get('clip_edits', {}), **ledger.get('derived_groups', {})}
     order = ledger.get('xop_order', [])
-    if move in order and any(rows[mid].get('status') == 'applied' and rows[mid]['track'] == rows[move]['track']
+    if move in order and any(rows[mid].get('status') == 'applied' and _group.tracks(rows[mid]) & _group.tracks(rows[move])
                              for mid in order[order.index(move) + 1:]):
         raise ValueError(f'{move}: revert later moves on this track first')
     targets = [mid for mid in order
                if (move is None or mid == move) and rows[mid]['status'] == 'applied']
     for mid in reversed(targets):
         row = rows[mid]
-        if row['kind'] == 'derived':
+        if row['kind'] == 'derived_group':
+            _group.revert(root, direction, mid, actor=actor)
+        elif row['kind'] == 'derived':
             derived.revert(root, direction, mid, actor=actor)
             current = derived._ledger(root, direction)
             current['reverted'] = not any(entry.get('status') == 'applied'
-                                          for kind in ('moves', 'derived', 'clip_edits')
+                                          for kind in ('moves', 'derived', 'clip_edits', 'derived_groups', 'nodes', 'controls')
                                           for entry in current.get(kind, {}).values())
             derived._save(edit.ledger_path(root, direction), current)
         else:
@@ -218,7 +271,7 @@ def revert_edits(root, direction, move=None, *, actor='human'):
             derived._save(edit.ledger_path(root, direction), current)
     ledger = derived._ledger(root, direction)
     ledger['reverted'] = not any(row.get('status') == 'applied'
-                                  for kind in ('moves', 'derived', 'clip_edits')
+                                  for kind in ('moves', 'derived', 'clip_edits', 'derived_groups', 'nodes', 'controls')
                                   for row in ledger.get(kind, {}).values())
     if targets:
         derived._save(edit.ledger_path(root, direction), ledger)

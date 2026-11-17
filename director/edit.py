@@ -558,7 +558,22 @@ def revert(root: str | Path, dir_id: str, move: str | None = None, *, actor: str
     if not lp.is_file():
         raise EditError(f"no edit ledger for {dir_id} in this project")
     ledger = json.loads(lp.read_text(encoding="utf-8"))
-    extension_rows = {**ledger.get('derived', {}), **ledger.get('clip_edits', {})}
+    extension_rows = {**ledger.get('derived', {}), **ledger.get('clip_edits', {}), **ledger.get('derived_groups', {})}
+    resource_moves = []
+    if ledger.get('nodes') or ledger.get('controls'):
+        from .xops import _resources
+        try:
+            resource_moves = _resources.revert(root, dir_id, move, actor=actor)
+        except ValueError as exc:
+            raise EditError(str(exc)) from exc
+        known = move in ledger.get('nodes', {}) or any(
+            row.get('move_ref') == f'{dir_id}/{move}' for row in ledger.get('controls', {}).values())
+        if move is not None and known or move is None and not ordered_edits(ledger):
+            current = json.loads(lp.read_text(encoding='utf-8'))
+            return {'kind': 'direction_edit_revert', 'direction': dir_id, 'move': move,
+                    'reverted_moves': resource_moves, 'ledger': f'directions/{lp.name}',
+                    'journal_seq': journal.last_seq(root), 'ledger_reverted': current.get('reverted', False)}
+        ledger = json.loads(lp.read_text(encoding='utf-8'))
     ordered = ledger.get('xop_order') or []
     if ordered and (move in ordered or move is None and (not ledger.get('moves') or any(
             extension_rows[mid].get('status') == 'applied' for mid in ordered))):
@@ -568,11 +583,15 @@ def revert(root: str | Path, dir_id: str, move: str | None = None, *, actor: str
         except ValueError as exc:
             raise EditError(str(exc)) from exc
         if move is not None or not ledger.get('moves'):
+            if resource_moves:
+                result['resource_reverted_moves'] = resource_moves
             return result
         legacy = revert(root, dir_id, actor=actor)
         legacy['derived_reverted_moves'] = [mid for mid in result['reverted_moves']
                                             if extension_rows[mid]['kind'] == 'derived']
         legacy['extension_reverted_moves'] = result['reverted_moves']
+        if resource_moves:
+            legacy['resource_reverted_moves'] = resource_moves
         return legacy
     if move in (ledger.get('moves') or {}) and any(
             row.get('status') == 'applied' and row.get('track') == ledger['moves'][move].get('track')
@@ -645,3 +664,10 @@ def revert(root: str | Path, dir_id: str, move: str | None = None, *, actor: str
     return {"kind": "direction_edit_revert", "direction": dir_id, "move": move, "reverted_moves": targets,
             "journal_seq": seq, "ledger_reverted": bool(ledger.get("reverted")),
             "ledger": f"{DIRECTIONS_DIR}/{lp.name}"}
+
+
+def ordered_edits(ledger):
+    """Whether native/extension clip edits remain to dispatch after mix resources."""
+    return any(row.get('status') == 'applied'
+               for kind in ('moves', 'derived', 'clip_edits', 'derived_groups')
+               for row in ledger.get(kind, {}).values())

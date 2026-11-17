@@ -22,6 +22,8 @@ import hashlib
 import json
 import re
 import shutil
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Callable
 
@@ -283,9 +285,12 @@ def revert(root: str | Path, direction: str, move: str | None = None, *, actor: 
         raise DerivedError(f"no edit ledger for {direction}")
     ledger = _ledger(root, direction)
     records = ledger["derived"]
+    if move is not None and records.get(move, {}).get('group'):
+        raise DerivedError('revert the complete group through direction edit revert')
     if move is not None and move not in records:
         raise DerivedError(f"unknown derived move '{move}'")
-    targets = [mid for mid, row in records.items() if row["status"] == "applied" and (move is None or mid == move)]
+    targets = [mid for mid, row in records.items() if row["status"] == "applied" and (move is None or mid == move)
+               and not row.get('group')]
     project = Project.open(root)
     data = copy.deepcopy(project.data)
     for mid in reversed(targets):
@@ -345,3 +350,244 @@ def regenerate(root: str | Path, direction: str, move: str, *, calculate: Calcul
         path, _ = _calculate(root, entry, x, calculate)
     _restore(path, dest, entry["result"]["sha256"])
     return {"asset": asset["id"], "sha256": asset["sha256"], "regenerated": True}
+
+
+_resource_undo = ContextVar('direction_resource_undo', default=None)
+
+
+@contextmanager
+def transaction(root, *, actor):
+    """Compensate failed multi-resource operations through core; retain journal history.
+
+    Failed attempts leave no registered assets, placements or ledger rows. New
+    cache/files are removed; pre-existing caches are expendable. Journal entries
+    are never truncated: the compensation is itself an ordinary core patch.
+    """
+    root = Path(root)
+    before = copy.deepcopy(Project.open(root).data)
+    files = {p.relative_to(root) for p in root.rglob('*') if p.is_file()}
+    ledgers = {p: p.read_bytes() for p in (root / 'directions').glob('*.edits.json')}
+    parent_undo = _resource_undo.get()
+    undo = []
+    token = _resource_undo.set(undo)
+    try:
+        yield
+    except BaseException:
+        remix._commit(Project.open(root), before, actor=actor, op='xop_rollback',
+                      reason='rollback failed direction resource transaction')
+        for p in root.rglob('*'):
+            if p.is_file() and p.relative_to(root) not in files:
+                p.unlink()
+        for p, contents in ledgers.items():
+            p.write_bytes(contents)
+        for p, contents in reversed(undo):
+            if contents is None:
+                p.unlink(missing_ok=True)
+            else:
+                p.write_bytes(contents)
+        raise
+    else:
+        if parent_undo is not None:
+            parent_undo.extend(undo)
+    finally:
+        _resource_undo.reset(token)
+
+
+def _source_segment(root, track, start, end):
+    """A reproducible raw snapshot, also used by non-audio derivations."""
+    start, end = _sample(start, 'start'), _sample(end, 'end')
+    x, sr, data = edit.raw_track(root, track)
+    if not start < end <= len(x):
+        raise DerivedError('control input is outside the timeline')
+    clips = copy.deepcopy(mr.find_track(data, track).get('clips') or [])
+    ids = {c['asset'] for c in clips}
+    source = {'track': track, 'clips': clips, 'sample_rate': sr, 'frames': len(x),
+              'assets': [{'id': a['id'], 'sha256': a['sha256']} for a in data['assets'] if a['id'] in ids],
+              'raw_sha256': _audio_hash(x)}
+    _verify_sources(Project.open(root), source)
+    return x[start:end].copy(), source
+
+
+def _control_payload(value):
+    if not isinstance(value, dict) or value.get('kind') != 'control':
+        raise DerivedError('control calculator must return a kind=control payload')
+    value = dict(value)
+    values = np.asarray(value.get('values'), dtype=np.float64)
+    hop, origin = float(value.get('hop_s', .005)), float(value.get('origin_s', 0))
+    if (values.ndim not in (2, 3) or not all(values.shape) or not np.isfinite(values).all()
+            or np.any(values < 0) or values.ndim == 3 and values.shape[2] not in (1, 2)
+            or not np.isfinite(hop) or hop <= 0 or not np.isfinite(origin) or origin < 0):
+        raise DerivedError('invalid control dimensions, amplitudes or timing')
+    if 'centers_hz' in value:
+        centers = np.asarray(value['centers_hz'], dtype=np.float64)
+        if (centers.shape != (values.shape[1],) or not np.isfinite(centers).all()
+                or np.any(centers <= 0) or np.any(np.diff(centers) <= 0)):
+            raise DerivedError('invalid control band centers')
+        value['centers_hz'] = centers.tolist()
+    value.update(values=values.tolist(), hop_s=hop, origin_s=origin)
+    return json.loads(_json(value))
+
+
+def prepare_control(root, *, track, start, end, op, params, code_version, calculate):
+    """Read/calculate only. Return a JSON recipe and payload; create no files."""
+    if not isinstance(params, dict) or not isinstance(code_version, str) or not code_version:
+        raise DerivedError('control needs resolved params and code_version')
+    params = json.loads(_json(params))
+    x, source = _source_segment(root, track, start, end)
+    payload = _control_payload(calculate(x, source['sample_rate'], copy.deepcopy(params)))
+    sha = _hash(payload)
+    return {'kind': 'control', 'op': op, 'params': params, 'code_version': code_version,
+            'source': source, 'start': int(start), 'end': int(end),
+            'key': cache_key(source, op, params, code_version, start=int(start), end=int(end), kind='control'),
+            'result': {'asset': 'ctl_' + sha, 'sha256': sha}, 'payload': payload}
+
+
+def _control_paths(root, entry):
+    aid = entry['result']['asset']
+    if re.fullmatch(r'ctl_[0-9a-f]{64}', aid) is None:
+        raise DerivedError('invalid control asset ID')
+    return (Path(root) / 'assets' / 'derived' / f'{aid}.json',
+            Path(root) / 'cache' / 'derived' / f"{entry['key']}.control.json")
+
+
+def _locator(asset):
+    from mankomix.core.config import settings_dir
+    if re.fullmatch(r'ctl_[0-9a-f]{64}', asset) is None:
+        raise LookupError(asset)
+    return settings_dir() / 'derived' / f'{asset}.json'
+
+
+_control_root = ContextVar('direction_control_root', default=None)
+_planned_controls = ContextVar('direction_planned_controls', default={})
+
+
+@contextmanager
+def control_context(root=None, planned=None):
+    """Scope project selection/planned payloads without writing or global retargeting."""
+    a = _control_root.set(Path(root).resolve() if root is not None else None)
+    b = _planned_controls.set(planned or {})
+    try:
+        yield
+    finally:
+        _planned_controls.reset(b)
+        _control_root.reset(a)
+
+
+def resolve_control(asset):
+    """Persistent resolver. Explicit context wins; locator fallback supports raw core renders.
+
+    The user settings index contains only locations, never authoritative payloads.
+    Project copies/moves can use control_context(new_root) or the CLI --project.
+    Every read checks the content hash embedded in the ID, including planned data.
+    """
+    locator = _locator(asset)
+    if asset in _planned_controls.get():
+        payload = _planned_controls.get()[asset]
+    else:
+        root = _control_root.get()
+        if root is None:
+            root = Path.cwd()
+            if not (root / 'assets' / 'derived' / f'{asset}.json').is_file():
+                if not locator.is_file():
+                    raise LookupError(asset)
+                root = Path(json.loads(locator.read_text(encoding='utf-8'))['root'])
+        path = root / 'assets' / 'derived' / f'{asset}.json'
+        if not path.is_file():
+            raise LookupError(asset)
+        payload = json.loads(path.read_text(encoding='utf-8'))
+    if _hash(payload) != asset.removeprefix('ctl_'):
+        raise DerivedError('control result sha256 mismatch')
+    return _control_payload(payload)
+
+
+def install_control_resolver():
+    from mankomix.dspx.bb.band_envelopes import install_control_resolver as install
+    install(resolve_control)
+
+
+def apply_control(root, direction, move, name, prepared, *, actor='agent'):
+    """Register a prepared control in a separate non-audio ledger/asset namespace."""
+    root = Path(root)
+    _identifier(move)
+    _identifier(name)
+    journal.check_actor(actor)
+    entry = copy.deepcopy(prepared)
+    payload = entry.pop('payload')
+    if _hash(payload) != entry['result']['sha256']:
+        raise DerivedError('prepared control sha256 mismatch')
+    _verify_sources(Project.open(root), entry['source'])
+    _, current_source = _source_segment(root, entry['source']['track'], entry['start'], entry['end'])
+    if current_source != entry['source']:
+        raise DerivedError('control source changed after planning')
+    ledger = _ledger(root, direction)
+    key = f'{move}__{name}'
+    if key in ledger.get('controls', {}):
+        raise DerivedError('control already registered for this move/name')
+    dest, cache = _control_paths(root, entry)
+    for path in (dest, cache):
+        if path.is_file() and _hash(json.loads(path.read_text(encoding='utf-8'))) != entry['result']['sha256']:
+            raise DerivedError('existing control sha256 mismatch')
+        _save(path, payload)
+    entry.update(status='applied', owner='director', move_ref=f'{direction}/{move}', name=name,
+                 path=dest.relative_to(root).as_posix())
+    ledger.setdefault('controls', {})[key] = entry
+    ledger['reverted'] = False
+    _save(_path(root, direction), ledger)
+    # Location only; a different process can resolve the content-addressed ID.
+    locator = _locator(entry['result']['asset'])
+    undo = _resource_undo.get()
+    if undo is not None:
+        undo.append((locator, locator.read_bytes() if locator.is_file() else None))
+    _save(locator, {'root': str(root.resolve())})
+    install_control_resolver()
+    return entry
+
+
+def regenerate_control(root, direction, move, name, *, calculate=None):
+    """Repair missing control/cache from the exact recorded raw snapshot and version."""
+    root = Path(root)
+    entry = _ledger(root, direction).get('controls', {}).get(f'{move}__{name}')
+    if entry is None:
+        raise DerivedError('unknown control recipe')
+    dest, cache = _control_paths(root, entry)
+    payload = None
+    for path in (dest, cache):
+        if path.is_file():
+            value = json.loads(path.read_text(encoding='utf-8'))
+            if _hash(value) != entry['result']['sha256']:
+                raise DerivedError('control result sha256 mismatch')
+            payload = value
+    existed = dest.is_file()
+    if payload is None:
+        if calculate is None:
+            raise DerivedError(f"calculator required for {entry['op']} at version {entry['code_version']}")
+        project = Project.open(root)
+        _verify_sources(project, entry['source'])
+        data = copy.deepcopy(project.data)
+        track = mr.find_track(data, entry['source']['track'])
+        track['clips'] = copy.deepcopy(entry['source']['clips'])
+        track.pop('cleanup', None)
+        x, sr, _ = mr.render_track(edit._RawView(project, data), track['id'], apply_chain=False,
+                                    apply_fader=False, length=entry['source']['frames'])
+        if sr != entry['source']['sample_rate'] or _audio_hash(x) != entry['source']['raw_sha256']:
+            raise DerivedError('recorded control source no longer renders identically')
+        payload = _control_payload(calculate(x[entry['start']:entry['end']].copy(), sr,
+                                             copy.deepcopy(entry['params'])))
+        if _hash(payload) != entry['result']['sha256']:
+            raise DerivedError('regenerated control sha256 differs from ledger')
+    for path in (dest, cache):
+        if not path.is_file():
+            _save(path, payload)
+    return {**entry['result'], 'regenerated': not existed}
+
+
+def regenerate_group(root, direction, move, *, calculators=None):
+    """Regenerate all member assets; calculators maps each track to its exact version."""
+    from .xops._group import regenerate
+    return regenerate(root, direction, move, calculators=calculators)
+
+
+def regenerate_node(root, direction, move, name, *, audio=None):
+    """Repair generated node audio from cache or the exact version's supplied waveform."""
+    from .xops._resources import regenerate
+    return regenerate(root, direction, move, name, audio=audio)

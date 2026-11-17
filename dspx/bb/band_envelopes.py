@@ -22,7 +22,9 @@ def install_control_resolver(resolver):
 
 
 def _missing(asset_id):
-    raise LookupError(asset_id)
+    # Lazy import keeps processor discovery independent of the direction layer.
+    from mankomix.director.derived import resolve_control
+    return resolve_control(asset_id)
 
 
 def ensure_optional_registry():

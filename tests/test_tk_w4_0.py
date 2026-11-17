@@ -332,6 +332,8 @@ def test_readonly_write_guard_even_on_exception(song, path, raises):
 
 def test_out_only_explicit_destination_and_no_ledger_writes(song, tmp_path):
     def run(args):
+        if not args.out:
+            return {'written': False}
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
         (out / 'preview.txt').write_text('preview', encoding='utf-8')
@@ -340,8 +342,8 @@ def test_out_only_explicit_destination_and_no_ledger_writes(song, tmp_path):
     before = C._snapshot(song)
     assert invoke(row, song, ['--out', str(tmp_path / 'preview')]) == {'written': True}
     assert C._snapshot(song) == before
-    with pytest.raises(InputError, match='explicit --out'):
-        invoke(row, song)
+    assert invoke(row, song) == {'written': False}
+    assert C._snapshot(song) == before
     for target in (song, song / 'directions', song / 'directions' / 'new.json', song / 'project.json'):
         with pytest.raises(InputError, match='overlaps'):
             invoke(row, song, ['--out', str(target)])

@@ -57,6 +57,99 @@ automation to retain the move's reference. No-output moves are traced by their
 record. Declare dependencies (including random seeds), measurements and caveats
 explicitly; do not invent gates or check whether someone used a suggestion.
 
+## Optional mix resources (W4_1)
+
+The original `MixResult(record, points=[], chain=[], notes=[])` and every
+`OpSpec` declaration remain valid. Additional optional fields are `nodes=None`
+and `controls=[]`. Expand/build stay read-only: calculation is in memory;
+only direction.apply registers resources, before applying the mix proposal.
+An import, placement or mix-apply failure compensates all resource registration
+through a core patch, restores ledgers and removes newly created files.
+Journal history retains attempts and compensation. Core is unchanged.
+
+```python
+from mankomix.director.xops import AudioPlan, NodePlan, MixResult
+
+result = MixResult(record={"hits": 1}, nodes=NodePlan(
+    tracks=[{"name": "reinforcement", "role": "drums", "output": "bus_mix"}],
+    assets=[AudioPlan("hit", audio, project.rate,
+                      params={"seed": 0, "speed": 1.0, "polarity": 1},
+                      code_version="1", sources=source_hash_records)],
+    clips=[{"track": "reinforcement", "asset": "hit", "timeline_start": 100,
+            "source_start": 0, "length": len(audio), "gain_db": -6}]))
+```
+
+Names are local identifiers. The seam supplies stable track/clip IDs, owner
+and move_ref. Tracks accept only name/role/output; output is an existing bus
+(normally the source track's output). Clips accept track/asset/timeline_start/
+length and optional source_start/gain_db/fade_in/fade_out. Integer sample
+positions must stay inside source and project bounds. Overlapping hits add.
+Audio must be finite float64 (frames,1/2) at project.rate. Core has no clip
+speed/polarity processing: bake those into the waveform and record the values
+in params. Include every default and seed, plus all `{id, sha256}` dependencies
+in sources. Full-timeline DOUBLE carriers avoid short-source ingest exceptions.
+Content hashes and recipe keys identify the local cache under cache/derived/.
+Existing staged import and validated/journaled core patches register/place
+resources. Duplicate audio reuses assets without claiming foreign ownership.
+
+Node ledger rows live under `nodes`; apply records keep IDs, keys and hashes.
+Check verifies ownership, routing, clips and registered audio hashes.
+`derived.regenerate_node(root, direction, move, name, audio=None)` restores
+missing audio from cache. After deleting cache, supply the exact version's
+generated waveform: waveform and carrier hashes must both match. Existing
+corrupt files are errors, never silently replaced.
+
+### Persistent non-audio control assets
+
+```python
+from mankomix.director.xops import ControlPlan
+
+result = MixResult(record={"confidence": "high"}, controls=[
+    ControlPlan("env", "trk_modulator", start, end, resolved_params,
+                calculate_control, "1")], chain=[
+    {"type": "band_envelope", "params": {
+        "bands": 16, "envelopes": {"control": "env"}}}])
+```
+
+`calculate_control(raw_segment_float64, sample_rate, params)` returns
+`{"kind":"control", "values": array, "hop_s": .005, "origin_s": 0,
+"centers_hz": centers}`. Values are finite/nonnegative (time,bands) or
+(time,bands,1/2); hop_s is positive and origin_s nonnegative. Optional centers
+must match the processor layout. Supply absolute origin_s for a section.
+Each plan has its own code_version and complete resolved params. The seam
+freezes raw clips/source hashes, calculates in memory, replaces explicit
+`{"control": local_name}` parameter references with `ctl_<content_sha256>`
+and validates against temporary in-memory payloads. Ordinary params are intact.
+
+Apply writes hashed JSON under assets/derived/ and a recipe-keyed local cache.
+`controls` ledger rows track sources, op, params, version, key, result hash,
+owner and move_ref. Controls are separate from core audio assets.
+`derived.install_control_resolver()` connects to band_envelopes' installer
+(`asset` registry `derived`), retaining the empty-ID sentinel. Processor
+discovery installs a lazy persistent fallback for fresh processes. Each read
+verifies the content hash embedded in the ID.
+
+The CLI scopes resolution to --project. Library callers handling project
+copies/moves use `with derived.control_context(root): ...` (ContextVar, reset
+on exit). Without context, resolution tries the project at cwd, then a user
+settings locator saved on apply. This locator holds only the last registered
+project location; project files remain authoritative. Chain params/ledgers
+contain no absolute project paths. On another machine, select project context
+instead of relying on a locator. Build/read-only commands never write locators
+or regenerate files.
+
+`derived.regenerate_control(root, direction, move, name, calculate=None)`
+repairs missing asset/cache JSON. Cache misses require the exact version's
+calculator; recorded raw layout, source hashes, raw hash and result hash must
+match before saving. Check also detects missing/corrupt control data.
+
+Direction edit revert removes new node tracks/clips and resource-owned chain
+items, and marks node/control rows reverted. Reusable core audio assets remain
+unused (as with stem_remove); control/cache files remain. Modified node tracks
+are refused. Automation restores its pre-apply value only when every ref in
+that composed curve belongs to selected resource moves; other dependencies
+are refused before mutation. Revert dependencies first. Repeat revert is inert.
+
 ## Derived edits
 
 ```python
@@ -113,6 +206,38 @@ that order backwards, restores clip-only layouts with stale-layout checks and
 dispatches derived rows to BB-18, then restores the older FB2 stage. Attempting
 to revert an earlier native edit while a later extension on its track is active
 is refused. Applying over another direction's active edit is also refused.
+
+### Group derived plans
+
+A planner may return `DerivedBundle(plans={track_id: DerivedPlan(...)},
+mapping={...}, record={})`. Include target and exactly every unique peer in
+move.params.group. The seam supports 16 peers plus target; op validators must
+enforce their own 8/16-peer limits. Every member shares start/end,
+timeline_start and fit=keep_length. Mapping is a nonempty finite JSON object
+holding the common time map and/or reference-track cuts and integer shifts:
+calculate it once, never separately for each track.
+
+The seam deep-copies the frozen mapping into each calculator's resolved params
+as `group_mapping`. A conflicting per-track mapping is refused. Calculators
+must use that supplied map/cut list; remaining params may differ (e.g. pitch).
+Mapping is part of every cache key. The seam enforces shared inputs; callbacks
+remain responsible for their processing algorithm.
+
+All targets are checked for foreign native/extension edits before planning or
+registration. A failure compensates all preceding members and leaves no
+registered assets, clips or ledger rows. Journal attempts/compensation remain.
+`derived_groups[move]` stores mapping/hash and member results. Linked child
+BB-18 recipes use internal move IDs; xop_order contains only the parent.
+Never revert children directly. Check verifies every member's mapping,
+registered result hash, recipe linkage and clip presence.
+
+`derived.regenerate_group(root, direction, move, calculators={track: fn})`
+repairs members via recorded recipes; cached members need no calculator.
+Regeneration changes no project registration/layout. Individual file repairs
+may remain if a later member cannot regenerate. Group revert preflights all
+layouts, restores all members through one core patch, then updates statuses.
+A stale peer prevents the whole revert. Later single/group edits sharing any
+member must revert first; whole-direction revert walks mixed kinds backwards.
 
 `time_varying=True` on a lead mix op gives E3, as for existing time-varying ops.
 Every lead edit is E3 regardless of this flag. Other extension moves are at least
