@@ -71,6 +71,8 @@ RP（`amount` 既定 1）に加えて：
 
 `denoise_ml` は推論・BYOW・代替処理の経路を持つが、C-4の標準 Mix Report 接続にcoreの追加が要るため `implemented: false`（OQ-4）。modelの空文字は内部未指定値であり、既定モデルの選択ではない。未指定での実行は拒否する。T10-15衣擦れ側は再配布可能なOSS重みが見つからず未実装。風側の `dewind` と分けて扱う。
 
+**OQ 実施（2026-11-18、オーナー承認の OQ-4）**：core に追加だけで接続した（`core/mixrender.py` のチェーン項目 `fallback` の受け渡しと step 記録、`core/routes.py` の mix 記録の引き渡し、`core/render.py` の manifest、`core/report.py` の Mix Report 再現情報、モデル型を含む track のキャッシュ無効化）。代替実行の警告・記録とモデルの ID・sha256 は標準 Mix Report（JSON・日本語・英語）に出る。モデル型を使わない描画の manifest と Mix Report はバイト同一。これで `denoise_ml` は `implemented: true`。
+
 ## T10-03 AI ボーカル分離抽出
 
 **編集段の op `edit_isolate`（派生クリップ）**｜C｜W5｜M｜Codex
@@ -218,6 +220,8 @@ RP の `delta` に加えて（領域は配列。全部同じ長さ、最大 64 �
 ### 実装時の確定（統括の判断 D-28）
 
 領域選択GUIはOQ-3で保留。`spectral_repair` は矩形の時刻・周波数を数値指定する。GUIの有無は型の `implemented` と別に表示する。
+
+**OQ 実施（2026-11-18、オーナー承認の OQ-3）**：core/server に読み取り専用 API `POST /api/direction/spectral-repair/preview` を、GUI に画面 `#/spectral` を追加した。API は CLI（`spectral_repair` の検証と `direction query meters --what spectrogram`）と同じ関数を呼び、応答は CLI の JSON と一致する（試験で確認）。矩形を選ぶと `t0_s`・`t1_s`・`lo_hz`・`hi_hz` が出て、検証と下見ができる。適用は指揮書の op で `spectral_repair` を指定する。
 
 ## T10-11 スペクトルリカバリー
 

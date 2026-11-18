@@ -46,6 +46,18 @@ export interface LocalBackendOptions {
  */
 export class LocalBackend implements Backend {
   readonly kind = "local" as const;
+
+  getPitchNotes(options: import("./observations").ObservationOptions & { lo_hz?: number; hi_hz?: number; a4?: number }) {
+    return this.request<import("./observations").NoteObservation>("GET", "/direction/pitch/notes", undefined, { ...options });
+  }
+
+  getMeters(options: import("./observations").ObservationOptions & { what?: string; points?: number }) {
+    return this.request<import("./observations").MeterObservation>("GET", "/direction/query/meters", undefined, { ...options });
+  }
+
+  previewSpectralRepair(options: import("./observations").ObservationOptions & { params: import("./observations").SpectralParams }) {
+    return this.request<import("./observations").SpectralPreview>("POST", "/direction/spectral-repair/preview", options);
+  }
   private readonly base: string;
   private readonly fetchFn: FetchFn;
   private readonly es?: typeof EventSource;

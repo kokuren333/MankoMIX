@@ -95,6 +95,8 @@ op `edit_pitch` の `params`：
 
 音符表示GUIはOQ-3で保留。`direction pitch notes`・`edit_pitch`・`pitch_curve` の数値指定を利用する。GUIバックエンドへのAPI追加はcore差分0と両立しないため、この判断ではcoreを変更しない。
 
+**OQ 実施（2026-11-18、オーナー承認の OQ-3）**：core/server に読み取り専用 API `GET /api/direction/pitch/notes` を、GUI に画面 `#/notes` を追加した。API は CLI（`direction pitch notes`）と同じ関数を呼び、応答は CLI の JSON と一致する（試験で確認）。音符の編集の適用は CLI の `edit_pitch` で行う。
+
 ## T08-03 ハーモニー生成
 
 `harmony_voices`｜B｜W3｜M（T08-01 の後。同じ追跡と音階の扱い）｜Codex｜TV｜`offline_only: True`｜`stages: ["track"]`

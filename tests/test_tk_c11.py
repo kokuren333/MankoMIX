@@ -106,23 +106,23 @@ def test_core_keeps_mix_warning_but_discards_step_fallback(engine_fallback, monk
     data = dict(timebase=dict(sample_rate=48000, length_samples=len(x)))
     project = SimpleNamespace(data=data)
     ctx = mixrender._Ctx(project, data, 0)
-    assert 'fallback' not in mixrender.engine_chain(chain)[0]
-    with pytest.raises(ValidationError, match='no available backend'):
-        ctx.run_chain(x, chain, 'track')
+    assert mixrender.engine_chain(chain)[0]['fallback'] == chain[0]['fallback']
+    actual, actual_steps = ctx.run_chain(x, chain, 'track')
+    assert actual.tobytes() == res.audio.tobytes() and actual_steps[0]['fallback'] == res.steps[0]['fallback']
     # Supply the real engine result to inspect downstream serialization even
     # though engine_chain has already discarded the fallback declaration.
     monkeypatch.setattr(E, 'render_chain', lambda *a, **kw: res)
     _, steps = ctx.run_chain(x, chain, 'track')
     assert warning in ctx.warnings
-    assert 'fallback' not in steps[0]
-    assert 'fallback' not in render._step_backends(res.steps)[0]
+    assert steps[0]['fallback'] == res.steps[0]['fallback']
+    assert render._step_backends(res.steps)[0]['fallback'] == res.steps[0]['fallback']
     # The mastering/report input API returns audio/rate and drops mix metadata.
     monkeypatch.setattr(mixrender, 'render_mix', lambda *a, **kw: (res.audio, res.sr, {'warnings': ctx.warnings}))
     loaded = routes.load_master_input(project, 'stem_mix')
     assert len(loaded) == 2 and loaded[0] is res.audio
+    assert warning in project._mix_render_record['warnings']
 
 
-@pytest.mark.xfail(strict=True, reason='C-4 blocked: core.report ignores manifest render_warnings')
 def test_c4_manifest_warning_reaches_mix_report_source(engine_fallback, monkeypatch):
     _, _, res, warning = engine_fallback
     manifest = dict(steps=render._step_backends(res.steps), render_warnings=res.warnings)

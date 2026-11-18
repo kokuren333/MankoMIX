@@ -191,6 +191,8 @@ T01-11 `ride`（連続的に追う、秒以下の動き）とは別：こちら�
 
 メータ画面GUIはOQ-3で保留、数値は `direction query meters` から取得する。観察値の表示を合否・音質の評価に読み替えない。新しい下見はCLI専用で、MCPの計画名と公開済みツールを区別する。
 
+**OQ 実施（2026-11-18、オーナー承認の OQ-3）**：core/server に読み取り専用 API `GET /api/direction/query/meters` を、GUI に画面 `#/meters` を追加した。API は CLI（`direction query meters`）と同じ関数を呼び、応答は CLI の JSON と一致する（試験で確認）。
+
 ## T12-09 トーンバランス比較
 
 **下見コマンド `direction ref balance`**｜D（カタログ：「ref compare の発展」）｜W4｜S（T02-08・T02-09 の測定の後）｜Codex

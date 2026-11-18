@@ -1,0 +1,16 @@
+.oq-observation { display: grid; gap: 1rem; }
+.oq-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.oq-controls label, .oq-params { display: grid; gap: .25rem; }
+.oq-controls input { max-width: 13rem; }
+.oq-params textarea { width: 100%; font-family: monospace; }
+.oq-json { overflow: auto; max-height: 28rem; white-space: pre; }
+.oq-summary { display: flex; flex-wrap: wrap; gap: 1rem; }
+.oq-summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+.oq-bin { fill: var(--mm-series-after); }
+.oq-selectable { touch-action: none; cursor: crosshair; }
+.oq-selection { fill: none; stroke: var(--mm-series-before); stroke-width: 2; pointer-events: none; }
+.oq-current rect { fill: var(--mm-series-after); opacity: .25; }
+.oq-current line { stroke: var(--mm-series-after); stroke-width: 2; }
+.oq-before rect { fill: var(--mm-series-before); opacity: .2; }
+.oq-before line { stroke: var(--mm-series-before); stroke-width: 2; stroke-dasharray: 4 3; }
+.oq-axis { fill: none; stroke: var(--mm-axis); }

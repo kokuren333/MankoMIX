@@ -57,7 +57,7 @@ def test_catalog_and_kind_contracts():
         params(model='scnet_4stem')
     assert P.describe('denoise_ml')['offline_only']
     assert P.describe('denoise_ml')['backends'] == ['model']
-    assert not P.describe('denoise_ml')['implemented']
+    assert P.describe('denoise_ml')['implemented']
 
 
 @pytest.mark.parametrize('kw', [dict(reduction_db=-.01), dict(reduction_db=60.01),

@@ -57,7 +57,7 @@ def patch_schema(schema):
     schema['properties']['model']['minLength'] = 1
 
 
-SPECS = [dict(type='amp_sim', implemented=False,
+SPECS = [dict(type='amp_sim', implemented=True,
     description='Offline user-owned NAM capture; requires an explicit registered model.',
     stages=['track'], master_slot=None, offline_only=True, backends=['model'],
     fallback=dict(type='amp_basic', default='error', mapping='explicit generic amplifier substitution; different sound'),

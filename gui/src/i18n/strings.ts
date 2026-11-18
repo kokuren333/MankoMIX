@@ -2,6 +2,9 @@
 // the backend in the requested language; these are only GUI chrome strings.
 
 const en = {
+  "nav.notes": "Notes",
+  "nav.spectral": "Spectral regions",
+  "nav.meters": "Meters",
   "app.title": "MankoMIX",
   "app.tagline": "Objective-driven mixing & mastering",
   "app.lang": "Language",
@@ -268,6 +271,9 @@ const en = {
 export type StringKey = keyof typeof en;
 
 const ja: Record<StringKey, string> = {
+  "nav.notes": "音符表示",
+  "nav.spectral": "スペクトル領域選択",
+  "nav.meters": "メータ",
   "app.title": "MankoMIX",
   "app.tagline": "目的関数で仕上げるミックスとマスタリング",
   "app.lang": "言語",

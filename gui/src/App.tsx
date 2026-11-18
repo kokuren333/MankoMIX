@@ -13,6 +13,7 @@ import { VerifyScreen } from "./screens/VerifyScreen";
 import { ReportScreen } from "./screens/ReportScreen";
 import { ModelsScreen } from "./screens/ModelsScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
+import { NotesScreen, SpectralScreen, MetersScreen } from "./screens/ObservationScreens";
 import { Icon, type IconName } from "./components/Icon";
 
 export const SCREENS: { id: string; label: StringKey; icon: IconName; component: ComponentType }[] = [
@@ -28,6 +29,12 @@ export const SCREENS: { id: string; label: StringKey; icon: IconName; component:
   { id: "models", label: "nav.models", icon: "model", component: ModelsScreen },
   { id: "history", label: "nav.history", icon: "undo", component: HistoryScreen },
 ];
+
+SCREENS.push(
+  { id: "notes", label: "nav.notes", icon: "stem", component: NotesScreen },
+  { id: "spectral", label: "nav.spectral", icon: "grid", component: SpectralScreen },
+  { id: "meters", label: "nav.meters", icon: "meter", component: MetersScreen },
+);
 
 function readHash(): string {
   const h = typeof window !== "undefined" ? window.location.hash.replace(/^#\/?/, "") : "";

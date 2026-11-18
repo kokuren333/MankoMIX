@@ -102,6 +102,12 @@ def registry():
             set(query.PRIMITIVES), set(spatial))
 
 
+# GUI screen id in gui/src/App.tsx and the read-only server route it reads (OQ-3).
+GUI_SURFACES = {"音符表示": ("notes", "/api/direction/pitch/notes"),
+                "領域選択": ("spectral", "/api/direction/spectral-repair/preview"),
+                "メータ画面": ("meters", "/api/direction/query/meters")}
+
+
 def render():
     from mankomix.dsp import processors as P
 
@@ -109,7 +115,7 @@ def render():
     lines = [BEGIN, "## 実装状況（143 件）", "",
              "型の `implemented` は実行時の `describe()` から取得する。op・コマンド・観察量には同名のフラグがないため、登録の有無を表示する。登録は実録音での品質の保証ではない。", "",
              "再生成: `python -X utf8 tools/tool_status_table.py`。検査だけなら `--check`。対応表は同スクリプト、名前と ID は各 spec、型の真偽と表面の在否は実装の宣言を正とする。", "",
-             "T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する（件数は143のまま）。GUI の3部分は OQ-3（D-28）で保留。T10-15 の衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）。", "",
+             "T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する（件数は143のまま）。GUI の3部分は OQ-3（D-28、2026-11-18 承認）で core/server に読み取り専用 API を、gui に画面を追加した（CLI と同じ関数の値を表示する）。T10-15 の衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）。", "",
              "| ツール ID | 名前 | 実装した表面／予定の表面 | implemented／登録 | 未実装・保留の理由／注記 |",
              "|---|---|---|---|---|"]
     for tid, (name, surfaces) in inventory().items():
@@ -130,8 +136,12 @@ def render():
                 if not present:
                     reasons.append(f"`{display}` は宣言未登録（{MISSING_REASONS.get(value, '該当単位の受入待ち')}）")
             elif kind == "gui":
-                states.append("GUI: 保留")
-                reasons.append("GUI API の追加が core 差分0と両立しない（OQ-3、D-28）")
+                screen, route = GUI_SURFACES[value]
+                present = (f'id: "{screen}"' in (ROOT / "gui/src/App.tsx").read_text(encoding="utf-8")
+                           and route in (ROOT / "core/server/app.py").read_text(encoding="utf-8"))
+                states.append(f"GUI `#/{screen}`（API `{route}`）: {'実装済み' if present else '未実装'}")
+                reasons.append("GUI は OQ-3（D-28、2026-11-18 承認）で読み取り専用 API とともに追加" if present
+                               else "GUI 画面または API が見つからない（OQ-3、D-28）")
             elif kind == "pending":
                 reasons.append("衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）")
         if tid == "T12-01":

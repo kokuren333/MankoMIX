@@ -79,3 +79,35 @@ Defined in `src/types.ts`. The ones not covered by a JSON Schema in `schemas/`:
 - `AudioSet`: `{ variant, files: { before, after, delta?, before_level_matched?, fullmix_reference? } (URL or null), match_gain_db, match_target: "before"|"after", measurements?: { before: { lufs_i, true_peak_dbtp }, after: {...} }, note? }`. `match_gain_db` (≤ 0) is applied by the player to `match_target`, the louder side (SPEC 15.2: match by lowering the louder one). The GUI never computes loudness itself.
 - `Job`: `{ job_id, kind: "render"|"export"|"analyze"|"verify"|"plan"|"separate"|"model_pull", state: "queued"|"running"|"done"|"failed", progress?: 0..1, result?, error? (message), error_detail? (error object) }`. One job per project at a time (`project_busy`).
 - `Label`: a string or `{ "ja": "...", "en": "..." }`.
+
+## OQ-3 read-only observations
+
+These routes use the open project only. They accept no file paths or project
+override. The CLI argument parser, command handler and read-only write guard
+(`director.commands.execute`) are shared; no observation algorithm is copied.
+
+| Method | Path | Input | Response / shared CLI function |
+|---|---|---|---|
+| GET | `/api/direction/pitch/notes` | `target` (required), `section?`, `lo_hz?`, `hi_hz?`, `a4?` | Exact JSON from `director.commands.pitch_notes.run` (`direction pitch notes`) |
+| GET | `/api/direction/query/meters` | `target?` (default `master`), `section?`, `what?` (comma-separated), `step_ms?`, `max_points?`, `points?`, `octave?` | Exact JSON from `director.commands.query_meters.run` (`direction query meters`) |
+| POST | `/api/direction/spectral-repair/preview` | `{target?, section?, step_ms?, max_points?, params}` | `{type: "spectral_repair", params, observation, read_only: true, apply_via}` |
+
+The spectral preview normalizes and validates `params` with
+`dsp.processors.validate_params`, the same function used by CLI rendering's
+`dsp.engine.validate_chain`. `observation` is the exact `query meters` output
+with `what=spectrogram`. It describes the source, without rendering a repaired
+signal. Rectangle arrays are named `t0_s`, `t1_s`, `lo_hz`, `hi_hz` (equal lengths,
+at most 64, each duration at most 2 seconds); all processor options retain their
+CLI defaults and validation. Application uses the existing CLI direction op and
+its journal path. No new route writes project, journal, assets or caches.
+
+GUI routes: `#/notes`, `#/spectral`, `#/meters`. The first shows median note
+bands/lines and exact numeric rows; keeping an observation permits comparison
+after CLI `edit_pitch` and reload. The second supports dragging a rectangle
+snapped to API bin boundaries, numeric edits, multiple rectangles and validated
+parameter JSON for a CLI direction op. The third draws API spectrum,
+spectrogram, loudness, peaks and L/R vectorscope points, with a timeline position
+selector and exact numeric JSON. Plot geometry and color scaling are display
+transforms only; measured values are never recomputed in the browser. Meters
+follow the CLI's first current project variant; the global variant picker does
+not override it. No observation data is fabricated in demo mode.

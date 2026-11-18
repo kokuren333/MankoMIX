@@ -704,6 +704,36 @@ def _reproducibility(project, variant_id: str, outputs: list[dict]) -> dict:
                         "iterations": (m.get("s02") or {}).get("iteration_count"),
                         "definitions": m.get("definitions")})
     first = mans[0] if mans else {}
+    from mankomix.dspx.bb.ml import report_records
+    model_records, fallback_steps, render_warnings = [], [], []
+    for manifest, entry in zip(mans, entries):
+        records = report_records(manifest.get("steps") or [])
+        fallbacks = [s for s in manifest.get("steps") or [] if s.get("fallback")]
+        warnings = list(manifest.get("render_warnings") or [])
+        if not records and not fallbacks and not any("rendered with fallback" in w for w in warnings):
+            warnings = []
+        if records or fallbacks or warnings:
+            entry["render_warnings"] = warnings
+            entry["steps"] = manifest.get("steps") or []
+        for collection, values in ((model_records, records), (fallback_steps, fallbacks),
+                                   (render_warnings, warnings)):
+            for value in values:
+                if value not in collection:
+                    collection.append(value)
+    if model_records or fallback_steps or render_warnings:
+        return {"project_hash": first.get("project_hash"),
+                "engine_version": first.get("engine_version", mankomix.__version__),
+                "assets": first.get("assets", []),
+                "backends": {"engine": "mankomix.dsp (reference backend)", "ffmpeg": ff,
+                             "ffmpeg_note": T("FFmpeg は同梱せず、ユーザー環境のものを外部プロセスとして呼ぶ。ビルド構成を記録する",
+                                              "FFmpeg is not bundled; the user's build is called as an external process and its build configuration is recorded")},
+                "models": [r for r in model_records if not r.get("fallback_used") and not r.get("inference_skipped")],
+                "models_note": T("モデル推論・代替処理の実行記録を参照", "See the executed model and fallback records"),
+                "outputs": entries,
+                "promise": T("同じ正本・素材・エンジンの版・バックエンドの版なら同じ出力になる（同一環境ではビット一致）",
+                             "Same project, assets, engine and backend versions give the same output (bit-identical in the same environment)"),
+                "model_records": model_records, "fallback_steps": fallback_steps,
+                "render_warnings": render_warnings}
     return {"project_hash": first.get("project_hash"), "engine_version": first.get("engine_version", mankomix.__version__),
             "assets": first.get("assets", []),
             "backends": {"engine": "mankomix.dsp (reference backend)", "ffmpeg": ff,
@@ -1041,6 +1071,12 @@ def render_markdown(report: dict, lang: str = "ja") -> str:
         L.append(f"- ffmpeg: {t(T('使用せず', 'not used'))}")
     L.append(f"- {t((rep.get('backends') or {}).get('ffmpeg_note'))}")
     L.append(f"- {t(rep.get('models_note'))}")
+    for warning in rep.get("render_warnings", []):
+        L.append(f"- {t(T('描画警告', 'Render warning'))}: {warning}")
+    for step in rep.get("fallback_steps", []):
+        L.append(f"- {t(T('代替処理', 'Fallback'))}: `{_j(step)}`")
+    for model in rep.get("model_records", []):
+        L.append(f"- {t(T('モデル実行記録', 'Model execution record'))}: `{_j(model)}`")
     for e in rep.get("outputs", []):
         L.append(f"- `{e.get('file')}`: seed {e.get('dither_seed')}, ceiling {e.get('limiter_ceiling_dbtp')} dBTP, "
                  f"iterations {e.get('iterations')}, sha256 `{(e.get('file_sha256') or '')[:16]}…`")

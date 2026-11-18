@@ -5,6 +5,64 @@
   "defaults": { "preview": "scnet_4stem", "full": "scnet_large_4stem" },
   "models": [
     {
+      "id": "speech_df3_48k",
+      "kind": "denoise",
+      "task": "denoise",
+      "architecture": "deep_filter_v3",
+      "runtime": {
+        "backend": "onnxruntime",
+        "adapter": "deep_filter_onnx_v1",
+        "code_revision": "7b14b895fe7fc42cab72b4a4c1e49c982bd6404b",
+        "onnxruntime_version": "1.30.0",
+        "sample_rate": 48000,
+        "cpu_ok": true,
+        "light": true,
+        "config": {
+          "fft_size": 960,
+          "hop_size": 480,
+          "chunk_frames": 256,
+          "overlap_frames": 128,
+          "warmup_frames": 100,
+          "window": "vorbis",
+          "padding": "zero",
+          "lookahead_frames": 2
+        }
+      },
+      "weights": {
+        "filename": "DeepFilterNet3_onnx.tar.gz",
+        "source_url": "https://raw.githubusercontent.com/Rikorose/DeepFilterNet/7b14b895fe7fc42cab72b4a4c1e49c982bd6404b/models/DeepFilterNet3_onnx.tar.gz",
+        "sha256": "c94d91f70911001c946e0fabb4aa9adc37045f45a03b56008cb0c8244cb63616",
+        "size_bytes": 7983136
+      },
+      "license": {
+        "code": "MIT OR Apache-2.0",
+        "weights": "MIT OR Apache-2.0",
+        "usage_restrictions": "none",
+        "evidence": [
+          {
+            "url": "https://raw.githubusercontent.com/Rikorose/DeepFilterNet/7b14b895fe7fc42cab72b4a4c1e49c982bd6404b/LICENSE-MIT",
+            "checked_on": "2026-11-17",
+            "kind": "license_file",
+            "note": "Primary MIT grant permits use, modification and redistribution subject to notice retention."
+          },
+          {
+            "url": "https://raw.githubusercontent.com/Rikorose/DeepFilterNet/7b14b895fe7fc42cab72b4a4c1e49c982bd6404b/README.md",
+            "checked_on": "2026-11-17",
+            "kind": "author_statement",
+            "note": "License section explicitly covers all code AND model weights in the repository under MIT or Apache-2.0."
+          }
+        ],
+        "caveats": [
+          "These candidates are all trained on conversational speech; singing, instruments and mixes are unsuitable and musical content may be removed as noise. Use only for narration, dialogue or raw vocal recordings.",
+          "Training-data provenance is not a guarantee of suitability or rights in a user recording.",
+          "Channels are processed independently. Fixed ONNX chunks reset recurrent state with 100 frames of warmup; chunking is part of this adapter version."
+        ]
+      },
+      "attribution": "DeepFilterNet, Hendrik Schroeter; MIT OR Apache-2.0; retain upstream license notices when redistributing weights.",
+      "tier": "official",
+      "status": "verified"
+    },
+    {
       "id": "kim_melband_roformer_vocals",
       "task": "separation",
       "stems": ["vocals", "instrumental"],

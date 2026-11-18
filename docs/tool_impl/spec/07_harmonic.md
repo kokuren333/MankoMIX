@@ -305,6 +305,8 @@ NL（`drive_db` 0〜60、既定 30／`oversample` 既定 8）に加えて：`bia
 
 `amp_basic` は実装済み、`amp_sim` は C-4（代替実行の標準 Mix Report 接続）未達で `implemented: false`。coreの追加はOQ-4の判断待ち。推論やBYOWの試験合格と完全実装を混同しない。modelの内部未指定値は空文字であり、既定キャプチャを意味しない。未指定での実行は拒否する。
 
+**OQ 実施（2026-11-18、オーナー承認の OQ-4）**：core に追加だけで接続した（`core/mixrender.py` のチェーン項目 `fallback` の受け渡しと step 記録、`core/routes.py` の mix 記録の引き渡し、`core/render.py` の manifest、`core/report.py` の Mix Report 再現情報、モデル型を含む track のキャッシュ無効化）。代替実行の警告・記録とモデルの ID・sha256 は標準 Mix Report（JSON・日本語・英語）に出る。モデル型を使わない描画の manifest と Mix Report はバイト同一。これで `amp_sim` は `implemented: true`。
+
 ## T07-14 キャビネット IR ローダー
 
 `cab_ir`｜A｜W2｜S（T03-01 の後。同じ畳み込み核）｜Codex｜`stages: ["track","bus"]`

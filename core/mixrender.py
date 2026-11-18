@@ -114,6 +114,7 @@ DEFAULT_POSTROLL_S = 1.0
 FADE_CURVES = ("equal_power", "linear")
 RESAMPLER = "scipy.signal.resample_poly"
 _ENGINE_KEYS = ("id", "type", "params", "backend", "bypass", "note")
+_ENGINE_KEYS = _ENGINE_KEYS + ("fallback",)
 
 
 # --------------------------------------------------------------------------
@@ -529,6 +530,15 @@ class _Ctx:
                                   details={"rule": getattr(exc, "rule", None),
                                            "step": getattr(exc, "step", None)}) from None
         self.backends.update(res.backends)
+        for step in res.steps:
+            stats = step.get("stats") or {}
+            if stats.get("fallback_used"):
+                fb = stats["fallback"]
+                step.setdefault("fallback", copy.deepcopy(fb))
+                res.warnings.append(
+                    f"step {step['id']}: {step['type']!r} needs backend ['model'] "
+                    f"({fb['reason']}); rendered with fallback {fb['type']!r} "
+                    "on 'reference' (approximation)")
         self.warnings.extend(w for w in res.warnings if not w.startswith("S-09: DC"))
         if self.touches is not None:
             self.touches.append(("__chain__", dict(res.backends),
@@ -538,6 +548,12 @@ class _Ctx:
             y = np.concatenate([y, y], axis=1)
         records = [{k: s.get(k) for k in ("id", "type", "backend", "bypass", "in_peak", "out_peak")
                     if k in s} for s in res.steps]
+        from mankomix.dsp import processors
+        for record, step in zip(records, res.steps):
+            if "fallback" in step:
+                record["fallback"] = copy.deepcopy(step["fallback"])
+            if "model" in processors.PROCESSORS[step["type"]].get("backends", ()) and step.get("stats"):
+                record["stats"] = copy.deepcopy(step["stats"])
         return y, records
 
 
@@ -669,6 +685,11 @@ def _file_stamp(path) -> list:
 
 def _track_key(ctx: _Ctx, track: dict, w0: int, w1: int, chain: list[dict] | None) -> str | None:
     """Everything the pre-fader signal of ``track`` on [w0, w1) depends on (None: do not cache)."""
+    from mankomix.dsp import processors
+    if any("model" in processors.PROCESSORS.get(step.get("type"), {}).get("backends", ())
+           for step in _active_steps(chain)):
+        # Re-run model availability, pinned bytes and runtime checks on every render.
+        return None
     from .cleanstage import track_cleanup_entry
     clips = []
     for clip in track.get("clips") or []:

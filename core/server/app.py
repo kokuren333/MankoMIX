@@ -290,6 +290,13 @@ def _routes() -> list[Route]:
 
 ROUTES = _routes()
 
+# OQ-3 observations: new routes only; existing dispatch and payloads stay intact.
+ROUTES += [(method, re.compile(path + r"/?\Z"), name) for method, path, name in (
+    ("GET", r"/api/direction/pitch/notes", "oq_pitch_notes"),
+    ("GET", r"/api/direction/query/meters", "oq_meters"),
+    ("POST", r"/api/direction/spectral-repair/preview", "oq_spectral_preview"),
+)]
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "mankomix"
@@ -416,6 +423,63 @@ class Handler(BaseHTTPRequestHandler):
         return v if v not in (None, "") else None
 
     # -- static GUI ----------------------------------------------------------------
+
+    def _oq_observe(self, module, values: dict):
+        """Use the CLI parser, handler and read-only write-contract guard."""
+        import argparse
+        from mankomix.director import commands
+
+        class ObservationParser(argparse.ArgumentParser):
+            def error(self, message):
+                raise InputError(message)
+
+        parser = ObservationParser(add_help=False)
+        module.add_args(parser)
+        argv = []
+        for key, value in values.items():
+            if value is None:
+                continue
+            flag = "--" + key.replace("_", "-")
+            # Only the command's own flags are accepted; no project/path override.
+            if flag not in parser._option_string_actions:
+                raise InputError(f"unknown observation parameter: {key}")
+            argv.append(flag)
+            if key == "what":
+                argv.extend(value.split(",") if isinstance(value, str) else value)
+            else:
+                argv.append(json.dumps(value) if isinstance(value, dict) else str(value))
+        args = parser.parse_args(argv)
+        args.project = self.app.proj()
+        return commands.execute(module.COMMANDS[0], args, Path(args.project))
+
+    def h_oq_pitch_notes(self):
+        from mankomix.director.commands import pitch_notes
+        return self._oq_observe(pitch_notes, self.query)
+
+    def h_oq_meters(self):
+        from mankomix.director.commands import query_meters
+        return self._oq_observe(query_meters, self.query)
+
+    def h_oq_spectral_preview(self):
+        """Validate numeric rectangles and inspect their source, without applying."""
+        from mankomix.dsp import processors
+        from mankomix.dsp.errors import ParamError
+        from mankomix.director.commands import query_meters
+        body = self._body()
+        allowed = {"params", "target", "section", "step_ms", "max_points"}
+        if body.keys() - allowed:
+            raise InputError("unknown spectral preview parameter")
+        if not isinstance(body.get("params"), dict):
+            raise InputError("params must be a spectral_repair parameter object")
+        try:
+            params = processors.validate_params("spectral_repair", body["params"])
+        except ParamError as exc:
+            raise InputError(str(exc)) from None
+        values = {k: v for k, v in body.items() if k != "params"}
+        values["what"] = ["spectrogram"]
+        observation = self._oq_observe(query_meters, values)
+        return {"type": "spectral_repair", "params": params, "observation": observation,
+                "read_only": True, "apply_via": "CLI direction op (spectral_repair processor)"}
 
     def _static(self, path: str, head: bool = False) -> None:
         root = self.app.static

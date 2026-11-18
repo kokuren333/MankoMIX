@@ -57,7 +57,7 @@ def denoise_ml(x, sr, p, *, seed=0):
 
 from mankomix.dspx.bb.restoration import rp_params
 
-SPECS = [dict(type='denoise_ml', implemented=False,
+SPECS = [dict(type='denoise_ml', implemented=True,
     description='Offline speech denoising; singing and instruments are unsuitable.',
     stages=['track'], master_slot=None, offline_only=True, backends=['model'],
     fallback=dict(type='denoise', mapping='auto profile; reduction capped at 40 dB'),

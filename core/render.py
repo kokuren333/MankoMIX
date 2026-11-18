@@ -171,8 +171,32 @@ def _step_backends(steps) -> list[dict]:
     out = []
     for st in steps or []:
         d = {k: st.get(k) for k in ("id", "type", "backend", "backend_version", "version") if st.get(k) is not None}
+        for key in ("fallback", "stats"):
+            if key in st and (key == "fallback" or st.get("type") in ("denoise_ml", "amp_sim")):
+                d[key] = _json_safe(st[key])
         out.append(d)
     return out
+
+
+def _add_mix_provenance(manifest: dict, mix_record: dict | None) -> None:
+    """Append executed mix facts without changing manifests for ordinary mixes."""
+    from mankomix.dspx.bb.ml import report_records
+    mix_record = mix_record or {}
+    steps = []
+    for group, scope in (("tracks", "track_id"), ("buses", "bus_id")):
+        for item in mix_record.get(group) or []:
+            for step in _step_backends(item.get("chain")):
+                if "fallback" in step or "stats" in step:
+                    steps.append(dict(step, **{scope: item.get("id")}))
+    if not steps:
+        return
+    manifest["steps"].extend(steps)
+    manifest["render_warnings"].extend(_json_safe(mix_record.get("warnings") or []))
+    records = report_records(steps)
+    manifest["model_records"] = _json_safe(records)
+    manifest["models"] = list(manifest["models"])
+    manifest["models"].extend(_json_safe([r for r in records
+                                         if not r.get("fallback_used") and not r.get("inference_skipped")]))
 
 
 def _asset_records(project, route: str) -> list[dict]:
@@ -265,6 +289,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
     max_iter = int(tv(th, "s02_codec", "max_iterations", default=6))
     route = variant_route(project, variant)
     x, sr = load_master_input(project, route, variant_id=variant_id)
+    mix_record = getattr(project, "_mix_render_record", None) if route == "stem_mix" else None
     project_hash = project.content_hash()
     obj_ids = objective_ids(_objective_for(project, variant))
     vdir = variant_dir(project, variant_id)
@@ -312,6 +337,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
         "dither": {"seed": a_seed, "seed_inputs_sha256": a_seed_hash},
         "export": _json_safe(a_exp),
     })
+    _add_mix_provenance(a_man, mix_record)
     _write_json(manifest_path_for(a_path), _json_safe(a_man))
     archive_rec = {"file": project.rel(a_path), "manifest": project.rel(manifest_path_for(a_path))}
 
@@ -402,6 +428,7 @@ def render_variant(project, variant_id: str, *, outputs: list[dict] | None = Non
             "measured": {"lufs_i": round(lufs, 3), "true_peak_dbtp": round(tp, 3)},
         })
         mpath = manifest_path_for(path)
+        _add_mix_provenance(man, mix_record)
         _write_json(mpath, _json_safe(man))
         results.append({"profile": profile["id"], "delivery": delivery["id"], "file": project.rel(path),
                         "manifest": project.rel(mpath), "status": status, "iterations": len(iterations),

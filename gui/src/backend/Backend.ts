@@ -76,6 +76,12 @@ export interface UndoResult {
 
 export type Unsubscribe = () => void;
 
+export interface Backend {
+  getPitchNotes?(options: import("./observations").ObservationOptions & { lo_hz?: number; hi_hz?: number; a4?: number }): Promise<import("./observations").NoteObservation>;
+  getMeters?(options: import("./observations").ObservationOptions & { what?: string; points?: number }): Promise<import("./observations").MeterObservation>;
+  previewSpectralRepair?(options: import("./observations").ObservationOptions & { params: import("./observations").SpectralParams }): Promise<import("./observations").SpectralPreview>;
+}
+
 /** Raised when an operation is not available on the connected backend. */
 export class UnsupportedError extends Error {
   constructor(public readonly operation: string) {

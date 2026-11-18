@@ -197,6 +197,7 @@ def load_master_input(project, route: str | dict | None = None, *,
     if route == "fullmix":
         route = "full_mix"
     data = project.data
+    project._mix_render_record = None
     sr = project_rate(data)
 
     if route == "full_mix":
@@ -214,6 +215,7 @@ def load_master_input(project, route: str | dict | None = None, *,
         known = {v.get("id") for v in data.get("variants") or [] if isinstance(v, dict)}
         vid = variant_id if variant_id in known else None
         x, rsr, _ = render_mix(project, variant_id=vid, seed=0, measure=False)
+        project._mix_render_record = _
         return x, int(rsr)
 
     tracks = stem_tracks(data)

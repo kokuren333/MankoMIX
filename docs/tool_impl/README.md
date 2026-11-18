@@ -12,6 +12,32 @@
 - ライセンス：アルゴリズムは論文・教科書・公開仕様から書く。GPL／AGPL の実装は移植も参照もしない（`spec/01` §0.2）。
 - 重複：カタログ §1-13 と §12-1 は同一機能（T12-01 は T01-13 で充足）。カタログに注記がある。
 
+## 床の解釈（OQ-1。2026-11-18 オーナー確定）
+
+実装の発注は「床（`core/` `dsp/` `knowledge/` `profiles/` `objectives/`）のビット同一」を関門にしていた。これを次の意味に確定した。
+
+- **床＝既存の振る舞いのビット同一＋既存コードへの変更は追加だけ。** 新しい型・欄・op を使わない入力の結果（描画・記録・計画）は、TOOLIMPL 開始時点（commit `e967b0a`）とバイト同一でなければならない。既存ファイルへの変更は行の追加だけを許し、既存行の削除・書き換えは 0 行とする。
+- **文言どおりの「`dsp/` の差分 0」は満たしていない。** `dsp/` には登録口と BB-00（`channel` 欄・コンポジット）のために `dsp/engine.py` +18 行、`dsp/processors.py` +26 行、`dsp/reference/__init__.py` +7 行の計 **+51 行（削除 0 行）** を足した。
+- 根拠：承認済みの設計（`PM_PLAN.md` §3.1 BB-00、§7）は新しい型をエンジンの登録表（`dsp/processors.py` の `PROCESSORS`、`dsp/reference` の `IMPLEMENTATIONS`）に足すことを前提にしている。登録表には外からの登録口が無く、`dsp/` を 1 行も変えずに新しい型を描画させる手段は実行時の差し替え（モンキーパッチ）だけで、それは床のコードを実行時に書き換えるのと同じく安全性を増やさない。`PM_PLAN.md` G0-2 の定義も「新しい型・op・欄を使わない正本の描画がバイト同一」（出力のビット同一）である。足した経路は新しい型・欄を使ったときだけ通る。新しい型の実装は `dsp/` の外の `dspx/` に置いた。
+- 確かめ方（ウェーブごとの関門で機械的に）：既存 21 型の定義・既定値・schema・描画の写しとの照合（floor snapshot）、既存テスト全緑、公開 kb のスナップショット同一、`dsp/` の差分に削除行が無いこと（floor guard）、床の描画の出力ハッシュが基準と一致すること。
+- `knowledge/` `profiles/` `objectives/` は文言どおり差分 0。`core/` も TOOLIMPL 本体では差分 0 だった。その後の OQ-3（GUI の API）・OQ-4（学習系フォールバックの Mix Report への接続）の承認により、`core/` と `gui/` にも同じ規則（追加だけ、既存の振る舞いのビット同一）で追加している。追加の箇所は下の「OQ-3・OQ-4 の core 追加」に記す。
+- 「ディレクトリの差分 0」を文言どおりに求める場合は、登録口（`dsp/` への追加）を戻し、`dspx/` を別の起動経路で読み込む形に組み替える必要がある（`channel` 欄とコンポジットはエンジン外の前処理になる）。
+
+## OQ-3・OQ-4 の core 追加（2026-11-18）
+
+床の解釈（上）と同じ規則（既存行の削除・書き換え 0、既存の振る舞いのビット同一）で足した。基準 HEAD `83f07e7` からの差分は `core/` +150 行・`gui/` 既存ファイル +121 行と新規ファイル、削除 0 行。
+
+| 目的 | 箇所 | 内容 |
+|---|---|---|
+| チェーン項目の `fallback` 欄の受け渡し（既存の不具合の修正） | `core/mixrender.py`（`_ENGINE_KEYS` の直後の 1 行） | project に保存した `fallback` 宣言が `engine_chain()` で黙って削られ、backend が無いとき文書（`dsp/README.md`）どおりの代替描画にならずエラーで止まっていた。fallback が走らない描画の音声・記録はバイト同一 |
+| OQ-4 (2) step 記録 | `core/mixrender.py` | 実際に走った fallback とモデル型の記録を新しいキーで残す（使わない step には足さない） |
+| OQ-4 (3) master への引き渡し | `core/routes.py` | mix 記録の警告・モデル記録を mastering 側へ渡す（戻り値の形は不変） |
+| OQ-4 (4) manifest | `core/render.py` | 代替・モデルの記録と描画警告を archive・各納品の manifest に保存 |
+| OQ-4 (5) Mix Report | `core/report.py` | manifest の代替・モデルの記録を再現情報へ転記し、日本語・英語の表示に出す。モデルも代替も無い描画は従来と同じ出力 |
+| OQ-4 キャッシュ | `core/mixrender.py` | モデル型を含む track はキャッシュを使わない（モデルファイルの不在・改変を毎回検証するため）。モデル型を含まない track のキャッシュキーは不変 |
+| OQ-3 GUI の API | `core/server/app.py` | 読み取り専用の 3 ルート（音符・メータ・スペクトル領域の検証と下見）。CLI と同じ関数を呼ぶ |
+| OQ-3 GUI の画面 | `gui/src/`（新規 `screens/ObservationScreens.tsx` ほか） | 音符表示 `#/notes`、領域選択 `#/spectral`、メータ `#/meters` |
+
 <!-- tool-status:begin -->
 ## 実装状況（143 件）
 
@@ -19,7 +45,7 @@
 
 再生成: `python -X utf8 tools/tool_status_table.py`。検査だけなら `--check`。対応表は同スクリプト、名前と ID は各 spec、型の真偽と表面の在否は実装の宣言を正とする。
 
-T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する（件数は143のまま）。GUI の3部分は OQ-3（D-28）で保留。T10-15 の衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）。
+T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する（件数は143のまま）。GUI の3部分は OQ-3（D-28、2026-11-18 承認）で core/server に読み取り専用 API を、gui に画面を追加した（CLI と同じ関数の値を表示する）。T10-15 の衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29）。
 
 | ツール ID | 名前 | 実装した表面／予定の表面 | implemented／登録 | 未実装・保留の理由／注記 |
 |---|---|---|---|---|
@@ -103,11 +129,11 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T07-10 | マルチバンド・ディストーション | 型 `mb_distortion` | `mb_distortion`: `true` | — |
 | T07-11 | ファズ | 型 `fuzz` | `fuzz`: `true` | — |
 | T07-12 | ビットクラッシャー／SR リダクション | 型 `bitcrush` | `bitcrush`: `true` | — |
-| T07-13 | アンプシミュレータ | 型 `amp_sim`、型 `amp_basic` | `amp_sim`: `false`、`amp_basic`: `true` | 代替実行の Mix Report 接続に core の追加が必要（OQ-4、D-30） |
+| T07-13 | アンプシミュレータ | 型 `amp_sim`、型 `amp_basic` | `amp_sim`: `true`、`amp_basic`: `true` | — |
 | T07-14 | キャビネット IR ローダー | 型 `cab_ir` | `cab_ir`: `true` | — |
 | T07-15 | コンソールエミュレーション（バス色付け） | 型 `console_bus` | `console_bus`: `true` | — |
 | T08-01 | 自動ピッチ補正 | 型 `pitch_correct` | `pitch_correct`: `true` | — |
-| T08-02 | グラフィカル・ピッチ／タイミング編集 | 型 `pitch_curve`、コマンド `direction pitch notes`、op `edit_pitch`、GUI `音符表示` | `pitch_curve`: `true`、`direction pitch notes`: 登録済み、`edit_pitch`: 登録済み、GUI: 保留 | GUI API の追加が core 差分0と両立しない（OQ-3、D-28） |
+| T08-02 | グラフィカル・ピッチ／タイミング編集 | 型 `pitch_curve`、コマンド `direction pitch notes`、op `edit_pitch`、GUI `音符表示` | `pitch_curve`: `true`、`direction pitch notes`: 登録済み、`edit_pitch`: 登録済み、GUI `#/notes`（API `/api/direction/pitch/notes`）: 実装済み | GUI は OQ-3（D-28、2026-11-18 承認）で読み取り専用 API とともに追加 |
 | T08-03 | ハーモニー生成 | 型 `harmony_voices` | `harmony_voices`: `true` | — |
 | T08-04 | ハーモナイザー | 型 `harmonizer` | `harmonizer`: `true` | — |
 | T08-05 | ピッチシフター（高品質） | 型 `pitch_shift` | `pitch_shift`: `true` | — |
@@ -131,7 +157,7 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T09-09 | ローファイ・マルチラック | 型 `lofi`、型 `noise_bed` | `lofi`: `true`、`noise_bed`: `true` | — |
 | T09-10 | 描画型モジュレーションラック | 型 `curve_shaper` | `curve_shaper`: `true` | — |
 | T10-01 | 定常ノイズリダクション | 型 `denoise` | `denoise`: `true` | — |
-| T10-02 | 適応型／AI ノイズリダクション | 型 `denoise_ml` | `denoise_ml`: `false` | 代替実行の Mix Report 接続に core の追加が必要（OQ-4、D-30） |
+| T10-02 | 適応型／AI ノイズリダクション | 型 `denoise_ml` | `denoise_ml`: `true` | — |
 | T10-03 | AI ボーカル分離抽出 | op `edit_isolate` | `edit_isolate`: 登録済み | — |
 | T10-04 | デクリック | 型 `declick` | `declick`: `true` | — |
 | T10-05 | デクラックル | 型 `declick` | `declick`: `true` | — |
@@ -139,12 +165,12 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T10-07 | デクリップ | 型 `declip` | `declip`: `true` | — |
 | T10-08 | デハム／バズ除去 | 型 `dehum` | `dehum`: `true` | — |
 | T10-09 | デリバーブ | 型 `dereverb` | `dereverb`: `false` | T20 の30 %短縮と DRR +3 dB の同時合格、乾いた打楽器の RP4 が未達 |
-| T10-10 | スペクトルリペア | 型 `spectral_repair`、GUI `領域選択` | `spectral_repair`: `true`、GUI: 保留 | GUI API の追加が core 差分0と両立しない（OQ-3、D-28） |
+| T10-10 | スペクトルリペア | 型 `spectral_repair`、GUI `領域選択` | `spectral_repair`: `true`、GUI `#/spectral`（API `/api/direction/spectral-repair/preview`）: 実装済み | GUI は OQ-3（D-28、2026-11-18 承認）で読み取り専用 API とともに追加 |
 | T10-11 | スペクトルリカバリー | 型 `hf_restore` | `hf_restore`: `true` | — |
 | T10-12 | ブレスコントロール | op `breath`、コマンド `direction query breaths` | `breath`: 登録済み、`direction query breaths`: 登録済み | — |
 | T10-13 | デプロッシブ | 型 `deplosive` | `deplosive`: `true` | — |
 | T10-14 | デブリード | op `edit_debleed` | `edit_debleed`: 登録済み | — |
-| T10-15 | 衣擦れ／風ノイズ除去 | 型 `dewind`、型 `denoise_ml`、未実装部分 `衣擦れ` | `dewind`: `true`、`denoise_ml`: `false` | 代替実行の Mix Report 接続に core の追加が必要（OQ-4、D-30）。衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29） |
+| T10-15 | 衣擦れ／風ノイズ除去 | 型 `dewind`、型 `denoise_ml`、未実装部分 `衣擦れ` | `dewind`: `true`、`denoise_ml`: `true` | 衣擦れ側は再配布可能な OSS 重みが見つからず未実装（D-29） |
 | T10-16 | ギター専用ノイズ除去 | 型 `guitar_denoise` | `guitar_denoise`: `true` | — |
 | T10-17 | ワウフラッター／アジマス補正 | 型 `dewow`、型 `azimuth_fix` | `dewow`: `true`、`azimuth_fix`: `true` | — |
 | T10-18 | ルームトーン／アンビエンスマッチング | 型 `noise_bed`、コマンド `direction suggest ambience` | `noise_bed`: `true`、`direction suggest ambience`: 登録済み | — |
@@ -164,6 +190,6 @@ T12-01 は T01-13 の重複で、同じ `adaptive_limiter` により充足する
 | T12-05 | ノーマライズ | op `edit_normalize` | `edit_normalize`: 登録済み | — |
 | T12-06 | レベラー／ラウドネスコントロール | op `level_phrases` | `level_phrases`: 登録済み | — |
 | T12-07 | コーデックプレビュー／配信シミュレーション | コマンド `direction preview codec` | `direction preview codec`: 登録済み | — |
-| T12-08 | 統合メータリング | コマンド `direction query meters`、GUI `メータ画面` | `direction query meters`: 登録済み、GUI: 保留 | GUI API の追加が core 差分0と両立しない（OQ-3、D-28） |
+| T12-08 | 統合メータリング | コマンド `direction query meters`、GUI `メータ画面` | `direction query meters`: 登録済み、GUI `#/meters`（API `/api/direction/query/meters`）: 実装済み | GUI は OQ-3（D-28、2026-11-18 承認）で読み取り専用 API とともに追加 |
 | T12-09 | トーンバランス比較 | コマンド `direction ref balance` | `direction ref balance`: 登録済み | — |
 <!-- tool-status:end -->
