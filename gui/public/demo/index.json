@@ -57,7 +57,7 @@
  "project": "project.json",
  "schema_version": 1,
  "source": {
-  "content_hash": "f515c5267638e6fd9b769d55cca3f3e68f8c440539c787a3ce44335ccedc4b49",
+  "content_hash": "2d768503f74c92703a7b82adf890c302ea8bf4f46cf5f7d7edd5782e1a7d358e",
   "project_id": "prj_sample_v01",
   "sample_set": null
  },
@@ -75,16 +75,16 @@
    ],
    "dir": "variants/v01/",
    "direction": {
-    "id": "dir_b465721f74fb",
-    "pattern": "p3",
-    "request": "空間音響と複雑なパンニング",
-    "title": "マンコ主義 × 空間音響と複雑なパンニング 全体指揮書"
+    "id": "dir_cf3e85c484fa",
+    "pattern": "sample_main",
+    "request": "空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル）",
+    "title": "マンコ主義 × 空間音響と複雑で心地の良いパンニング（公式サンプル 主サンプル） 全体指揮書"
    },
    "id": "v01",
    "intensity": 0.5,
    "label": {
-    "en": "Direction p3 \"空間音響と複雑なパンニング\" × Streaming (universal safe default) (floor: Listening comfort)",
-    "ja": "指揮書 p3「空間音響と複雑なパンニング」 × ストリーミング共通（安全既定）（土台: 聞き心地）"
+    "en": "Direction sample_main \"空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル）\" × Streaming (universal safe default) (floor: Listening comfort)",
+    "ja": "指揮書 sample_main「空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル）」 × ストリーミング共通（安全既定）（土台: 聞き心地）"
    },
    "n": 1,
    "objective": "comfort",

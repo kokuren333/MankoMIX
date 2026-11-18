@@ -1,0 +1,513 @@
+{
+  "schema_version": 1,
+  "kind": "verify_against_report",
+  "variant": "var_streaming_universal",
+  "project_hash": "68dac781164a6ca59140fdb3b72e599c3f9253375cb0fa7a3e00e65a37feecfd",
+  "checks": [
+    "P-03",
+    "S-01",
+    "S-02"
+  ],
+  "definition": "rendered outputs of the variant judged against other profiles (SPEC 15.2); no re-render, project unchanged",
+  "profiles": {
+    "spotify": {
+      "overall": "pass",
+      "failed": [],
+      "outputs": [
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "hires_native"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.01
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.01
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "ogg_vorbis": {
+                  "codec": "ogg_vorbis",
+                  "bitrate": "320k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libvorbis",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.922
+                },
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.949
+                }
+              }
+            }
+          }
+        },
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "distributor_44k16"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.0
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.007
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "ogg_vorbis": {
+                  "codec": "ogg_vorbis",
+                  "bitrate": "320k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libvorbis",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.878
+                },
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.989
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "youtube": {
+      "overall": "pass",
+      "failed": [],
+      "outputs": [
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "hires_native"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.01
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.01
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.949
+                },
+                "opus": {
+                  "codec": "opus",
+                  "bitrate": "160k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libopus",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.745
+                }
+              }
+            }
+          }
+        },
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "distributor_44k16"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.0
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.007
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.989
+                },
+                "opus": {
+                  "codec": "opus",
+                  "bitrate": "160k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libopus",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.737
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "amazon_music": {
+      "overall": "fail",
+      "failed": [
+        "S-01"
+      ],
+      "outputs": [
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "hires_native"
+          },
+          "overall": "fail",
+          "failed": [
+            "S-01"
+          ],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.01
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "fail",
+              "measured": {
+                "true_peak_dbtp": -1.01
+              },
+              "ceiling_dbtp": -2.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "opus": {
+                  "codec": "opus",
+                  "bitrate": "160k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libopus",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.745
+                }
+              }
+            }
+          }
+        },
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "distributor_44k16"
+          },
+          "overall": "fail",
+          "failed": [
+            "S-01"
+          ],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.0
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "fail",
+              "measured": {
+                "true_peak_dbtp": -1.007
+              },
+              "ceiling_dbtp": -2.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "opus": {
+                  "codec": "opus",
+                  "bitrate": "160k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "libopus",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.737
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "tidal": {
+      "overall": "pass",
+      "failed": [],
+      "outputs": [
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "hires_native"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.01
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.01
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.949
+                }
+              }
+            }
+          }
+        },
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "distributor_44k16"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.0
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.007
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.989
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sns_safe": {
+      "overall": "pass",
+      "failed": [],
+      "outputs": [
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "hires_native"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.01
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.01
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.949
+                }
+              }
+            }
+          }
+        },
+        {
+          "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
+          "rendered_for": {
+            "profile": "streaming_universal",
+            "delivery": "distributor_44k16"
+          },
+          "overall": "pass",
+          "failed": [],
+          "checks": {
+            "P-03": {
+              "status": "pass",
+              "measured": {
+                "lufs_i": -14.0
+              },
+              "window_lufs_i": [
+                -15.0,
+                -13.5
+              ]
+            },
+            "S-01": {
+              "status": "pass",
+              "measured": {
+                "true_peak_dbtp": -1.007
+              },
+              "ceiling_dbtp": -1.0,
+              "conditional_applied": false
+            },
+            "S-02": {
+              "status": "pass",
+              "codec_after_ceiling_dbtp": -0.1,
+              "codecs": {
+                "aac": {
+                  "codec": "aac",
+                  "bitrate": "256k",
+                  "ceiling_dbtp": -0.1,
+                  "encoder": "aac",
+                  "status": "pass",
+                  "true_peak_dbtp": -0.989
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "passed": false
+}

@@ -25,15 +25,15 @@
      "channels": 2,
      "clipped_samples": 0,
      "dc_offset": [
-      0.000171,
-      0.000138
+      0.00018,
+      0.000132
      ],
      "expected_frames": 4746240,
      "frames": 4746240,
      "inf": 0,
      "input_dc_scaled": [
-      0.000171,
-      0.000137
+      0.00018,
+      0.000132
      ],
      "nan": 0,
      "tolerance": 1
@@ -52,42 +52,42 @@
    "codec": "aac",
    "note": "streaming_universal / hires_native",
    "status": "pass",
-   "true_peak_dbtp": -0.969
+   "true_peak_dbtp": -0.951
   },
   {
    "ceiling_dbtp": -0.1,
    "codec": "opus",
    "note": "streaming_universal / hires_native",
    "status": "pass",
-   "true_peak_dbtp": -0.764
+   "true_peak_dbtp": -0.834
   },
   {
    "ceiling_dbtp": -0.1,
    "codec": "mp3",
    "note": "streaming_universal / hires_native",
    "status": "pass",
-   "true_peak_dbtp": -0.985
+   "true_peak_dbtp": -1.0
   },
   {
    "ceiling_dbtp": -0.1,
    "codec": "aac",
    "note": "streaming_universal / distributor_44k16",
    "status": "pass",
-   "true_peak_dbtp": -0.994
+   "true_peak_dbtp": -0.837
   },
   {
    "ceiling_dbtp": -0.1,
    "codec": "opus",
    "note": "streaming_universal / distributor_44k16",
    "status": "pass",
-   "true_peak_dbtp": -0.754
+   "true_peak_dbtp": -0.821
   },
   {
    "ceiling_dbtp": -0.1,
    "codec": "mp3",
    "note": "streaming_universal / distributor_44k16",
    "status": "pass",
-   "true_peak_dbtp": -0.962
+   "true_peak_dbtp": -0.978
   }
  ],
  "constraints": [
@@ -134,7 +134,7 @@
    "limit": null,
    "note": "streaming_universal / hires_native",
    "status": "pass",
-   "value": 0.031
+   "value": 0.019
   },
   {
    "id": "S-05",
@@ -162,7 +162,7 @@
    "limit": 1.5,
    "note": "streaming_universal / hires_native",
    "status": "pass",
-   "value": 0.02
+   "value": 0.015
   },
   {
    "id": "S-09",
@@ -177,7 +177,7 @@
   "status": "not_run"
  },
  "noise_return": {
-  "delta_db": 0.02,
+  "delta_db": 0.015,
   "metric": "shimmer_index_db",
   "note": "streaming_universal / hires_native",
   "status": "pass",
@@ -224,7 +224,7 @@
        "encoder": "aac",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.969
+       "true_peak_dbtp": -0.951
       },
       "mp3": {
        "bitrate": "320k",
@@ -233,7 +233,7 @@
        "encoder": "libmp3lame",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.985
+       "true_peak_dbtp": -1.0
       },
       "opus": {
        "bitrate": "160k",
@@ -242,7 +242,7 @@
        "encoder": "libopus",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.764
+       "true_peak_dbtp": -0.834
       }
      },
      "final_limiter_ceiling_dbtp": -1.0,
@@ -257,9 +257,9 @@
      },
      "measured": {
       "boundary_hz": 120.0,
-      "longest_negative_run_s": 0.2,
-      "min_correlation": -0.606863617364998,
-      "negative_fraction": 0.0062
+      "longest_negative_run_s": 0.1,
+      "min_correlation": -0.47144604666252743,
+      "negative_fraction": 0.001
      },
      "rule": "S-03",
      "status": "pass"
@@ -274,8 +274,8 @@
       "low_band_max_db": 1.5
      },
      "measured": {
-      "lead_clarity_mono_loss_db": 0.294,
-      "low_band_mono_loss_db": 0.031
+      "lead_clarity_mono_loss_db": 0.132,
+      "low_band_mono_loss_db": 0.019
      },
      "note": "full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)",
      "rule": "S-04",
@@ -288,7 +288,7 @@
       "depth_reduced": true,
       "dither_count": 1,
       "quantization": "tpdf_dither",
-      "seed": 821423157,
+      "seed": 2330183705,
       "steps_after_dither": [],
       "target_bit_depth": 24
      },
@@ -432,40 +432,40 @@
        "tolerance_db": null
       },
       "noise_floor_dbfs": {
-       "after": -25.408,
-       "before": -28.924,
-       "delta_db": -0.021,
+       "after": -25.241,
+       "before": -28.87,
+       "delta_db": -0.02,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "noise_floor_hf_dbfs": {
-       "after": -43.317,
-       "before": -46.862,
-       "delta_db": 0.008,
+       "after": -43.198,
+       "before": -46.852,
+       "delta_db": 0.005,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "shimmer_index_db": {
-       "after": -41.492,
-       "before": -41.512,
-       "delta_db": 0.02,
+       "after": -41.736,
+       "before": -41.751,
+       "delta_db": 0.015,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       },
       "side_shimmer_index_db": {
-       "after": -51.669,
-       "before": -51.689,
-       "delta_db": 0.02,
+       "after": -55.802,
+       "before": -55.816,
+       "delta_db": 0.014,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       }
      },
      "frame_selection": "baseline_frames",
-     "gain_db": 3.537,
+     "gain_db": 3.649,
      "gain_source": "output integrated loudness - baseline integrated loudness",
      "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)",
      "rule": "S-08",
@@ -477,15 +477,15 @@
       "channels": 2,
       "clipped_samples": 0,
       "dc_offset": [
-       0.000171,
-       0.000138
+       0.00018,
+       0.000132
       ],
       "expected_frames": 4746240,
       "frames": 4746240,
       "inf": 0,
       "input_dc_scaled": [
-       0.000171,
-       0.000137
+       0.00018,
+       0.000132
       ],
       "nan": 0,
       "tolerance": 1
@@ -500,7 +500,7 @@
    "manifest": "renders/var_streaming_universal/streaming_universal__hires_native.manifest.json",
    "measured": {
     "frames": 4746240,
-    "lufs_i": -14.011,
+    "lufs_i": -14.007,
     "sample_rate": 48000,
     "subtype": "PCM_24",
     "true_peak_dbtp": -1.01
@@ -518,7 +518,7 @@
     },
     "P-03": {
      "measured": {
-      "lufs_i": -14.01
+      "lufs_i": -14.0
      },
      "rule": "P-03",
      "status": "pass",
@@ -532,7 +532,7 @@
      "ceiling_dbtp": -1.0,
      "conditional_applied": false,
      "measured": {
-      "true_peak_dbtp": -1.008
+      "true_peak_dbtp": -1.007
      },
      "oversample": 5,
      "rule": "S-01",
@@ -548,7 +548,7 @@
        "encoder": "aac",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.994
+       "true_peak_dbtp": -0.837
       },
       "mp3": {
        "bitrate": "320k",
@@ -557,7 +557,7 @@
        "encoder": "libmp3lame",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.962
+       "true_peak_dbtp": -0.978
       },
       "opus": {
        "bitrate": "160k",
@@ -566,7 +566,7 @@
        "encoder": "libopus",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.754
+       "true_peak_dbtp": -0.821
       }
      },
      "final_limiter_ceiling_dbtp": -1.0,
@@ -581,9 +581,9 @@
      },
      "measured": {
       "boundary_hz": 120.0,
-      "longest_negative_run_s": 0.2,
-      "min_correlation": -0.6068872210904664,
-      "negative_fraction": 0.0062
+      "longest_negative_run_s": 0.1,
+      "min_correlation": -0.471459654358842,
+      "negative_fraction": 0.001
      },
      "rule": "S-03",
      "status": "pass"
@@ -598,8 +598,8 @@
       "low_band_max_db": 1.5
      },
      "measured": {
-      "lead_clarity_mono_loss_db": 0.294,
-      "low_band_mono_loss_db": 0.031
+      "lead_clarity_mono_loss_db": 0.132,
+      "low_band_mono_loss_db": 0.019
      },
      "note": "full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)",
      "rule": "S-04",
@@ -612,7 +612,7 @@
       "depth_reduced": true,
       "dither_count": 1,
       "quantization": "tpdf_dither",
-      "seed": 3963395454,
+      "seed": 2175086977,
       "steps_after_dither": [],
       "target_bit_depth": 16
      },
@@ -760,40 +760,40 @@
        "tolerance_db": null
       },
       "noise_floor_dbfs": {
-       "after": -25.406,
-       "before": -28.924,
-       "delta_db": -0.023,
+       "after": -25.239,
+       "before": -28.87,
+       "delta_db": -0.022,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "noise_floor_hf_dbfs": {
-       "after": -43.31,
-       "before": -46.862,
-       "delta_db": 0.011,
+       "after": -43.192,
+       "before": -46.852,
+       "delta_db": 0.007,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "shimmer_index_db": {
-       "after": -41.49,
-       "before": -41.512,
-       "delta_db": 0.022,
+       "after": -41.733,
+       "before": -41.751,
+       "delta_db": 0.018,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       },
       "side_shimmer_index_db": {
-       "after": -51.67,
-       "before": -51.689,
-       "delta_db": 0.019,
+       "after": -55.802,
+       "before": -55.816,
+       "delta_db": 0.014,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       }
      },
      "frame_selection": "baseline_frames",
-     "gain_db": 3.541,
+     "gain_db": 3.653,
      "gain_source": "output integrated loudness - baseline integrated loudness",
      "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)",
      "rule": "S-08",
@@ -805,15 +805,15 @@
       "channels": 2,
       "clipped_samples": 0,
       "dc_offset": [
-       0.000171,
-       0.000138
+       0.00018,
+       0.000132
       ],
       "expected_frames": 4360608,
       "frames": 4360608,
       "inf": 0,
       "input_dc_scaled": [
-       0.000171,
-       0.000137
+       0.00018,
+       0.000132
       ],
       "nan": 0,
       "tolerance": 1
@@ -828,10 +828,10 @@
    "manifest": "renders/var_streaming_universal/streaming_universal__distributor_44k16.manifest.json",
    "measured": {
     "frames": 4360608,
-    "lufs_i": -14.007,
+    "lufs_i": -14.003,
     "sample_rate": 44100,
     "subtype": "PCM_16",
-    "true_peak_dbtp": -1.008
+    "true_peak_dbtp": -1.007
    },
    "overall": "pass",
    "profile": "streaming_universal"
@@ -843,7 +843,7 @@
  "profiles": [
   {
    "delivery": "hires_native",
-   "lufs_i": -14.011,
+   "lufs_i": -14.007,
    "note": null,
    "profile": "streaming_universal",
    "status": "pass",
@@ -851,11 +851,11 @@
   },
   {
    "delivery": "distributor_44k16",
-   "lufs_i": -14.007,
+   "lufs_i": -14.003,
    "note": null,
    "profile": "streaming_universal",
    "status": "pass",
-   "true_peak_dbtp": -1.008
+   "true_peak_dbtp": -1.007
   }
  ],
  "schema_version": 1,

@@ -1,0 +1,3362 @@
+{
+  "schema_version": 1,
+  "language": "both",
+  "variant": "var_club",
+  "summary": {
+    "project": "マンコ主義",
+    "project_id": "prj_sample_v09",
+    "objective": {
+      "blend": [
+        {
+          "id": "comfort",
+          "weight": 1.0
+        }
+      ],
+      "intensity": 0.5,
+      "overrides": {},
+      "lead_stem": null
+    },
+    "profiles": [
+      "club"
+    ],
+    "outputs": [
+      {
+        "profile": "club",
+        "delivery": "dj_wav",
+        "result": "fail",
+        "file": "renders/var_club/club__dj_wav.wav"
+      }
+    ],
+    "route": {
+      "route": "stem_mix",
+      "reason": {
+        "ja": "ステムとミックス段の結果があるため、ステムミックス経路を選んだ",
+        "en": "Stems with mix-stage results exist, so the stem-mix route was chosen"
+      },
+      "rule": "R-21"
+    },
+    "result": "fail",
+    "send_back": {
+      "rule": "S-08",
+      "reason": {
+        "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+        "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+      },
+      "measured": {
+        "s08": {
+          "status": "fail",
+          "verify_tolerance_status": "fail",
+          "worst_excess_db": 0.21,
+          "margin_db": 0.2,
+          "deltas": {
+            "shimmer_index_db": {
+              "delta_db": 1.51,
+              "tolerance_db": 1.5
+            },
+            "side_shimmer_index_db": {
+              "delta_db": 0.99,
+              "tolerance_db": 1.5
+            },
+            "noise_floor_dbfs": {
+              "delta_db": 0.86,
+              "tolerance_db": 2.0
+            },
+            "noise_floor_hf_dbfs": {
+              "delta_db": 1.66,
+              "tolerance_db": 2.0
+            }
+          },
+          "failing": [
+            "shimmer_index_db"
+          ],
+          "gain_db": 8.971,
+          "frame_selection": "baseline_frames"
+        },
+        "target_lufs_i": -8.7,
+        "lufs_i": -8.66,
+        "limiter_gr": {
+          "gr_median_db": 0.87,
+          "gr_p95_db": 3.73,
+          "gr_fraction_gt_1db": 0.46,
+          "gr_max_db": 7.65
+        }
+      },
+      "suggestions": [
+        {
+          "action": "reduce_limiter_drive",
+          "text": {
+            "ja": "ミックス段でピーク（キックやスネアのトランジェント）とリミッターの負担を減らし、マスターを薄い駆動で仕上げられるようにする",
+            "en": "reduce peaks (kick / snare transients) and limiter load at the mix stage so the master needs less drive"
+          }
+        },
+        {
+          "action": "clean_first",
+          "text": {
+            "ja": "整音段（clean plan）でノイズとシマーを先に処理し、基準のノイズ床を下げる（R-20）",
+            "en": "treat noise and shimmer in the cleanup stage first (clean plan) to lower the baseline noise (R-20)"
+          }
+        },
+        {
+          "action": "limiter_style",
+          "text": {
+            "ja": "人の判断で、リリースを短くするかクリッパーに一部を受け持たせて再検証する（リミッター依存度が見えにくくなる点に注意。R-14）",
+            "en": "by human decision, try a faster release or a clipper share and verify again (it hides limiter dependency, R-14)"
+          }
+        }
+      ],
+      "rules": [
+        "S-08"
+      ]
+    },
+    "objective_score": 0.17995142538311729,
+    "objective_score_before": 0.1815833924888753,
+    "translation_gate": "pass"
+  },
+  "inputs": {
+    "assets": [
+      {
+        "id": "ast_backing_vocals",
+        "path": "assets/backing_vocals.wav",
+        "sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d",
+        "role": "backing_vocals",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_bass",
+        "path": "assets/bass.wav",
+        "sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1",
+        "role": "bass",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_brass",
+        "path": "assets/brass.wav",
+        "sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b",
+        "role": "brass",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_drums",
+        "path": "assets/drums.wav",
+        "sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21",
+        "role": "drums",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_fullmix",
+        "path": "assets/fullmix_conformed.wav",
+        "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd",
+        "role": "fullmix",
+        "origin": "reference_fullmix",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_fx",
+        "path": "assets/fx.wav",
+        "sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c",
+        "role": "fx",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_guitar",
+        "path": "assets/guitar.wav",
+        "sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d",
+        "role": "guitar",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_keyboard",
+        "path": "assets/keyboard.wav",
+        "sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312",
+        "role": "keyboard",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_percussion",
+        "path": "assets/percussion.wav",
+        "sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4",
+        "role": "percussion",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_strings",
+        "path": "assets/strings.wav",
+        "sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357",
+        "role": "strings",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_synth",
+        "path": "assets/synth.wav",
+        "sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6",
+        "role": "synth",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_vocals",
+        "path": "assets/vocals.wav",
+        "sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c",
+        "role": "vocals",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      },
+      {
+        "id": "ast_woodwinds",
+        "path": "assets/woodwinds.wav",
+        "sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac",
+        "role": "woodwinds",
+        "origin": "native_stem",
+        "sample_rate": 48000,
+        "channels": 2,
+        "length_samples": 4746240
+      }
+    ],
+    "provenance": {
+      "source": null,
+      "service": null,
+      "input_kind": "stem_folder",
+      "detected_by": null,
+      "declared_by_user": false,
+      "notes": ""
+    },
+    "ingest_checks": [
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_backing_vocals",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_bass",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_brass",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_drums",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_fullmix",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_fx",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_guitar",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_keyboard",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_percussion",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_strings",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_synth",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_vocals",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "format",
+        "level": "info",
+        "asset": "ast_woodwinds",
+        "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+        "values": {
+          "sample_rate": 48000,
+          "channels": 2,
+          "bit_depth": "32f",
+          "container": "wav",
+          "length_samples": 4746240,
+          "duration_s": 98.88
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_backing_vocals",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -8.43,
+          "integrated_lufs": -23.71,
+          "plr_db": 15.28,
+          "headroom_db": 8.43,
+          "sample_peak_dbfs": -8.44,
+          "psr_db": 12.37
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_bass",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -8.72,
+          "integrated_lufs": -22.99,
+          "plr_db": 14.28,
+          "headroom_db": 8.72,
+          "sample_peak_dbfs": -8.72,
+          "psr_db": 10.17
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_brass",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -9.87,
+          "integrated_lufs": -54.58,
+          "plr_db": 44.71,
+          "headroom_db": 9.87,
+          "sample_peak_dbfs": -10.41,
+          "psr_db": 45.88
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_drums",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -3.73,
+          "integrated_lufs": -18.69,
+          "plr_db": 14.97,
+          "headroom_db": 3.73,
+          "sample_peak_dbfs": -3.76,
+          "psr_db": 12.14
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_fx",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -10.73,
+          "integrated_lufs": -44.63,
+          "plr_db": 33.9,
+          "headroom_db": 10.73,
+          "sample_peak_dbfs": -11.2,
+          "psr_db": 26.13
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_guitar",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -8.87,
+          "integrated_lufs": -28.55,
+          "plr_db": 19.67,
+          "headroom_db": 8.87,
+          "sample_peak_dbfs": -8.89,
+          "psr_db": 14.91
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_keyboard",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -12.2,
+          "integrated_lufs": -28.58,
+          "plr_db": 16.38,
+          "headroom_db": 12.2,
+          "sample_peak_dbfs": -12.2,
+          "psr_db": 10.75
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_percussion",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -10.99,
+          "integrated_lufs": -37.9,
+          "plr_db": 26.91,
+          "headroom_db": 10.99,
+          "sample_peak_dbfs": -10.99,
+          "psr_db": 19.88
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_strings",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -12.97,
+          "integrated_lufs": -64.07,
+          "plr_db": 51.1,
+          "headroom_db": 12.97,
+          "sample_peak_dbfs": -13.27,
+          "psr_db": 50.15
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_synth",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -15.29,
+          "integrated_lufs": -30.23,
+          "plr_db": 14.95,
+          "headroom_db": 15.29,
+          "sample_peak_dbfs": -15.29,
+          "psr_db": 7.7
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_vocals",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -6.23,
+          "integrated_lufs": -19.89,
+          "plr_db": 13.66,
+          "headroom_db": 6.23,
+          "sample_peak_dbfs": -6.23,
+          "psr_db": 11.62
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_woodwinds",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -14.4,
+          "integrated_lufs": -29.67,
+          "plr_db": 15.28,
+          "headroom_db": 14.4,
+          "sample_peak_dbfs": -14.55,
+          "psr_db": 13.08
+        }
+      },
+      {
+        "check": "headroom",
+        "level": "info",
+        "asset": "ast_fullmix",
+        "message": "peak and headroom recorded [true peak / PLR]",
+        "values": {
+          "true_peak_dbtp": -2.48,
+          "integrated_lufs": -15.5,
+          "plr_db": 13.02,
+          "headroom_db": 2.48,
+          "sample_peak_dbfs": -2.54,
+          "psr_db": 10.9
+        }
+      },
+      {
+        "check": "stem_sum_consistency",
+        "level": "info",
+        "asset": "ast_fullmix",
+        "message": "stem sum vs full mix: null residual -2.91 dB, correlation 0.7588 (record only)",
+        "values": {
+          "residual_db": -2.91,
+          "correlation": 0.7588,
+          "stems_summed": [
+            "ast_backing_vocals",
+            "ast_bass",
+            "ast_brass",
+            "ast_drums",
+            "ast_fx",
+            "ast_guitar",
+            "ast_keyboard",
+            "ast_percussion",
+            "ast_strings",
+            "ast_synth",
+            "ast_vocals",
+            "ast_woodwinds"
+          ],
+          "compared_samples": 4746240,
+          "sample_rate": 48000,
+          "alignment": "head",
+          "gain_db": 0.0,
+          "best_fit_gain_db": -2.86,
+          "residual_after_gain_fit_db": -3.72
+        }
+      }
+    ],
+    "stem_sum_consistency": null,
+    "stem_sum_note": {
+      "ja": "ステム合算の整合は解析段（analyze）の結果を参照。このレポートでは再評価しない",
+      "en": "Stem-sum consistency comes from the analysis stage; not re-evaluated in this report"
+    }
+  },
+  "measurements": {
+    "level_matched": false,
+    "before": {
+      "integrated_lufs": -17.63048594400606,
+      "short_term_max_lufs": -15.912486179837668,
+      "short_term_p10": -19.05140568087458,
+      "short_term_p50": -17.540820937320703,
+      "short_term_p95": -16.28249269301314,
+      "momentary_max_lufs": -14.767205236222475,
+      "lra_lu": 2.768912987861441,
+      "true_peak_dbtp": -3.636688922350531,
+      "sample_peak_dbfs": -3.654647419537889,
+      "plr_db": 13.99379702165553,
+      "psr_db": 12.275797257487136
+    },
+    "after": null,
+    "comparison": null,
+    "assumed_playback": {
+      "ja": "比較はレベルマッチ後の信号で行う（R-01）。幅と定位の値はスピーカー（±30°）とモノ合算を前提にする",
+      "en": "Comparisons use level-matched signals (R-01). Width/localisation values assume speakers (+/-30 deg) and a mono fold"
+    },
+    "objective_metrics": [
+      {
+        "objective": "comfort",
+        "metric": "P-01",
+        "unit": "dB (ISO 226 weighted RMS deviation)",
+        "before": 7.557828410732213,
+        "after": 7.458281537638595,
+        "status": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-02",
+        "unit": null,
+        "before": null,
+        "after": null,
+        "status": "not_measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-11",
+        "unit": "dB prominence",
+        "before": 1.0473954748806804,
+        "after": 0.79632349880319,
+        "status": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-03",
+        "unit": "dB / LU",
+        "before": {
+          "plr_db": 13.99379702165553,
+          "lra_lu": 2.768912987861441
+        },
+        "after": {
+          "plr_db": 8.148554937347026,
+          "lra_lu": 1.9198718327050486
+        },
+        "status": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-09",
+        "unit": null,
+        "before": null,
+        "after": null,
+        "status": "not_measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-12",
+        "unit": "dB crest loss",
+        "before": 0.0,
+        "after": 1.6553,
+        "status": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-19",
+        "unit": "dB",
+        "before": 1.3050241176162114,
+        "after": 1.4040116367271787,
+        "status": "measured"
+      }
+    ],
+    "objective_metrics_note": {
+      "ja": "目的関数の代理指標の処理前後。レベルマッチ後に測定した値（R-01）",
+      "en": "Objective proxy metrics before and after, measured on level-matched signals (R-01)"
+    }
+  },
+  "decisions": {
+    "balance": [
+      {
+        "stage": "planner",
+        "measured": {
+          "P-02": {
+            "before": null,
+            "after": null,
+            "penalty_before": null,
+            "penalty_after": null
+          }
+        },
+        "rule": "R-28",
+        "action": {
+          "ja": "バランスはミックス段で扱う",
+          "en": "balance is handled at the mix stage"
+        },
+        "alternatives": [],
+        "result": null
+      }
+    ],
+    "panning": [
+      {
+        "stage": "stereo",
+        "measured": {
+          "low_band_hz": 120.0,
+          "low_band_mono_loss_db": 0.02,
+          "low_band_negative_corr": {
+            "longest_run_s": 0.0,
+            "negative_fraction": 0.0,
+            "windows": 234,
+            "min_corr": 0.486137904123278
+          }
+        },
+        "rule": "R-09",
+        "action": {
+          "ja": "低域のモノ損失と逆相は許容内。ステレオ処理は入れない",
+          "en": "Low-band mono loss and anti-phase are within limits; no stereo processing"
+        },
+        "alternatives": [
+          {
+            "ja": "120 Hz 以下のモノ化",
+            "en": "mono below 120 Hz"
+          }
+        ],
+        "result": {}
+      },
+      {
+        "stage": "planner",
+        "measured": {
+          "S-03": "pass",
+          "S-04": "pass"
+        },
+        "rule": "R-09",
+        "action": {
+          "ja": "定位・幅は変更なし",
+          "en": "no panning / width change"
+        },
+        "alternatives": [],
+        "result": null
+      }
+    ],
+    "frequency": [
+      {
+        "stage": "corrective_eq",
+        "measured": {
+          "band_ratios_vs_generic_prior": {
+            "sub": {
+              "ratio": 0.05874,
+              "prior_range": [
+                0.01,
+                0.6
+              ],
+              "deviation_db": 0.0
+            },
+            "bass": {
+              "ratio": 0.60554,
+              "prior_range": [
+                0.05,
+                0.7
+              ],
+              "deviation_db": 0.0
+            },
+            "low_mid": {
+              "ratio": 0.11896,
+              "prior_range": [
+                0.03,
+                0.3
+              ],
+              "deviation_db": 0.0
+            },
+            "mid": {
+              "ratio": 0.17489,
+              "prior_range": [
+                0.04,
+                0.4
+              ],
+              "deviation_db": 0.0
+            },
+            "high_mid": {
+              "ratio": 0.03586,
+              "prior_range": [
+                0.01,
+                0.25
+              ],
+              "deviation_db": 0.0
+            },
+            "air": {
+              "ratio": 0.006,
+              "prior_range": [
+                0.0005,
+                0.12
+              ],
+              "deviation_db": 0.0
+            }
+          }
+        },
+        "rule": "R-06",
+        "action": {
+          "ja": "明確な帯域の問題が測定されなかったため、EQ は入れない（0 dB）",
+          "en": "No clear band issue was measured, so no EQ is applied (0 dB)"
+        },
+        "alternatives": [
+          {
+            "ja": "汎用 prior に寄せる小さな補正",
+            "en": "small moves toward the generic prior"
+          }
+        ],
+        "result": {
+          "eq_moves": 0
+        }
+      },
+      {
+        "stage": "enhance",
+        "measured": {},
+        "rule": "R-06",
+        "action": {
+          "ja": "エンハンスは既定で使わない",
+          "en": "No enhancement by default"
+        },
+        "alternatives": [
+          {
+            "ja": "倍音付加（目的が説明できる場合のみ）",
+            "en": "harmonic enhancement (only with a stated purpose)"
+          }
+        ],
+        "result": {}
+      },
+      {
+        "stage": "planner_loop",
+        "measured": {
+          "score_start": 0.19945046804176642,
+          "score_best": 0.19945046804176642,
+          "iterations": 0
+        },
+        "rule": "R-01,R-06,R-15,R-29",
+        "action": {
+          "ja": "目的関数の内訳に沿って小さな手を試し、レベルマッチ後の測定で最良の候補を残した",
+          "en": "small moves were tried along the objective breakdown; the best level-matched candidate was kept"
+        },
+        "alternatives": [
+          {
+            "ja": "plan_master の提案をそのまま使う",
+            "en": "use the plan_master proposal unchanged"
+          }
+        ],
+        "result": {
+          "score": 0.19945046804176642,
+          "converged": true,
+          "reason": "converged: best improvement 0.0006 < 0.005",
+          "s08": {
+            "status": "fail",
+            "worst_excess_db": 0.21,
+            "deltas": {
+              "shimmer_index_db": {
+                "delta_db": 1.51,
+                "tolerance_db": 1.5
+              },
+              "side_shimmer_index_db": {
+                "delta_db": 0.99,
+                "tolerance_db": 1.5
+              },
+              "noise_floor_dbfs": {
+                "delta_db": 0.86,
+                "tolerance_db": 2.0
+              },
+              "noise_floor_hf_dbfs": {
+                "delta_db": 1.66,
+                "tolerance_db": 2.0
+              }
+            }
+          }
+        }
+      },
+      {
+        "stage": "planner",
+        "measured": {
+          "P-01": {
+            "before": 8.720810144806167,
+            "after": 7.458281537638595,
+            "penalty_before": 0.25704516885129186,
+            "penalty_after": 0.20609893336653357
+          },
+          "P-11": {
+            "before": 2.7064496218311263,
+            "after": 0.79632349880319,
+            "penalty_before": 0.5023602361094236,
+            "penalty_after": 0.49516195911417793
+          },
+          "P-19": {
+            "before": 1.3967795572056263,
+            "after": 1.4040116367271787,
+            "penalty_before": 0.0,
+            "penalty_after": 0.0
+          }
+        },
+        "rule": "R-06",
+        "action": {
+          "ja": "周波数の追加補正なし",
+          "en": "no further frequency correction"
+        },
+        "alternatives": [],
+        "result": null
+      }
+    ],
+    "depth": [
+      {
+        "stage": "planner",
+        "measured": {
+          "P-09": {
+            "before": null,
+            "after": null,
+            "penalty_before": null,
+            "penalty_after": null
+          }
+        },
+        "rule": null,
+        "action": {
+          "ja": "奥行きはミックス段で扱う",
+          "en": "depth is handled at the mix stage"
+        },
+        "alternatives": [],
+        "result": null
+      }
+    ],
+    "dynamics": [
+      {
+        "stage": "dynamics",
+        "measured": {
+          "plr_db": 13.99379702165553,
+          "lra_lu": 2.768912987861441
+        },
+        "rule": "R-30",
+        "action": {
+          "ja": "既定でダイナミクス処理なし（マルチバンドは使わない）",
+          "en": "No dynamics processing by default (no multiband)"
+        },
+        "alternatives": [
+          {
+            "ja": "軽いシングルバンド・コンプ（1〜2 dB）",
+            "en": "light single-band compression (1-2 dB)"
+          },
+          {
+            "ja": "マルチバンド（ミックスへ差し戻す代替としてのみ）",
+            "en": "multiband (only as an alternative to a send-back)"
+          }
+        ],
+        "result": {}
+      },
+      {
+        "stage": "loudness",
+        "measured": {
+          "input_lufs_i": -17.63,
+          "pre_limiter_lufs_i": -17.63,
+          "profile_target_lufs_i": -7.0,
+          "window_lufs_i": [
+            -9.0,
+            -6.0
+          ],
+          "tried": [
+            {
+              "target": -7.0,
+              "lufs_i": -7.01,
+              "gr_p95_db": 8.97
+            },
+            {
+              "target": -8.0,
+              "lufs_i": -7.98,
+              "gr_p95_db": 5.22
+            },
+            {
+              "target": -8.7,
+              "lufs_i": -8.66,
+              "gr_p95_db": 3.73
+            }
+          ]
+        },
+        "rule": "R-18",
+        "action": {
+          "ja": "正規化されない媒体のため、レンジ内でリミッター依存度（P-18）とノイズ戻り（S-08）の制約下で到達できる -8.7 LUFS を取る",
+          "en": "Non-normalized medium: -8.7 LUFS, reachable within the window under the P-18 limit and the S-08 guard"
+        },
+        "alternatives": [
+          {
+            "ja": "より大きい目標（リミッター依存度とノイズ戻りが増える）",
+            "en": "a louder target (more limiter dependency and noise return)"
+          }
+        ],
+        "result": {
+          "lufs_i": -8.66,
+          "gain_db": 10.779
+        }
+      },
+      {
+        "stage": "true_peak_limiter",
+        "measured": {
+          "limiter_gr": {
+            "gr_median_db": 0.87,
+            "gr_p95_db": 3.73,
+            "gr_fraction_gt_1db": 0.46,
+            "gr_max_db": 7.65
+          }
+        },
+        "rule": "R-14",
+        "action": {
+          "ja": "最終段に True Peak リミッター（天井 -0.5 dBTP、リリース 100 ms）",
+          "en": "True-peak limiter last (ceiling -0.5 dBTP, release 100 ms)"
+        },
+        "alternatives": [
+          {
+            "ja": "クリッパーの併用（既定では使わない）",
+            "en": "add a clipper (not default)"
+          },
+          {
+            "ja": "リリース時間の変更（ポンピングとノイズの持ち上がりが変わる）",
+            "en": "a different release time (changes pumping and noise lift)"
+          }
+        ],
+        "result": {
+          "true_peak": -0.51
+        }
+      },
+      {
+        "stage": "noise_return_guard",
+        "measured": {
+          "s08": {
+            "status": "fail",
+            "verify_tolerance_status": "fail",
+            "worst_excess_db": 0.21,
+            "margin_db": 0.2,
+            "deltas": {
+              "shimmer_index_db": {
+                "delta_db": 1.51,
+                "tolerance_db": 1.5
+              },
+              "side_shimmer_index_db": {
+                "delta_db": 0.99,
+                "tolerance_db": 1.5
+              },
+              "noise_floor_dbfs": {
+                "delta_db": 0.86,
+                "tolerance_db": 2.0
+              },
+              "noise_floor_hf_dbfs": {
+                "delta_db": 1.66,
+                "tolerance_db": 2.0
+              }
+            },
+            "failing": [
+              "shimmer_index_db"
+            ],
+            "gain_db": 8.971,
+            "frame_selection": "baseline_frames"
+          },
+          "baseline": {
+            "source": "measured on the master input built from cleaned assets",
+            "cleaned": true
+          },
+          "scope": "full input, simulated chain",
+          "frame_selection": "baseline frames, time aligned"
+        },
+        "rule": "S-08",
+        "action": {
+          "ja": "是正しても合格しないため、最も悪化の小さい候補を残してミックス段へ差し戻す",
+          "en": "Corrections did not pass; the least-failing candidate is kept and the master is sent back"
+        },
+        "alternatives": [
+          {
+            "ja": "許容幅を緩める（ハード制約なので行わない。SPEC 4.3）",
+            "en": "relax the tolerance (never: hard constraint, SPEC 4.3)"
+          },
+          {
+            "ja": "マルチバンド処理でノイズを抑える（R-30 により既定では使わない）",
+            "en": "suppress the noise with multiband processing (not default, R-30)"
+          }
+        ],
+        "result": {
+          "s08": {
+            "status": "fail",
+            "verify_tolerance_status": "fail",
+            "worst_excess_db": 0.21,
+            "margin_db": 0.2,
+            "deltas": {
+              "shimmer_index_db": {
+                "delta_db": 1.51,
+                "tolerance_db": 1.5
+              },
+              "side_shimmer_index_db": {
+                "delta_db": 0.99,
+                "tolerance_db": 1.5
+              },
+              "noise_floor_dbfs": {
+                "delta_db": 0.86,
+                "tolerance_db": 2.0
+              },
+              "noise_floor_hf_dbfs": {
+                "delta_db": 1.66,
+                "tolerance_db": 2.0
+              }
+            },
+            "failing": [
+              "shimmer_index_db"
+            ],
+            "gain_db": 8.971,
+            "frame_selection": "baseline_frames"
+          }
+        },
+        "steps": [
+          {
+            "step": 1,
+            "kind": "hf_boost",
+            "measured": {
+              "s08": {
+                "status": "fail",
+                "verify_tolerance_status": "fail",
+                "worst_excess_db": 0.21,
+                "margin_db": 0.2,
+                "deltas": {
+                  "shimmer_index_db": {
+                    "delta_db": 1.51,
+                    "tolerance_db": 1.5
+                  },
+                  "side_shimmer_index_db": {
+                    "delta_db": 0.99,
+                    "tolerance_db": 1.5
+                  },
+                  "noise_floor_dbfs": {
+                    "delta_db": 0.86,
+                    "tolerance_db": 2.0
+                  },
+                  "noise_floor_hf_dbfs": {
+                    "delta_db": 1.66,
+                    "tolerance_db": 2.0
+                  }
+                },
+                "failing": [
+                  "shimmer_index_db"
+                ],
+                "gain_db": 8.971,
+                "frame_selection": "baseline_frames"
+              }
+            },
+            "rule": "S-08",
+            "action": {
+              "ja": "チェーンに高域のブーストがないため、高域ブーストの低減は該当しない",
+              "en": "The chain has no HF boost, so reducing it does not apply"
+            },
+            "alternatives": [],
+            "result": null
+          }
+        ]
+      },
+      {
+        "stage": "planner",
+        "measured": {
+          "P-03": {
+            "before": {
+              "plr_db": 9.329036532398211,
+              "lra_lu": 5.645214992640769
+            },
+            "after": {
+              "plr_db": 8.148554937347026,
+              "lra_lu": 1.9198718327050486
+            },
+            "penalty_before": 0.0,
+            "penalty_after": 0.000713137062813396
+          },
+          "P-12": {
+            "before": 1.3078,
+            "after": 1.6553,
+            "penalty_before": 0.0,
+            "penalty_after": 0.0006
+          }
+        },
+        "rule": "R-14",
+        "action": {
+          "ja": "リミッターは天井として扱い、駆動量はレベル補償で一定に保った",
+          "en": "the limiter is a ceiling; its drive was kept constant by loudness compensation"
+        },
+        "alternatives": [],
+        "result": {
+          "gr_median_db": 0.8724,
+          "gr_p95_db": 3.727,
+          "gr_fraction_gt_1db": 0.458103,
+          "gr_max_db": 7.6523
+        }
+      }
+    ],
+    "interest": [
+      {
+        "stage": "planner",
+        "measured": {},
+        "rule": "R-26",
+        "action": {
+          "ja": "「仕掛け」は自動化が最も難しい軸で、人間の指示とリファレンスに依存する。プランナーは展開のコントラストを平坦にしないことだけを監視する",
+          "en": "Interest is the hardest axis to automate and depends on human direction and references; the planner only watches that section contrast is not flattened"
+        },
+        "alternatives": [],
+        "result": null,
+        "status": "depends_on_humans_and_references",
+        "references": {
+          "ja": "リファレンスは登録されていない",
+          "en": "No references are registered"
+        }
+      }
+    ]
+  },
+  "objective_breakdown": {
+    "status": "evaluated",
+    "source": "stored_proposal",
+    "source_label": {
+      "ja": "適用した提案の評価（プランナーの全尺評価）",
+      "en": "evaluation stored with the applied proposal (planner, full length)"
+    },
+    "proposal_id": "mpl_87235d5d809b",
+    "scope": "full_length",
+    "objective": {
+      "blend": [
+        {
+          "id": "comfort",
+          "weight": 1.0
+        }
+      ],
+      "intensity": 0.5,
+      "lead": {
+        "stem": "trk_vocals",
+        "estimated": false,
+        "source": "track_is_lead"
+      },
+      "genre": "hiphop",
+      "reference": {
+        "source": "generic_prior",
+        "n": 0
+      }
+    },
+    "score": 0.17995142538311729,
+    "score_before": 0.1815833924888753,
+    "score_by_objective": {
+      "comfort": 0.17995142538311726
+    },
+    "terms": [
+      {
+        "objective": "comfort",
+        "metric": "P-01",
+        "variant": null,
+        "key": "P-01",
+        "sense": "keep_in_range",
+        "weight": 0.25,
+        "effective_weight": 0.35714285714285715,
+        "value": 7.458281537638595,
+        "target": {
+          "source": "generic_prior"
+        },
+        "target_source": "generic_prior",
+        "penalty": 0.20609893336653357,
+        "contribution": 0.07360676191661913,
+        "status": "measured",
+        "unit": "dB (ISO 226 weighted RMS deviation)",
+        "value_before": 7.557828410732213,
+        "penalty_before": 0.211378210710937,
+        "status_before": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-02",
+        "variant": null,
+        "key": "P-02",
+        "sense": "minimize",
+        "weight": 0.2,
+        "effective_weight": 0.0,
+        "value": null,
+        "target": [
+          0.0,
+          3.0
+        ],
+        "target_source": "masking_model",
+        "penalty": null,
+        "contribution": 0.0,
+        "status": "not_measured",
+        "reason": "needs stems (masking is an inter-stem metric)",
+        "value_before": null,
+        "penalty_before": null,
+        "status_before": "not_measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-11",
+        "variant": null,
+        "key": "P-11",
+        "sense": "minimize_excess",
+        "weight": 0.15,
+        "effective_weight": 0.21428571428571427,
+        "value": 0.79632349880319,
+        "target": [
+          null,
+          2.5
+        ],
+        "target_source": "thresholds_m3",
+        "penalty": 0.49516195911417793,
+        "contribution": 0.10610613409589527,
+        "status": "measured",
+        "unit": "dB prominence",
+        "value_before": 1.0473954748806804,
+        "penalty_before": 0.4950921470965232,
+        "status_before": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-03",
+        "variant": null,
+        "key": "P-03",
+        "sense": "keep_in_range",
+        "weight": 0.15,
+        "effective_weight": 0.21428571428571427,
+        "value": {
+          "plr_db": 8.148554937347026,
+          "lra_lu": 1.9198718327050486
+        },
+        "target": {
+          "plr_db": [
+            7.0,
+            18.0
+          ],
+          "lra_lu": [
+            2.0,
+            15.0
+          ]
+        },
+        "target_source": "generic",
+        "penalty": 0.000713137062813396,
+        "contribution": 0.00015281508488858484,
+        "status": "measured",
+        "unit": "dB / LU",
+        "value_before": {
+          "plr_db": 13.99379702165553,
+          "lra_lu": 2.768912987861441
+        },
+        "penalty_before": 0.0,
+        "status_before": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-09",
+        "variant": null,
+        "key": "P-09",
+        "sense": "keep_order",
+        "weight": 0.1,
+        "effective_weight": 0.0,
+        "value": null,
+        "target": null,
+        "target_source": "module",
+        "penalty": null,
+        "contribution": 0.0,
+        "status": "not_measured",
+        "reason": "needs stems (depth order is per stem)",
+        "value_before": null,
+        "penalty_before": null,
+        "status_before": "not_measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-12",
+        "variant": null,
+        "key": "P-12",
+        "sense": "preserve",
+        "weight": 0.1,
+        "effective_weight": 0.14285714285714288,
+        "value": 1.6553,
+        "target": null,
+        "target_source": "module",
+        "penalty": 0.0006,
+        "contribution": 8.571428571428571e-05,
+        "status": "measured",
+        "unit": "dB crest loss",
+        "value_before": 0.0,
+        "penalty_before": 0.0,
+        "status_before": "measured"
+      },
+      {
+        "objective": "comfort",
+        "metric": "P-19",
+        "variant": null,
+        "key": "P-19",
+        "sense": "minimize",
+        "weight": 0.05,
+        "effective_weight": 0.07142857142857144,
+        "value": 1.4040116367271787,
+        "target": null,
+        "target_source": "module",
+        "penalty": 0.0,
+        "contribution": 0.0,
+        "status": "measured",
+        "unit": "dB",
+        "value_before": 1.3050241176162114,
+        "penalty_before": 0.0,
+        "status_before": "measured"
+      }
+    ],
+    "redistribution": [
+      {
+        "objective": "comfort",
+        "moved_weight": 0.30000000000000004,
+        "factor": 1.4285714285714286,
+        "terms": [
+          "P-02",
+          "P-09"
+        ],
+        "reasons": {
+          "P-02": "needs stems (masking is an inter-stem metric)",
+          "P-09": "needs stems (depth order is per stem)"
+        },
+        "rule": "proportional to the measured terms of the same objective"
+      }
+    ],
+    "level_matched": true,
+    "rule": "R-01",
+    "note": {
+      "ja": "各項の penalty は目標範囲内なら 0、外れるほど 1 に近づく。score は実効重み × penalty の合計で、0 が理想。測定できない項の重みは同じ目的関数の測定できた項へ比例配分し、記録する",
+      "en": "Each penalty is 0 inside the target range and approaches 1 the further it is outside. The score is the sum of effective weight x penalty; 0 is ideal. Weights of terms that cannot be measured are redistributed proportionally to the measured terms of the same objective and recorded"
+    }
+  },
+  "constraints": [
+    {
+      "profile": "club",
+      "delivery": "dj_wav",
+      "overall": "fail",
+      "checks": {
+        "render": {
+          "status": "missing",
+          "reason": "output not rendered; run render first"
+        }
+      }
+    }
+  ],
+  "objective_constraints": {
+    "statuses": {
+      "S-01": "pass",
+      "S-02": "not_evaluated",
+      "S-03": "pass",
+      "S-04": "pass",
+      "S-05": "not_evaluated",
+      "S-06": "pass",
+      "S-07": "not_evaluated",
+      "S-08": "not_evaluated",
+      "S-09": "pass",
+      "S-10": "not_evaluated",
+      "S-11": "not_evaluated"
+    },
+    "details": {},
+    "rejected": false,
+    "note": {
+      "ja": "目的関数の評価時の安全不変条件。混合や強度で緩和されない（SPEC 4.3）。出口ごとの最終判定は上の検証結果",
+      "en": "Safety invariants at objective evaluation; never relaxed by blend or intensity (SPEC 4.3). The per-output verdicts above are final"
+    }
+  },
+  "translation_gate": {
+    "spec_id": "OF-5",
+    "status": "pass",
+    "pass": true,
+    "meaning": {
+      "ja": "必須の検査がすべて合格した",
+      "en": "Every required check passed"
+    },
+    "profile": "club",
+    "checks": [
+      {
+        "id": "band_limited_lead_preserved",
+        "status": "not_evaluated",
+        "required": false,
+        "reason": "not_required_by_profile",
+        "values": {}
+      },
+      {
+        "id": "mono_fold_loss_within_limit",
+        "status": "pass",
+        "required": true,
+        "values": {
+          "low_band_mono_loss_db": 0.022552977142828258,
+          "clarity_band_mono_loss_db": 0.12206850566063505,
+          "bands": {
+            "sub": {
+              "mono_loss_db": 0.004990524507153403,
+              "cancelled": false
+            },
+            "bass": {
+              "mono_loss_db": 0.08693522544449737,
+              "cancelled": false
+            },
+            "lowmid": {
+              "mono_loss_db": 0.22491988173430733,
+              "cancelled": false
+            },
+            "mid": {
+              "mono_loss_db": 0.08811068932267797,
+              "cancelled": false
+            },
+            "highmid": {
+              "mono_loss_db": 0.09416568730459055,
+              "cancelled": false
+            },
+            "air": {
+              "mono_loss_db": 0.06141738657768339,
+              "cancelled": false
+            }
+          },
+          "problems": []
+        }
+      },
+      {
+        "id": "low_level_balance_preserved",
+        "status": "not_evaluated",
+        "required": false,
+        "reason": "not_required_by_profile",
+        "values": {}
+      },
+      {
+        "id": "pitch_preserved_without_fundamental",
+        "status": "not_evaluated",
+        "required": false,
+        "reason": "not_required_by_profile",
+        "values": {}
+      }
+    ],
+    "corrective_suggestions": [],
+    "notes": [
+      "2mix only: lead checks are not evaluable without stems and are not counted as passes"
+    ]
+  },
+  "cleanup": {
+    "status": "applied",
+    "error": null,
+    "assets": [
+      {
+        "asset": "ast_backing_vocals",
+        "skipped": false,
+        "plan_hash": "ede9e6ba0f18f8b4048f6cd9478fb80a6db13a9f5570842d67f1d42375f6449d",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "run",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection",
+            "spectral_reduction"
+          ],
+          "light": [],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -280.805,
+            "removed_dbfs": -300.0,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -23.367,
+            "removed_dbfs": -64.228,
+            "sone_ratio": 0.198
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -25.638,
+            "removed_dbfs": -76.936,
+            "sone_ratio": 0.1691
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -26.675,
+            "removed_dbfs": -78.566,
+            "sone_ratio": 0.1574
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -24.822,
+            "removed_dbfs": -83.146,
+            "sone_ratio": 0.179
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -22.199,
+            "removed_dbfs": -89.541,
+            "sone_ratio": 0.2147
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": -0.0,
+            "low_mid": 0.0,
+            "mid": 0.011,
+            "high_mid": -0.006,
+            "air": -0.112
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -168.723,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_backing_vocals.wav",
+        "record": "analysis/cleanup_ast_backing_vocals.json"
+      },
+      {
+        "asset": "ast_bass",
+        "skipped": false,
+        "plan_hash": "b5f3d10865b6284e287b85d7ea8163921943ae1c9be1159e72a2287e10878045",
+        "steps": {
+          "click_repair": "skip",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "click_repair",
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -300.0,
+            "removed_dbfs": -300.0,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -60.16,
+            "removed_dbfs": -117.703,
+            "sone_ratio": 0.0155
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -58.389,
+            "removed_dbfs": -137.677,
+            "sone_ratio": 0.0175
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -45.757,
+            "removed_dbfs": -134.016,
+            "sone_ratio": 0.0419
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -37.946,
+            "removed_dbfs": -124.14,
+            "sone_ratio": 0.0721
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -29.881,
+            "removed_dbfs": -120.285,
+            "sone_ratio": 0.126
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": -0.001,
+            "high_mid": -0.003,
+            "air": -0.077
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -166.229,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_bass.wav",
+        "record": "analysis/cleanup_ast_bass.json"
+      },
+      {
+        "asset": "ast_brass",
+        "skipped": false,
+        "plan_hash": "81cf4b91ab35a282412351081280da8683bba467b82b943cade2c71a02c9c55a",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -99.894,
+            "removed_dbfs": -174.448,
+            "sone_ratio": 0.001
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -5.466,
+            "removed_dbfs": -72.503,
+            "sone_ratio": 0.6846
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -1.368,
+            "removed_dbfs": -78.047,
+            "sone_ratio": 0.9095
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -1.266,
+            "removed_dbfs": -79.781,
+            "sone_ratio": 0.916
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -3.206,
+            "removed_dbfs": -82.69,
+            "sone_ratio": 0.8007
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -11.059,
+            "removed_dbfs": -101.141,
+            "sone_ratio": 0.4646
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": -0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": null,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": 1.368,
+            "high_mid": 0.992,
+            "air": 3.04
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -190.795,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": true,
+          "rerun": true
+        },
+        "delta_file": "renders/delta/ast_brass.wav",
+        "record": "analysis/cleanup_ast_brass.json"
+      },
+      {
+        "asset": "ast_drums",
+        "skipped": false,
+        "plan_hash": "c2551282580f47ad49d1c1345f534334bd4c04ac1038fe97a6b678ebb3a2fadd",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -155.093,
+            "removed_dbfs": -176.448,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -21.704,
+            "removed_dbfs": -56.432,
+            "sone_ratio": 0.2221
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -17.141,
+            "removed_dbfs": -63.213,
+            "sone_ratio": 0.3048
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -18.552,
+            "removed_dbfs": -69.681,
+            "sone_ratio": 0.2764
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -17.797,
+            "removed_dbfs": -73.708,
+            "sone_ratio": 0.2912
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -6.978,
+            "removed_dbfs": -74.937,
+            "sone_ratio": 0.6165
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": false,
+          "lowmid_250_500_change": {
+            "delta_db": -0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": 0.071,
+            "high_mid": -1.147,
+            "air": -0.399
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -159.846,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_drums.wav",
+        "record": "analysis/cleanup_ast_drums.json"
+      },
+      {
+        "asset": "ast_fx",
+        "skipped": false,
+        "plan_hash": "301ed26dd460be35c250299d504a76432955e7485da5ac4a051e4285ab898b89",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "run",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection",
+            "spectral_reduction"
+          ],
+          "light": [],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -125.196,
+            "removed_dbfs": -177.535,
+            "sone_ratio": 0.0002
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -15.044,
+            "removed_dbfs": -70.444,
+            "sone_ratio": 0.3525
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -8.867,
+            "removed_dbfs": -77.32,
+            "sone_ratio": 0.5408
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -8.072,
+            "removed_dbfs": -79.507,
+            "sone_ratio": 0.5715
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -6.986,
+            "removed_dbfs": -79.311,
+            "sone_ratio": 0.6162
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -11.968,
+            "removed_dbfs": -88.087,
+            "sone_ratio": 0.4362
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": -0.0,
+            "mid": -0.128,
+            "high_mid": 0.047,
+            "air": -0.218
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -180.463,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": true,
+          "rerun": true
+        },
+        "delta_file": "renders/delta/ast_fx.wav",
+        "record": "analysis/cleanup_ast_fx.json"
+      },
+      {
+        "asset": "ast_guitar",
+        "skipped": false,
+        "plan_hash": "df2ff4d636ed930975352964ac5516cd4e36b7172df95e88cc80006a0a7dfb44",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "skip",
+          "protection": "skip",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair"
+          ],
+          "light": [],
+          "skip": [
+            "completion",
+            "protection",
+            "spectral_reduction"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -156.209,
+            "removed_dbfs": -191.281,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -23.378,
+            "removed_dbfs": -67.356,
+            "sone_ratio": 0.1978
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -16.93,
+            "removed_dbfs": -86.059,
+            "sone_ratio": 0.3093
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -2.309,
+            "removed_dbfs": -86.474,
+            "sone_ratio": 0.8521
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -4.75,
+            "removed_dbfs": -86.707,
+            "sone_ratio": 0.7195
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -1.311,
+            "removed_dbfs": -91.043,
+            "sone_ratio": 0.9131
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": -0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": 0.003,
+            "high_mid": 0.018,
+            "air": 0.375
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -172.528,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_guitar.wav",
+        "record": "analysis/cleanup_ast_guitar.json"
+      },
+      {
+        "asset": "ast_keyboard",
+        "skipped": false,
+        "plan_hash": "e4efe3197ca63de07605d0114c2a6563fddf584a9edd619798adde713253513a",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "skip",
+          "protection": "skip",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair"
+          ],
+          "light": [],
+          "skip": [
+            "completion",
+            "protection",
+            "spectral_reduction"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -151.126,
+            "removed_dbfs": -183.516,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -22.904,
+            "removed_dbfs": -77.731,
+            "sone_ratio": 0.2044
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -2.939,
+            "removed_dbfs": -85.155,
+            "sone_ratio": 0.8157
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -2.62,
+            "removed_dbfs": -87.767,
+            "sone_ratio": 0.8339
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -4.102,
+            "removed_dbfs": -89.527,
+            "sone_ratio": 0.7525
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -15.108,
+            "removed_dbfs": -103.92,
+            "sone_ratio": 0.3509
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": -0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": -0.0,
+            "low_mid": 0.0,
+            "mid": 0.0,
+            "high_mid": 0.177,
+            "air": 2.514
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -192.019,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": true,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_keyboard.wav",
+        "record": "analysis/cleanup_ast_keyboard.json"
+      },
+      {
+        "asset": "ast_percussion",
+        "skipped": false,
+        "plan_hash": "d736dd6719f6cf0b260445eb481590af3d8e7e4843dcde60453dd0ea51f6e00d",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -119.208,
+            "removed_dbfs": -176.911,
+            "sone_ratio": 0.0003
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -18.791,
+            "removed_dbfs": -69.788,
+            "sone_ratio": 0.2719
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -7.196,
+            "removed_dbfs": -71.782,
+            "sone_ratio": 0.6073
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -7.204,
+            "removed_dbfs": -67.25,
+            "sone_ratio": 0.6069
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -7.704,
+            "removed_dbfs": -70.396,
+            "sone_ratio": 0.5863
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -9.05,
+            "removed_dbfs": -85.74,
+            "sone_ratio": 0.534
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": -0.0,
+            "mid": -0.318,
+            "high_mid": -0.645,
+            "air": 0.278
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -182.443,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_percussion.wav",
+        "record": "analysis/cleanup_ast_percussion.json"
+      },
+      {
+        "asset": "ast_strings",
+        "skipped": false,
+        "plan_hash": "ba50c7c719b44fdc7b537576596af7daab5ad35294f4e3bb5a32f6325b23932a",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -106.603,
+            "removed_dbfs": -182.851,
+            "sone_ratio": 0.0006
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -8.355,
+            "removed_dbfs": -78.668,
+            "sone_ratio": 0.5604
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -2.677,
+            "removed_dbfs": -83.897,
+            "sone_ratio": 0.8306
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -2.628,
+            "removed_dbfs": -84.623,
+            "sone_ratio": 0.8335
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -3.903,
+            "removed_dbfs": -86.584,
+            "sone_ratio": 0.763
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -9.205,
+            "removed_dbfs": -99.9,
+            "sone_ratio": 0.5283
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": -0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": null,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": 0.238,
+            "high_mid": 0.927,
+            "air": 2.356
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -190.514,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": true,
+          "rerun": true
+        },
+        "delta_file": "renders/delta/ast_strings.wav",
+        "record": "analysis/cleanup_ast_strings.json"
+      },
+      {
+        "asset": "ast_synth",
+        "skipped": false,
+        "plan_hash": "fc784e8770712b1ab2b1670d4487036fad52c8c7ecaec42519d50edf3c495722",
+        "steps": {
+          "click_repair": "skip",
+          "spectral_reduction": "run",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "protection",
+            "spectral_reduction"
+          ],
+          "light": [],
+          "skip": [
+            "click_repair",
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -244.203,
+            "removed_dbfs": -280.934,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -40.511,
+            "removed_dbfs": -97.778,
+            "sone_ratio": 0.0603
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -34.409,
+            "removed_dbfs": -114.253,
+            "sone_ratio": 0.0921
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -26.726,
+            "removed_dbfs": -109.794,
+            "sone_ratio": 0.1568
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -22.887,
+            "removed_dbfs": -104.511,
+            "sone_ratio": 0.2047
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -22.576,
+            "removed_dbfs": -106.089,
+            "sone_ratio": 0.2091
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": -0.003,
+            "high_mid": -0.031,
+            "air": -0.088
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -172.524,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_synth.wav",
+        "record": "analysis/cleanup_ast_synth.json"
+      },
+      {
+        "asset": "ast_vocals",
+        "skipped": false,
+        "plan_hash": "cd71dd420835085e7df5b4a22809ff9030ac8a137142d3c01a71717f64570b17",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "light",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection"
+          ],
+          "light": [
+            "spectral_reduction"
+          ],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -265.942,
+            "removed_dbfs": -289.865,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -23.236,
+            "removed_dbfs": -54.495,
+            "sone_ratio": 0.1998
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -28.699,
+            "removed_dbfs": -71.834,
+            "sone_ratio": 0.1368
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -30.269,
+            "removed_dbfs": -75.291,
+            "sone_ratio": 0.1227
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -24.772,
+            "removed_dbfs": -77.909,
+            "sone_ratio": 0.1796
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -18.281,
+            "removed_dbfs": -82.349,
+            "sone_ratio": 0.2816
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": -0.0,
+            "low_mid": 0.0,
+            "mid": 0.003,
+            "high_mid": 0.005,
+            "air": -0.13
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -166.374,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": false,
+          "rerun": false
+        },
+        "delta_file": "renders/delta/ast_vocals.wav",
+        "record": "analysis/cleanup_ast_vocals.json"
+      },
+      {
+        "asset": "ast_woodwinds",
+        "skipped": false,
+        "plan_hash": "fc94bac9d226437a6012da4c121f10f93a5ae5cea7719d2bf3db0e07ca626e48",
+        "steps": {
+          "click_repair": "run",
+          "spectral_reduction": "run",
+          "protection": "run",
+          "completion": "skip"
+        },
+        "steps_by_action": {
+          "run": [
+            "click_repair",
+            "protection",
+            "spectral_reduction"
+          ],
+          "light": [],
+          "skip": [
+            "completion"
+          ]
+        },
+        "reasons": null,
+        "removed_energy": {
+          "low": {
+            "range_hz": [
+              0.0,
+              1000.0
+            ],
+            "removed_rel_db": -147.095,
+            "removed_dbfs": -191.826,
+            "sone_ratio": 0.0
+          },
+          "presence": {
+            "range_hz": [
+              1000.0,
+              5000.0
+            ],
+            "removed_rel_db": -8.302,
+            "removed_dbfs": -74.954,
+            "sone_ratio": 0.5625
+          },
+          "sibilance": {
+            "range_hz": [
+              5000.0,
+              8000.0
+            ],
+            "removed_rel_db": -3.984,
+            "removed_dbfs": -85.186,
+            "sone_ratio": 0.7587
+          },
+          "upper_presence": {
+            "range_hz": [
+              8000.0,
+              10000.0
+            ],
+            "removed_rel_db": -3.084,
+            "removed_dbfs": -85.718,
+            "sone_ratio": 0.8075
+          },
+          "shimmer": {
+            "range_hz": [
+              10000.0,
+              14000.0
+            ],
+            "removed_rel_db": -4.723,
+            "removed_dbfs": -83.689,
+            "sone_ratio": 0.7208
+          },
+          "air": {
+            "range_hz": [
+              14000.0,
+              24000.0
+            ],
+            "removed_rel_db": -11.206,
+            "removed_dbfs": -98.69,
+            "sone_ratio": 0.4599
+          }
+        },
+        "side_effects": {
+          "rule": "P-21",
+          "pass": true,
+          "lowmid_250_500_change": {
+            "delta_db": 0.0,
+            "sone_ratio": 1.0
+          },
+          "lowmid_tolerance_db": 0.5,
+          "width_change_db": {
+            "sub": 0.0,
+            "bass": 0.0,
+            "low_mid": 0.0,
+            "mid": -0.053,
+            "high_mid": -0.346,
+            "air": 1.454
+          },
+          "width_tolerance_db": 1.0
+        },
+        "s07": {
+          "residual_dbfs": -300.0,
+          "limit_dbfs": -80.0,
+          "crossover_hz": 1000.0,
+          "method": "peak of (output - input) after a brick-wall DCT-domain low-pass at the crossover",
+          "pass": true,
+          "residual_stored_dbfs": -176.222,
+          "stored_note": "residual re-measured on the stored 32-bit float cache file"
+        },
+        "oversuppression": {
+          "flagged": true,
+          "rerun": true
+        },
+        "delta_file": "renders/delta/ast_woodwinds.wav",
+        "record": "analysis/cleanup_ast_woodwinds.json"
+      }
+    ],
+    "noise_baseline": {
+      "file": "analysis/noise_baseline.json",
+      "source": null
+    },
+    "neural_completion_used": false,
+    "s08": [],
+    "s08_plan": {
+      "status": "fail",
+      "first": "fail",
+      "action": {
+        "ja": "是正しても合格しないため、最も悪化の小さい候補を残してミックス段へ差し戻す",
+        "en": "Corrections did not pass; the least-failing candidate is kept and the master is sent back"
+      },
+      "steps": [
+        {
+          "step": 1,
+          "kind": "hf_boost",
+          "action": {
+            "ja": "チェーンに高域のブーストがないため、高域ブーストの低減は該当しない",
+            "en": "The chain has no HF boost, so reducing it does not apply"
+          },
+          "result_s08": null
+        }
+      ]
+    },
+    "note": {
+      "ja": "整音は M5 の工程（ミックスとマスタリングの前。R-20）。除去分の音声（delta）を聴いて、息や子音が含まれていないかを確認する",
+      "en": "Cleanup runs before mixing and mastering (R-20). Listen to the removed component (delta) for breaths or consonants"
+    }
+  },
+  "tradeoffs": [
+    {
+      "kind": "send_back",
+      "rule": "S-08",
+      "text": {
+        "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+        "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+      },
+      "measured": {
+        "s08": {
+          "status": "fail",
+          "verify_tolerance_status": "fail",
+          "worst_excess_db": 0.21,
+          "margin_db": 0.2,
+          "deltas": {
+            "shimmer_index_db": {
+              "delta_db": 1.51,
+              "tolerance_db": 1.5
+            },
+            "side_shimmer_index_db": {
+              "delta_db": 0.99,
+              "tolerance_db": 1.5
+            },
+            "noise_floor_dbfs": {
+              "delta_db": 0.86,
+              "tolerance_db": 2.0
+            },
+            "noise_floor_hf_dbfs": {
+              "delta_db": 1.66,
+              "tolerance_db": 2.0
+            }
+          },
+          "failing": [
+            "shimmer_index_db"
+          ],
+          "gain_db": 8.971,
+          "frame_selection": "baseline_frames"
+        },
+        "target_lufs_i": -8.7,
+        "lufs_i": -8.66,
+        "limiter_gr": {
+          "gr_median_db": 0.87,
+          "gr_p95_db": 3.73,
+          "gr_fraction_gt_1db": 0.46,
+          "gr_max_db": 7.65
+        }
+      },
+      "suggestions": [
+        {
+          "action": "reduce_limiter_drive",
+          "text": {
+            "ja": "ミックス段でピーク（キックやスネアのトランジェント）とリミッターの負担を減らし、マスターを薄い駆動で仕上げられるようにする",
+            "en": "reduce peaks (kick / snare transients) and limiter load at the mix stage so the master needs less drive"
+          }
+        },
+        {
+          "action": "clean_first",
+          "text": {
+            "ja": "整音段（clean plan）でノイズとシマーを先に処理し、基準のノイズ床を下げる（R-20）",
+            "en": "treat noise and shimmer in the cleanup stage first (clean plan) to lower the baseline noise (R-20)"
+          }
+        },
+        {
+          "action": "limiter_style",
+          "text": {
+            "ja": "人の判断で、リリースを短くするかクリッパーに一部を受け持たせて再検証する（リミッター依存度が見えにくくなる点に注意。R-14）",
+            "en": "by human decision, try a faster release or a clipper share and verify again (it hides limiter dependency, R-14)"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "warning",
+      "rule": "R-14",
+      "text": {
+        "ja": "リミッター依存度のため目標を -7.0 から -8.7 LUFS に下げた",
+        "en": "Target lowered from -7.0 to -8.7 LUFS because of limiter dependency"
+      },
+      "code": "target_lowered"
+    },
+    {
+      "kind": "weak_evidence",
+      "rule": null,
+      "text": {
+        "ja": "閾値（リミッター依存度、モノ損失、低域の逆相の持続）は [慣行] の初期値で、較正の対象である",
+        "en": "Thresholds (limiter dependency, mono loss, low-band anti-phase persistence) are practice-level initial values subject to calibration"
+      }
+    },
+    {
+      "kind": "off_target",
+      "rule": "P-11",
+      "text": {
+        "ja": "comfort / P-11: 目標 [-, 2.50] に対して 0.80（penalty 0.50）。達成できていない",
+        "en": "comfort / P-11: 0.80 against the target [-, 2.50] (penalty 0.50); not achieved"
+      }
+    },
+    {
+      "kind": "not_measured",
+      "rule": null,
+      "text": {
+        "ja": "測定できなかった項（P-02, P-09）の重みは、同じ目的関数の測定できた項へ比例配分した。ステムや整音段がないと測れない指標がある",
+        "en": "Terms that could not be measured (P-02, P-09) had their weight redistributed to the measured terms of the same objective; some metrics need stems or the cleanup stage"
+      }
+    },
+    {
+      "kind": "note",
+      "rule": "R-17",
+      "text": {
+        "ja": "リファレンスが登録されていないため、汎用の目安に対する評価であり、ジャンルに合わせた評価ではない。v1 は市販曲から得た統計を同梱しない（D-039）。手元の曲を reference add で登録すると、その測定ベクトルの分布が目標範囲になる",
+        "en": "No references are registered: this is an evaluation against a generic prior, not a genre-specific one. v1 ships no statistics taken from commercial tracks (D-039); registering your own tracks with reference add makes their measured distribution the target ranges"
+      }
+    }
+  ],
+  "listening_checks": [
+    {
+      "time_s": 0.0,
+      "duration_s": 10.0,
+      "point": {
+        "ja": "最初の 10 秒: 処理前とのレベルマッチ比較で、音色（低域の量、高域の明るさ）が意図どおりか",
+        "en": "First 10 s: in a level-matched comparison with the input, is the tone (low-end amount, top-end brightness) as intended?"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 62.4,
+      "duration_s": 3.0,
+      "point": {
+        "ja": "最も大きい区間: リミッターでアタックが潰れていないか、ポンピングがないか（ゲインリダクション 95 パーセンタイル 3.7 dB、最大 7.7 dB）",
+        "en": "Loudest section: are attacks flattened or is there pumping from the limiter? (GR p95 3.7 dB, max 7.7 dB)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 62.4,
+      "duration_s": 3.0,
+      "point": {
+        "ja": "最も大きい区間をモノで: 低音が痩せたり消えたりしないか、主役が引っ込まないか",
+        "en": "Loudest section in mono: does the bass thin out or vanish, does the lead step back?"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 95.8,
+      "duration_s": 3.0,
+      "point": {
+        "ja": "最も静かな区間: ノイズやヒスが目立っていないか、静と動のコントラストが残っているか（R-26）",
+        "en": "Quietest section: is noise or hiss exposed, is the quiet/loud contrast preserved? (R-26)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_backing_vocals.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_backing_vocals.wav`、ast_backing_vocals）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_backing_vocals.wav`, ast_backing_vocals): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_bass.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_bass.wav`、ast_bass）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_bass.wav`, ast_bass): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_brass.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_brass.wav`、ast_brass）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_brass.wav`, ast_brass): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_drums.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_drums.wav`、ast_drums）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_drums.wav`, ast_drums): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_fx.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_fx.wav`、ast_fx）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_fx.wav`, ast_fx): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_guitar.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_guitar.wav`、ast_guitar）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_guitar.wav`, ast_guitar): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_keyboard.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_keyboard.wav`、ast_keyboard）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_keyboard.wav`, ast_keyboard): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_percussion.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_percussion.wav`、ast_percussion）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_percussion.wav`, ast_percussion): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_strings.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_strings.wav`、ast_strings）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_strings.wav`, ast_strings): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_synth.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_synth.wav`、ast_synth）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_synth.wav`, ast_synth): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_vocals.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_vocals.wav`、ast_vocals）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_vocals.wav`, ast_vocals): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    },
+    {
+      "time_s": 0.0,
+      "duration_s": 98.88,
+      "file": "renders/delta/ast_woodwinds.wav",
+      "point": {
+        "ja": "除去分の音声（`renders/delta/ast_woodwinds.wav`、ast_woodwinds）を聴く: 除去分の音声に息や子音が含まれていないか（含まれていれば整音が強すぎる）",
+        "en": "Listen to the removed component (`renders/delta/ast_woodwinds.wav`, ast_woodwinds): does it contain breaths or consonants? (if so, the cleanup is too strong)"
+      },
+      "conditions": {
+        "ja": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
+        "en": "Listen at a fixed volume / compare before and after only level-matched / use several playback systems (monitors, headphones, smartphone) / decide with rested ears (after long loud listening, high-frequency judgement gets lenient)"
+      }
+    }
+  ],
+  "reproducibility": {
+    "project_hash": null,
+    "engine_version": "0.1.0",
+    "assets": [],
+    "backends": {
+      "engine": "mankomix.dsp (reference backend)",
+      "ffmpeg": null,
+      "ffmpeg_note": {
+        "ja": "FFmpeg は同梱せず、ユーザー環境のものを外部プロセスとして呼ぶ。ビルド構成を記録する",
+        "en": "FFmpeg is not bundled; the user's build is called as an external process and its build configuration is recorded"
+      }
+    },
+    "models": [],
+    "models_note": {
+      "ja": "このレンダリングはモデルを使っていない",
+      "en": "No models were used in this render"
+    },
+    "outputs": [],
+    "promise": {
+      "ja": "同じ正本・素材・エンジンの版・バックエンドの版なら同じ出力になる（同一環境ではビット一致）",
+      "en": "Same project, assets, engine and backend versions give the same output (bit-identical in the same environment)"
+    }
+  },
+  "notes": [
+    {
+      "code": "genre_prior",
+      "rule": "R-33",
+      "text": {
+        "ja": "ジャンル「ヒップホップ」の prior は、目的関数の重みと目標範囲の初期値にだけ使う（[慣行]）。リファレンスの実測とユーザーの指定が常に優先する",
+        "en": "The genre prior 'Hip-hop' only sets the initial weights and target ranges of the objective (practice level); measured references and user settings always take precedence"
+      }
+    },
+    {
+      "code": "generic_prior",
+      "rule": "R-17",
+      "text": {
+        "ja": "リファレンスが登録されていないため、汎用の目安に対する評価であり、ジャンルに合わせた評価ではない。v1 は市販曲から得た統計を同梱しない（D-039）。手元の曲を reference add で登録すると、その測定ベクトルの分布が目標範囲になる",
+        "en": "No references are registered: this is an evaluation against a generic prior, not a genre-specific one. v1 ships no statistics taken from commercial tracks (D-039); registering your own tracks with reference add makes their measured distribution the target ranges"
+      }
+    }
+  ],
+  "chain": [
+    {
+      "id": "mst_loudness",
+      "type": "loudness_gain",
+      "params": {
+        "gain_db": 10.779
+      },
+      "reason": "R-18"
+    },
+    {
+      "id": "mst_limiter",
+      "type": "limiter",
+      "params": {
+        "ceiling_dbtp": -0.5,
+        "lookahead_ms": 3.0,
+        "release_ms": 100.0,
+        "oversample": 4
+      },
+      "reason": "R-14,S-01"
+    }
+  ]
+}

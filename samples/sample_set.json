@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "plan",
-  "note": "Planned official sample set (docs/SPEC.md section 15). No audio exists yet; files are produced in the implementation phase by the tool itself and never by hand. Listening copies (MP3) are not masters. Local locations of source material are never recorded in this repository.",
+  "status": "published_partial",
+  "note": "Official sample set (docs/SPEC.md section 15). Built on 2026-11-18 by the tool itself (tools/build_samples.py, direction apply/check for the main sample); listening copies (MP3 320 kbps, not masters) are in samples/public/. 8 of the 11 variants passed verification; the 3 club variants (n 9-11) stopped at the master stage (S-08 send-back) and have no audio. Local locations of source material are never recorded in this repository.",
   "title": "マンコ主義",
   "genre": "hiphop",
   "references": [],
@@ -123,5 +123,46 @@
     "stems": "release_assets_only",
     "lyrics_in_repo": false,
     "gate": "rights re-verified in the public audit milestone"
+  },
+  "published": {
+    "date": "2026-11-18",
+    "manifest": "samples/public/manifest.json",
+    "main_sample": {
+      "of": 1,
+      "direction": "dir_cf3e85c484fa",
+      "request": "spatial placement x complex, comfortable panning",
+      "floor": "variant 1 default processing (comfort:0.5 x streaming_universal)",
+      "files": [
+        "audio/v01_main_direction.mp3",
+        "audio/v01_main_direction_level_matched.mp3"
+      ]
+    },
+    "verified": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "stopped": [
+      {
+        "n": 9,
+        "at": "master",
+        "rule": "S-08"
+      },
+      {
+        "n": 10,
+        "at": "master",
+        "rule": "S-08"
+      },
+      {
+        "n": 11,
+        "at": "master",
+        "rule": "S-08"
+      }
+    ]
   }
 }

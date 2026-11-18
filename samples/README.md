@@ -21,6 +21,8 @@ README の聴き比べに使う公式サンプル（「マンコ主義」）の�
 - **処理前のレベルマッチ版**: 主サンプル（#1）との対だけをファイルにする。統合ラウドネスを揃えるときは大きい方を下げる。どちらを下げたかは目録の `audio.level_matched_pair` にある。ほかの種別は、目録の `level_match.gain_db` を数値で持つ
 - **参考: 既存フルミックス**: conform 済みのフルミックス。参考であり、処理前の基準ではない（ステムの合算と一致しない）
 - **処理後**: 11 種（`sample_set.json`）。主サンプルは `distributor_44k16` でも書き出す
+- **主サンプル（指揮つき）**: 2026-11-18 版では、#1 の既定処理（床）に指揮書 `dir_cf3e85c484fa`（空間音響 × 複雑で心地の良いパンニング）を `direction apply` で重ねたものを主サンプルとする。`audio/v01_main_direction.mp3` とレベルマッチ版 `audio/v01_main_direction_level_matched.mp3`。Mix Report と `direction check` の結果は `public/reports/main/`、目録では `main_sample`。指揮書の本文は案件記録としてローカルの蓄積 kb に置き、公開しない（D-068）。#1 そのもの（床）は `audio/v01_comfort__streaming_universal.mp3`
+- **2026-11-18 版の状態**: 11 種のうち 8 種が検証に合格。クラブの 3 種（#9〜#11）はマスター段で S-08（ノイズ戻り監視）の差し戻しにより停止し、音声はない（許容幅は緩めていない）。詳細は目録の `summary`
 - **除去分（delta）**: 主サンプルの整音で除去した成分
 
 `spotify`、`youtube`、`amazon_music`、`tidal`、`sns_safe` は音声を作らない。主サンプルのマスターがそれぞれのプロファイルの検証に通るかどうかだけを、目録の `verification_only_profiles` に表で載せる。トランスレーション・ゲート（OF-5）の合否は、種別ごとに `translation_gate` にある。
@@ -62,5 +64,5 @@ conform 済みセットは、選んだ 13 ファイルを明示した一覧と�
 
 - 試聴用の MP3 は、マスターから作った**試聴用の複製であり、マスターではない**（SPEC §5.3、§15.3）。ブラウザなどでそのまま再生できるように MP3 にしている
 - ロスレスのマスターと入力ステムは、GitHub の Release 添付に置く（作業中は `tmp/release_assets/`）
-- **音声は、M9 の公開監査でオーナーが承認を出すまで git の履歴に入れない**（D-061）。`.gitignore` は `*.mp3` を含む音声を除外する。コミットするのは目録と Mix Report（JSON / Markdown）など、音声以外のファイルだけである
+- **試聴用の MP3（`public/audio/*.mp3`）はコミットする**（D-061、オーナー承認済み）。`.gitignore` は音声を既定で除外し、`samples/public/audio/*.mp3` だけを例外にする（SPEC §15.4）。ロスレスのマスターと入力ステムはコミットしない
 - 公開の直前に、権利条件を一次資料で再確認する（SPEC §15.4、M9）

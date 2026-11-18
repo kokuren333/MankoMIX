@@ -3,7 +3,7 @@
   {
    "id": "mst_loudness",
    "params": {
-    "gain_db": 3.548
+    "gain_db": 3.656
    },
    "reason": "R-18",
    "type": "loudness_gain"
@@ -1404,40 +1404,40 @@
     "delivery": "hires_native",
     "deltas": {
      "noise_floor_dbfs": {
-      "after": -25.408,
-      "before": -28.924,
-      "delta_db": -0.021,
+      "after": -25.241,
+      "before": -28.87,
+      "delta_db": -0.02,
       "gain_compensated": true,
       "pass": true,
       "tolerance_db": 2.0
      },
      "noise_floor_hf_dbfs": {
-      "after": -43.317,
-      "before": -46.862,
-      "delta_db": 0.008,
+      "after": -43.198,
+      "before": -46.852,
+      "delta_db": 0.005,
       "gain_compensated": true,
       "pass": true,
       "tolerance_db": 2.0
      },
      "shimmer_index_db": {
-      "after": -41.492,
-      "before": -41.512,
-      "delta_db": 0.02,
+      "after": -41.736,
+      "before": -41.751,
+      "delta_db": 0.015,
       "gain_compensated": false,
       "pass": true,
       "tolerance_db": 1.5
      },
      "side_shimmer_index_db": {
-      "after": -51.669,
-      "before": -51.689,
-      "delta_db": 0.02,
+      "after": -55.802,
+      "before": -55.816,
+      "delta_db": 0.014,
       "gain_compensated": false,
       "pass": true,
       "tolerance_db": 1.5
      }
     },
     "frame_selection": "baseline_frames",
-    "gain_db": 3.537,
+    "gain_db": 3.649,
     "gain_source": "output integrated loudness - baseline integrated loudness",
     "plan_send_back": null,
     "profile": "streaming_universal",
@@ -1470,40 +1470,40 @@
     "delivery": "distributor_44k16",
     "deltas": {
      "noise_floor_dbfs": {
-      "after": -25.406,
-      "before": -28.924,
-      "delta_db": -0.023,
+      "after": -25.239,
+      "before": -28.87,
+      "delta_db": -0.022,
       "gain_compensated": true,
       "pass": true,
       "tolerance_db": 2.0
      },
      "noise_floor_hf_dbfs": {
-      "after": -43.31,
-      "before": -46.862,
-      "delta_db": 0.011,
+      "after": -43.192,
+      "before": -46.852,
+      "delta_db": 0.007,
       "gain_compensated": true,
       "pass": true,
       "tolerance_db": 2.0
      },
      "shimmer_index_db": {
-      "after": -41.49,
-      "before": -41.512,
-      "delta_db": 0.022,
+      "after": -41.733,
+      "before": -41.751,
+      "delta_db": 0.018,
       "gain_compensated": false,
       "pass": true,
       "tolerance_db": 1.5
      },
      "side_shimmer_index_db": {
-      "after": -51.67,
-      "before": -51.689,
-      "delta_db": 0.019,
+      "after": -55.802,
+      "before": -55.816,
+      "delta_db": 0.014,
       "gain_compensated": false,
       "pass": true,
       "tolerance_db": 1.5
      }
     },
     "frame_selection": "baseline_frames",
-    "gain_db": 3.541,
+    "gain_db": 3.653,
     "gain_source": "output integrated loudness - baseline integrated loudness",
     "plan_send_back": null,
     "profile": "streaming_universal",
@@ -1559,7 +1559,7 @@
        "encoder": "aac",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.969
+       "true_peak_dbtp": -0.951
       },
       "mp3": {
        "bitrate": "320k",
@@ -1568,7 +1568,7 @@
        "encoder": "libmp3lame",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.985
+       "true_peak_dbtp": -1.0
       },
       "opus": {
        "bitrate": "160k",
@@ -1577,7 +1577,7 @@
        "encoder": "libopus",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.764
+       "true_peak_dbtp": -0.834
       }
      },
      "final_limiter_ceiling_dbtp": -1.0,
@@ -1592,9 +1592,9 @@
      },
      "measured": {
       "boundary_hz": 120.0,
-      "longest_negative_run_s": 0.2,
-      "min_correlation": -0.606863617364998,
-      "negative_fraction": 0.0062
+      "longest_negative_run_s": 0.1,
+      "min_correlation": -0.47144604666252743,
+      "negative_fraction": 0.001
      },
      "rule": "S-03",
      "status": "pass"
@@ -1609,8 +1609,8 @@
       "low_band_max_db": 1.5
      },
      "measured": {
-      "lead_clarity_mono_loss_db": 0.294,
-      "low_band_mono_loss_db": 0.031
+      "lead_clarity_mono_loss_db": 0.132,
+      "low_band_mono_loss_db": 0.019
      },
      "note": "full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)",
      "rule": "S-04",
@@ -1623,7 +1623,7 @@
       "depth_reduced": true,
       "dither_count": 1,
       "quantization": "tpdf_dither",
-      "seed": 821423157,
+      "seed": 2330183705,
       "steps_after_dither": [],
       "target_bit_depth": 24
      },
@@ -1767,40 +1767,40 @@
        "tolerance_db": null
       },
       "noise_floor_dbfs": {
-       "after": -25.408,
-       "before": -28.924,
-       "delta_db": -0.021,
+       "after": -25.241,
+       "before": -28.87,
+       "delta_db": -0.02,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "noise_floor_hf_dbfs": {
-       "after": -43.317,
-       "before": -46.862,
-       "delta_db": 0.008,
+       "after": -43.198,
+       "before": -46.852,
+       "delta_db": 0.005,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "shimmer_index_db": {
-       "after": -41.492,
-       "before": -41.512,
-       "delta_db": 0.02,
+       "after": -41.736,
+       "before": -41.751,
+       "delta_db": 0.015,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       },
       "side_shimmer_index_db": {
-       "after": -51.669,
-       "before": -51.689,
-       "delta_db": 0.02,
+       "after": -55.802,
+       "before": -55.816,
+       "delta_db": 0.014,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       }
      },
      "frame_selection": "baseline_frames",
-     "gain_db": 3.537,
+     "gain_db": 3.649,
      "gain_source": "output integrated loudness - baseline integrated loudness",
      "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)",
      "rule": "S-08",
@@ -1812,15 +1812,15 @@
       "channels": 2,
       "clipped_samples": 0,
       "dc_offset": [
-       0.000171,
-       0.000138
+       0.00018,
+       0.000132
       ],
       "expected_frames": 4746240,
       "frames": 4746240,
       "inf": 0,
       "input_dc_scaled": [
-       0.000171,
-       0.000137
+       0.00018,
+       0.000132
       ],
       "nan": 0,
       "tolerance": 1
@@ -1843,7 +1843,7 @@
     },
     "P-03": {
      "measured": {
-      "lufs_i": -14.01
+      "lufs_i": -14.0
      },
      "rule": "P-03",
      "status": "pass",
@@ -1857,7 +1857,7 @@
      "ceiling_dbtp": -1.0,
      "conditional_applied": false,
      "measured": {
-      "true_peak_dbtp": -1.008
+      "true_peak_dbtp": -1.007
      },
      "oversample": 5,
      "rule": "S-01",
@@ -1873,7 +1873,7 @@
        "encoder": "aac",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.994
+       "true_peak_dbtp": -0.837
       },
       "mp3": {
        "bitrate": "320k",
@@ -1882,7 +1882,7 @@
        "encoder": "libmp3lame",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.962
+       "true_peak_dbtp": -0.978
       },
       "opus": {
        "bitrate": "160k",
@@ -1891,7 +1891,7 @@
        "encoder": "libopus",
        "source": "render manifest (file sha256 verified)",
        "status": "pass",
-       "true_peak_dbtp": -0.754
+       "true_peak_dbtp": -0.821
       }
      },
      "final_limiter_ceiling_dbtp": -1.0,
@@ -1906,9 +1906,9 @@
      },
      "measured": {
       "boundary_hz": 120.0,
-      "longest_negative_run_s": 0.2,
-      "min_correlation": -0.6068872210904664,
-      "negative_fraction": 0.0062
+      "longest_negative_run_s": 0.1,
+      "min_correlation": -0.471459654358842,
+      "negative_fraction": 0.001
      },
      "rule": "S-03",
      "status": "pass"
@@ -1923,8 +1923,8 @@
       "low_band_max_db": 1.5
      },
      "measured": {
-      "lead_clarity_mono_loss_db": 0.294,
-      "low_band_mono_loss_db": 0.031
+      "lead_clarity_mono_loss_db": 0.132,
+      "low_band_mono_loss_db": 0.019
      },
      "note": "full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)",
      "rule": "S-04",
@@ -1937,7 +1937,7 @@
       "depth_reduced": true,
       "dither_count": 1,
       "quantization": "tpdf_dither",
-      "seed": 3963395454,
+      "seed": 2175086977,
       "steps_after_dither": [],
       "target_bit_depth": 16
      },
@@ -2085,40 +2085,40 @@
        "tolerance_db": null
       },
       "noise_floor_dbfs": {
-       "after": -25.406,
-       "before": -28.924,
-       "delta_db": -0.023,
+       "after": -25.239,
+       "before": -28.87,
+       "delta_db": -0.022,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "noise_floor_hf_dbfs": {
-       "after": -43.31,
-       "before": -46.862,
-       "delta_db": 0.011,
+       "after": -43.192,
+       "before": -46.852,
+       "delta_db": 0.007,
        "gain_compensated": true,
        "pass": true,
        "tolerance_db": 2.0
       },
       "shimmer_index_db": {
-       "after": -41.49,
-       "before": -41.512,
-       "delta_db": 0.022,
+       "after": -41.733,
+       "before": -41.751,
+       "delta_db": 0.018,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       },
       "side_shimmer_index_db": {
-       "after": -51.67,
-       "before": -51.689,
-       "delta_db": 0.019,
+       "after": -55.802,
+       "before": -55.816,
+       "delta_db": 0.014,
        "gain_compensated": false,
        "pass": true,
        "tolerance_db": 1.5
       }
      },
      "frame_selection": "baseline_frames",
-     "gain_db": 3.541,
+     "gain_db": 3.653,
      "gain_source": "output integrated loudness - baseline integrated loudness",
      "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)",
      "rule": "S-08",
@@ -2130,15 +2130,15 @@
       "channels": 2,
       "clipped_samples": 0,
       "dc_offset": [
-       0.000171,
-       0.000138
+       0.00018,
+       0.000132
       ],
       "expected_frames": 4360608,
       "frames": 4360608,
       "inf": 0,
       "input_dc_scaled": [
-       0.000171,
-       0.000137
+       0.00018,
+       0.000132
       ],
       "nan": 0,
       "tolerance": 1
@@ -2178,15 +2178,15 @@
       "channels": 2,
       "clipped_samples": 0,
       "dc_offset": [
-       0.000171,
-       0.000138
+       0.00018,
+       0.000132
       ],
       "expected_frames": 4746240,
       "frames": 4746240,
       "inf": 0,
       "input_dc_scaled": [
-       0.000171,
-       0.000137
+       0.00018,
+       0.000132
       ],
       "nan": 0,
       "tolerance": 1
@@ -2230,8 +2230,8 @@
      "マルチバンド（ミックスへ差し戻す代替としてのみ）"
     ],
     "measured": {
-     "lra_lu": 3.330388693797831,
-     "plr_db": 14.043350282618075
+     "lra_lu": 2.79189754866756,
+     "plr_db": 14.005821367401968
     },
     "result": {},
     "rule": "R-30",
@@ -2243,8 +2243,8 @@
      "より大きい目標（リミッター依存度とノイズ戻りが増える）"
     ],
     "measured": {
-     "input_lufs_i": -17.55,
-     "pre_limiter_lufs_i": -17.55,
+     "input_lufs_i": -17.66,
+     "pre_limiter_lufs_i": -17.66,
      "profile_target_lufs_i": -14.0,
      "tried": [
       {
@@ -2259,7 +2259,7 @@
      ]
     },
     "result": {
-     "gain_db": 3.548,
+     "gain_db": 3.656,
      "lufs_i": -14.01
     },
     "rule": "R-18",
@@ -2274,7 +2274,7 @@
     "measured": {
      "limiter_gr": {
       "gr_fraction_gt_1db": 0.0,
-      "gr_max_db": 1.05,
+      "gr_max_db": 1.02,
       "gr_median_db": 0.0,
       "gr_p95_db": 0.0
      }
@@ -2308,21 +2308,21 @@
         "tolerance_db": 2.0
        },
        "shimmer_index_db": {
-        "delta_db": 0.02,
+        "delta_db": 0.01,
         "tolerance_db": 1.5
        },
        "side_shimmer_index_db": {
-        "delta_db": 0.02,
+        "delta_db": 0.01,
         "tolerance_db": 1.5
        }
       },
       "failing": [],
       "frame_selection": "baseline_frames",
-      "gain_db": 3.537,
+      "gain_db": 3.649,
       "margin_db": 0.2,
       "status": "pass",
       "verify_tolerance_status": "pass",
-      "worst_excess_db": -1.28
+      "worst_excess_db": -1.29
      },
      "scope": "full input, simulated chain"
     },
@@ -2338,21 +2338,21 @@
         "tolerance_db": 2.0
        },
        "shimmer_index_db": {
-        "delta_db": 0.02,
+        "delta_db": 0.01,
         "tolerance_db": 1.5
        },
        "side_shimmer_index_db": {
-        "delta_db": 0.02,
+        "delta_db": 0.01,
         "tolerance_db": 1.5
        }
       },
       "failing": [],
       "frame_selection": "baseline_frames",
-      "gain_db": 3.537,
+      "gain_db": 3.649,
       "margin_db": 0.2,
       "status": "pass",
       "verify_tolerance_status": "pass",
-      "worst_excess_db": -1.28
+      "worst_excess_db": -1.29
      }
     },
     "rule": "S-08",
@@ -2373,7 +2373,7 @@
         0.0005,
         0.12
        ],
-       "ratio": 0.00616
+       "ratio": 0.00599
       },
       "bass": {
        "deviation_db": 0.0,
@@ -2381,7 +2381,7 @@
         0.05,
         0.7
        ],
-       "ratio": 0.60735
+       "ratio": 0.60608
       },
       "high_mid": {
        "deviation_db": 0.0,
@@ -2389,7 +2389,7 @@
         0.01,
         0.25
        ],
-       "ratio": 0.03613
+       "ratio": 0.03592
       },
       "low_mid": {
        "deviation_db": 0.0,
@@ -2397,7 +2397,7 @@
         0.03,
         0.3
        ],
-       "ratio": 0.11593
+       "ratio": 0.11773
       },
       "mid": {
        "deviation_db": 0.0,
@@ -2405,7 +2405,7 @@
         0.04,
         0.4
        ],
-       "ratio": 0.17525
+       "ratio": 0.1751
       },
       "sub": {
        "deviation_db": 0.0,
@@ -2453,10 +2453,10 @@
     ],
     "measured": {
      "low_band_hz": 120.0,
-     "low_band_mono_loss_db": 0.03,
+     "low_band_mono_loss_db": 0.02,
      "low_band_negative_corr": {
       "longest_run_s": 0.0,
-      "min_corr": 0.26244878897578827,
+      "min_corr": 0.47909907152108233,
       "negative_fraction": 0.0,
       "windows": 231
      }
@@ -3018,14 +3018,14 @@
   {
    "conditions": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
    "duration_s": 3.0,
-   "point": "最も大きい区間: リミッターでアタックが潰れていないか、ポンピングがないか（ゲインリダクション 95 パーセンタイル 0.0 dB、最大 1.1 dB）",
-   "time_s": 63.2
+   "point": "最も大きい区間: リミッターでアタックが潰れていないか、ポンピングがないか（ゲインリダクション 95 パーセンタイル 0.0 dB、最大 1.0 dB）",
+   "time_s": 62.4
   },
   {
    "conditions": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
    "duration_s": 3.0,
    "point": "最も大きい区間をモノで: 低音が痩せたり消えたりしないか、主役が引っ込まないか",
-   "time_s": 63.2
+   "time_s": 62.4
   },
   {
    "conditions": "音量を固定して聴く／処理前後はレベルマッチ版で比べる／複数の再生環境（モニター、ヘッドホン、スマートフォン）で聴く／耳を休めてから最終判断する（長時間の大音量の後は高域の判断が甘くなる）",
@@ -3120,202 +3120,202 @@
  ],
  "measurements": {
   "after": {
-   "integrated_lufs": -14.01077955697019,
-   "lra_lu": 3.3033106943202277,
-   "momentary_max_lufs": -10.720080325247432,
-   "plr_db": 13.000780124739004,
-   "psr_db": 10.95230491190985,
-   "sample_peak_dbfs": -1.0100002687922636,
-   "short_term_max_lufs": -11.962304344141037,
-   "short_term_p10": -15.548967730424929,
-   "short_term_p50": -14.005246955103413,
-   "short_term_p95": -12.245657036104701,
-   "true_peak_dbtp": -1.009999432231186
+   "integrated_lufs": -14.007091974792443,
+   "lra_lu": 2.771204713790002,
+   "momentary_max_lufs": -11.145342176559636,
+   "plr_db": 12.997092600011703,
+   "psr_db": 11.328209858061935,
+   "sample_peak_dbfs": -1.0175091250919899,
+   "short_term_max_lufs": -12.338209232842676,
+   "short_term_p10": -15.447297720656175,
+   "short_term_p50": -13.917595719694894,
+   "short_term_p95": -12.676093006866173,
+   "true_peak_dbtp": -1.0099993747807405
   },
   "assumed_playback": "比較はレベルマッチ後の信号で行う（R-01）。幅と定位の値はスピーカー（±30°）とモノ合算を前提にする",
   "before": {
-   "integrated_lufs": -17.547909261309933,
-   "lra_lu": 3.330388693797831,
-   "momentary_max_lufs": -14.268080328505194,
-   "plr_db": 14.043350282618075,
-   "psr_db": 11.901807442654427,
-   "sample_peak_dbfs": -3.524860037069973,
-   "short_term_max_lufs": -15.406366421346286,
-   "short_term_p10": -19.09696772965491,
-   "short_term_p50": -17.546502801013578,
-   "short_term_p95": -15.76657903585708,
-   "true_peak_dbtp": -3.5045589786918585
+   "integrated_lufs": -17.655844432124447,
+   "lra_lu": 2.79189754866756,
+   "momentary_max_lufs": -14.801342174130548,
+   "plr_db": 14.005821367401968,
+   "psr_db": 12.298875389220596,
+   "sample_peak_dbfs": -3.6794190822062065,
+   "short_term_max_lufs": -15.948898453943075,
+   "short_term_p10": -19.096146235609012,
+   "short_term_p50": -17.566416432144266,
+   "short_term_p95": -16.304248686941452,
+   "true_peak_dbtp": -3.6500230647224785
   },
   "comparison": {
    "deltas": {
     "P-03/lra_lu": {
-     "a": 3.330388693797831,
-     "b": 3.3033106943202455,
-     "delta": -0.027,
+     "a": 2.79189754866756,
+     "b": 2.7712047137899987,
+     "delta": -0.021,
      "perceived_ratio": null,
      "unit": "LU"
     },
     "P-03/plr_db": {
-     "a": 14.043350282618075,
-     "b": 13.000780124739002,
-     "delta": -1.043,
+     "a": 14.005821367401968,
+     "b": 12.997092600011705,
+     "delta": -1.009,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-03/psr_db": {
-     "a": 11.901807442654427,
-     "b": 10.952304911909813,
-     "delta": -0.95,
+     "a": 12.298875389220596,
+     "b": 11.328209858061928,
+     "delta": -0.971,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-03/true_peak_dbtp": {
-     "a": -3.5045589786918585,
-     "b": -4.5471291365709305,
-     "delta": -1.043,
+     "a": -3.6500230647224785,
+     "b": -4.658751832112743,
+     "delta": -1.009,
      "perceived_ratio": null,
      "unit": "dBTP"
     },
     "P-04/bands/air/crest_db": {
-     "a": 29.064183340422545,
-     "b": 29.06820930880361,
-     "delta": 0.004,
+     "a": 28.88392909597019,
+     "b": 28.886637626347543,
+     "delta": 0.003,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-04/bands/bass/crest_db": {
-     "a": 16.41512325762294,
-     "b": 16.42160679910459,
-     "delta": 0.006,
+     "a": 16.41884009807216,
+     "b": 16.42216740271617,
+     "delta": 0.003,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-04/bands/highmid/crest_db": {
-     "a": 26.85831267919931,
-     "b": 26.66672546260072,
-     "delta": -0.192,
+     "a": 26.90755619384388,
+     "b": 26.76604448402165,
+     "delta": -0.142,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-04/bands/lowmid/crest_db": {
-     "a": 18.974364081335274,
-     "b": 18.98157808730518,
-     "delta": 0.007,
+     "a": 19.101506164759932,
+     "b": 19.10613137298079,
+     "delta": 0.005,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-04/bands/mid/crest_db": {
-     "a": 21.661578304457688,
-     "b": 21.679934228520253,
-     "delta": 0.018,
+     "a": 21.758669670666322,
+     "b": 21.770823792923892,
+     "delta": 0.012,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-04/bands/sub/crest_db": {
-     "a": 20.461752080855945,
-     "b": 20.46803469340753,
-     "delta": 0.006,
+     "a": 20.50609005076999,
+     "b": 20.50621902460574,
+     "delta": 0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-06/bands/air/mono_loss_db": {
-     "a": 0.21047166889434674,
-     "b": 0.21042052830875208,
-     "delta": -0.0,
+     "a": 0.061856313016624184,
+     "b": 0.06188671940580889,
+     "delta": 0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-06/bands/bass/mono_loss_db": {
-     "a": 0.14439487143583069,
-     "b": 0.1441872264273364,
+     "a": 0.08048999794333467,
+     "b": 0.0804182411055773,
      "delta": -0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-06/bands/highmid/mono_loss_db": {
-     "a": 0.26227476818685797,
-     "b": 0.2620912169878574,
-     "delta": -0.0,
+     "a": 0.10197949018419959,
+     "b": 0.10230807290130413,
+     "delta": 0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-06/bands/lowmid/mono_loss_db": {
-     "a": 0.4680975087435982,
-     "b": 0.4683788443868758,
+     "a": 0.2412631689229624,
+     "b": 0.2414150831103212,
      "delta": 0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
     "P-06/bands/mid/mono_loss_db": {
-     "a": 0.24525946657697015,
-     "b": 0.24328301679379358,
-     "delta": -0.002,
-     "perceived_ratio": null,
-     "unit": "dB"
-    },
-    "P-06/bands/sub/mono_loss_db": {
-     "a": 0.005106950840573178,
-     "b": 0.005108128103933955,
+     "a": 0.09597859336665057,
+     "b": 0.09613566404338587,
      "delta": 0.0,
      "perceived_ratio": null,
      "unit": "dB"
     },
+    "P-06/bands/sub/mono_loss_db": {
+     "a": 0.005070663260308304,
+     "b": 0.005070309737046108,
+     "delta": -0.0,
+     "perceived_ratio": null,
+     "unit": "dB"
+    },
     "P-07/partition_bands/air/level_db": {
-     "a": -41.88962616233479,
-     "b": -41.88286688276839,
-     "delta": 0.007,
+     "a": -42.15160580922499,
+     "b": -42.14717494010924,
+     "delta": 0.004,
      "perceived_ratio": 1.0,
      "unit": "dB"
     },
     "P-07/partition_bands/bass/level_db": {
-     "a": -21.912397349086973,
-     "b": -21.90800781697903,
+     "a": -21.977222354291314,
+     "b": -21.97329923320796,
      "delta": 0.004,
      "perceived_ratio": 1.0,
      "unit": "dB"
     },
     "P-07/partition_bands/highmid/level_db": {
-     "a": -34.11939004920378,
-     "b": -34.13404385872818,
-     "delta": -0.015,
+     "a": -34.29519674693211,
+     "b": -34.31093531639472,
+     "delta": -0.016,
      "perceived_ratio": 0.999,
      "unit": "dB"
     },
     "P-07/partition_bands/lowmid/level_db": {
-     "a": -28.963612875479118,
-     "b": -28.95939932144706,
-     "delta": 0.004,
+     "a": -29.111356982635712,
+     "b": -29.10833911356977,
+     "delta": 0.003,
      "perceived_ratio": 1.0,
      "unit": "dB"
     },
     "P-07/partition_bands/mid/level_db": {
-     "a": -27.287871738898367,
-     "b": -27.29548709368671,
-     "delta": -0.008,
-     "perceived_ratio": 0.999,
+     "a": -27.433592649866803,
+     "b": -27.43869061589389,
+     "delta": -0.005,
+     "perceived_ratio": 1.0,
      "unit": "dB"
     },
     "P-07/partition_bands/sub/level_db": {
-     "a": -32.9408597067422,
-     "b": -32.93560485665577,
-     "delta": 0.005,
+     "a": -32.93379770727769,
+     "b": -32.92672324671574,
+     "delta": 0.007,
      "perceived_ratio": 1.0,
      "unit": "dB"
     }
    },
-   "match_gain_db": -3.537,
+   "match_gain_db": -3.649,
    "matched_side": "b",
    "rule": "R-01"
   },
   "level_matched": true,
   "loudness_change": {
-   "delta_db": 3.54,
-   "sone_ratio": 1.278
+   "delta_db": 3.65,
+   "sone_ratio": 1.288
   },
   "objective_metrics": [
    {
-    "after": 7.5061134667908505,
-    "before": 7.510824419364427,
+    "after": 7.559925590733507,
+    "before": 7.564567206847575,
     "metric": "P-01",
     "objective": "comfort",
     "status": "measured",
@@ -3330,8 +3330,8 @@
     "unit": null
    },
    {
-    "after": 0.9857940509854686,
-    "before": 0.9989500737662524,
+    "after": 1.0372569127946676,
+    "before": 1.0497081925868414,
     "metric": "P-11",
     "objective": "comfort",
     "status": "measured",
@@ -3339,12 +3339,12 @@
    },
    {
     "after": {
-     "lra_lu": 3.3033106943202277,
-     "plr_db": 13.000780124739004
+     "lra_lu": 2.771204713790002,
+     "plr_db": 12.997092600011703
     },
     "before": {
-     "lra_lu": 3.330388693797831,
-     "plr_db": 14.043350282618075
+     "lra_lu": 2.79189754866756,
+     "plr_db": 14.005821367401968
     },
     "metric": "P-03",
     "objective": "comfort",
@@ -3360,7 +3360,7 @@
     "unit": null
    },
    {
-    "after": 0.0302,
+    "after": 0.0221,
     "before": 0.0,
     "metric": "P-12",
     "objective": "comfort",
@@ -3368,8 +3368,8 @@
     "unit": "dB crest loss"
    },
    {
-    "after": 1.287761933372278,
-    "before": 1.286274376294816,
+    "after": 1.3072823652348535,
+    "before": 1.3056548799104937,
     "metric": "P-19",
     "objective": "comfort",
     "status": "measured",
@@ -3431,23 +3431,23 @@
   ],
   "rule": "R-01",
   "scope": "full_length",
-  "score": 0.1803247066892809,
-  "score_before": 0.1803283287761545,
+  "score": 0.18142175267667987,
+  "score_before": 0.18141305004470876,
   "score_by_objective": {
-   "comfort": 0.1803247066892809
+   "comfort": 0.18142175267667987
   },
   "source": "rendered_master",
   "source_label": "レンダリングしたマスターを評価",
   "status": "evaluated",
   "terms": [
    {
-    "contribution": 0.07430350249674664,
+    "contribution": 0.07531586799287705,
     "effective_weight": 0.35714285714285715,
     "key": "P-01",
     "metric": "P-01",
     "objective": "comfort",
-    "penalty": 0.20804980699089057,
-    "penalty_before": 0.20805994883413667,
+    "penalty": 0.21088443038005575,
+    "penalty_before": 0.2108600630105366,
     "sense": "keep_in_range",
     "status": "measured",
     "status_before": "measured",
@@ -3456,8 +3456,8 @@
     },
     "target_source": "generic_prior",
     "unit": "dB (ISO 226 weighted RMS deviation)",
-    "value": 7.5061134667908505,
-    "value_before": 7.510824419364427,
+    "value": 7.559925590733507,
+    "value_before": 7.564567206847575,
     "variant": null,
     "weight": 0.25
    },
@@ -3484,13 +3484,13 @@
     "weight": 0.2
    },
    {
-    "contribution": 0.10602120419253429,
+    "contribution": 0.1061058846838028,
     "effective_weight": 0.21428571428571427,
     "key": "P-11",
     "metric": "P-11",
     "objective": "comfort",
-    "penalty": 0.49476561956516,
-    "penalty_before": 0.49476561956516,
+    "penalty": 0.4951607951910798,
+    "penalty_before": 0.4951607951910798,
     "sense": "minimize_excess",
     "status": "measured",
     "status_before": "measured",
@@ -3500,8 +3500,8 @@
     ],
     "target_source": "thresholds_m3",
     "unit": "dB prominence",
-    "value": 0.9857940509854686,
-    "value_before": 0.9989500737662524,
+    "value": 1.0372569127946676,
+    "value_before": 1.0497081925868414,
     "variant": null,
     "weight": 0.15
    },
@@ -3529,12 +3529,12 @@
     "target_source": "generic",
     "unit": "dB / LU",
     "value": {
-     "lra_lu": 3.3033106943202277,
-     "plr_db": 13.000780124739004
+     "lra_lu": 2.771204713790002,
+     "plr_db": 12.997092600011703
     },
     "value_before": {
-     "lra_lu": 3.330388693797831,
-     "plr_db": 14.043350282618075
+     "lra_lu": 2.79189754866756,
+     "plr_db": 14.005821367401968
     },
     "variant": null,
     "weight": 0.15
@@ -3572,7 +3572,7 @@
     "target": null,
     "target_source": "module",
     "unit": "dB crest loss",
-    "value": 0.0302,
+    "value": 0.0221,
     "value_before": 0.0,
     "variant": null,
     "weight": 0.1
@@ -3591,8 +3591,8 @@
     "target": null,
     "target_source": "module",
     "unit": "dB",
-    "value": 1.287761933372278,
-    "value_before": 1.286274376294816,
+    "value": 1.3072823652348535,
+    "value_before": 1.3056548799104937,
     "variant": null,
     "weight": 0.05
    }
@@ -3604,7 +3604,7 @@
     "ceiling_dbtp": -1.0,
     "ceiling_source": "profile streaming_universal",
     "oversample": 4,
-    "true_peak_dbtp": -1.009999432231186
+    "true_peak_dbtp": -1.0099993747807405
    },
    "S-03": {
     "boundary_hz": 120.0,
@@ -3612,16 +3612,16 @@
      "max_negative_fraction": 0.1,
      "max_persistence_s": 1.0
     },
-    "longest_negative_run_s": 0.2,
-    "negative_fraction": 0.006237006237006237
+    "longest_negative_run_s": 0.1,
+    "negative_fraction": 0.0010384215991692627
    },
    "S-04": {
-    "lead_clarity_mono_loss_db": 0.2944892511620231,
+    "lead_clarity_mono_loss_db": 0.13155036661551095,
     "limits": {
      "lead_clarity_max_db": 3.0,
      "low_band_max_db": 1.5
     },
-    "low_band_mono_loss_db": 0.030636358852090123,
+    "low_band_mono_loss_db": 0.018612305015862765,
     "note": "full-mix proxy for the lead band"
    },
    "S-06": {
@@ -3632,7 +3632,7 @@
    "S-09": {
     "clipped_samples": 0,
     "dc_limit": 0.00316,
-    "dc_offset_max": 0.0001712271633418004,
+    "dc_offset_max": 0.0001801500834427957,
     "nan_count": 0,
     "problems": []
    }
@@ -3743,9 +3743,9 @@
      ],
      "thresholds": "7620e71f8eb6c72ef6a892e9b2eb6a31002d9a8056c897cf65cb3990cc04079d"
     },
-    "dither_seed": 3277294892,
+    "dither_seed": 4150696403,
     "file": "renders/var_streaming_universal/master__archive_f32.wav",
-    "file_sha256": "46323e99224ad296896ac668e7a0010eb16a3ce200bc40c7fde2dbbeb25d790e",
+    "file_sha256": "5bfd5e46ea44535c7e3271ce81d37aedf16064c88f1ed5c95d2d99abc52ea80e",
     "iterations": null,
     "limiter_ceiling_dbtp": null
    },
@@ -3767,9 +3767,9 @@
      },
      "thresholds": "7620e71f8eb6c72ef6a892e9b2eb6a31002d9a8056c897cf65cb3990cc04079d"
     },
-    "dither_seed": 821423157,
+    "dither_seed": 2330183705,
     "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
-    "file_sha256": "93900f79f9f08673c92794eb5b48240d03afeeef7ecef8922039cda3c1ae71b5",
+    "file_sha256": "290367910b4a998e0f4a73a601bbb5de7b8aa5f392fdcbac073f6a54d5f3269e",
     "iterations": 1,
     "limiter_ceiling_dbtp": -1.0
    },
@@ -3791,14 +3791,14 @@
      },
      "thresholds": "7620e71f8eb6c72ef6a892e9b2eb6a31002d9a8056c897cf65cb3990cc04079d"
     },
-    "dither_seed": 3963395454,
+    "dither_seed": 2175086977,
     "file": "renders/var_streaming_universal/streaming_universal__distributor_44k16.wav",
-    "file_sha256": "23d4b853817e3af63ab0e98a6b66ee565654a37017f4f2de736aefb4f628e652",
+    "file_sha256": "3a7672e74fa390985198d39e18196c26cee73a68ea0a99df7292ea2857b79581",
     "iterations": 1,
     "limiter_ceiling_dbtp": -1.0
    }
   ],
-  "project_hash": "f515c5267638e6fd9b769d55cca3f3e68f8c440539c787a3ce44335ccedc4b49",
+  "project_hash": "2d768503f74c92703a7b82adf890c302ea8bf4f46cf5f7d7edd5782e1a7d358e",
   "promise": "同じ正本・素材・エンジンの版・バックエンドの版なら同じ出力になる（同一環境ではビット一致）"
  },
  "schema_version": 1,
@@ -3814,8 +3814,8 @@
    "lead_stem": null,
    "overrides": {}
   },
-  "objective_score": 0.1803247066892809,
-  "objective_score_before": 0.1803283287761545,
+  "objective_score": 0.18142175267667987,
+  "objective_score_before": 0.18141305004470876,
   "outputs": [
    {
     "delivery": "hires_native",
@@ -3853,7 +3853,7 @@
   {
    "kind": "off_target",
    "rule": "P-11",
-   "text": "comfort / P-11: 目標 [-, 2.50] に対して 0.99（penalty 0.49）。達成できていない"
+   "text": "comfort / P-11: 目標 [-, 2.50] に対して 1.04（penalty 0.50）。達成できていない"
   },
   {
    "kind": "not_measured",
@@ -3888,31 +3888,31 @@
      "bands": {
       "air": {
        "cancelled": false,
-       "mono_loss_db": 0.21042052830875208
+       "mono_loss_db": 0.06188671940580841
       },
       "bass": {
        "cancelled": false,
-       "mono_loss_db": 0.1441872264273369
+       "mono_loss_db": 0.08041824110557777
       },
       "highmid": {
        "cancelled": false,
-       "mono_loss_db": 0.2620912169878574
+       "mono_loss_db": 0.10230807290130364
       },
       "lowmid": {
        "cancelled": false,
-       "mono_loss_db": 0.46837884438687527
+       "mono_loss_db": 0.24141508311032223
       },
       "mid": {
        "cancelled": false,
-       "mono_loss_db": 0.24328301679379358
+       "mono_loss_db": 0.09613566404338686
       },
       "sub": {
        "cancelled": false,
-       "mono_loss_db": 0.005108128103933955
+       "mono_loss_db": 0.00507030973704659
       }
      },
-     "clarity_band_mono_loss_db": 0.2944892511620231,
-     "low_band_mono_loss_db": 0.030636358852090123,
+     "clarity_band_mono_loss_db": 0.13155036661551095,
+     "low_band_mono_loss_db": 0.018612305015862765,
      "problems": []
     }
    },
@@ -3928,12 +3928,12 @@
     "required": true,
     "status": "pass",
     "values": {
-     "agreement_ratio": 0.676,
+     "agreement_ratio": 0.6737,
      "caveat": "periodicity-pitch proxy (YIN); not a listening test",
-     "f0_hz": 105.6471,
+     "f0_hz": 105.1132,
      "fundamental_below_cutoff": true,
-     "harmonic_index_db": -0.9471,
-     "median_f0_after_hp_hz": 136.9543,
+     "harmonic_index_db": -0.941,
+     "median_f0_after_hp_hz": 136.6703,
      "source": "2mix low-passed at 400 Hz (proxy, no bass stem)"
     }
    }

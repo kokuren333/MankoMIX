@@ -1,0 +1,3426 @@
+{
+ "schema_version": 1,
+ "kind": "official_sample_manifest",
+ "generator": {
+  "name": "tools/build_samples.py",
+  "engine_version": "0.1.0",
+  "note": "Every audio file comes from the tool's own commands; nothing is hand-made (SPEC 15.2). Sample folders and absolute paths are never recorded."
+ },
+ "title": "マンコ主義",
+ "terms": {
+  "ja": "Suno で生成。利用条件は Suno の規約に従う。AI の学習への利用は許諾しない。本体の Apache-2.0 の対象外。",
+  "en": "Generated with Suno. Use is subject to Suno's terms. Not licensed for AI training. Not covered by the repository's Apache-2.0 license.",
+  "applies_to": "every audio file of the sample set (listening copies, masters, before, delta, reference) and the input stems",
+  "decision": "D-062"
+ },
+ "genre": "hiphop",
+ "genre_note": "declared, not inferred from audio (D-053)",
+ "references": [],
+ "references_note": "no references are registered: generic targets and the hiphop genre prior (D-039, D-053); each Mix Report states this (report.states.no_references_note)",
+ "intensity": 0.5,
+ "sample_set": "samples/sample_set.json",
+ "variants_built": [
+  "v01",
+  "v02",
+  "v03",
+  "v04",
+  "v05",
+  "v06",
+  "v07",
+  "v08",
+  "v09",
+  "v10",
+  "v11"
+ ],
+ "complete": true,
+ "source": {
+  "kind": "conformed_set",
+  "canonical": true,
+  "folder": "$MANKOMIX_SAMPLE_DIR",
+  "passed_as_is": false,
+  "inputs": [
+   {
+    "file": "backing_vocals.wav",
+    "role": "stem",
+    "sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d",
+    "bytes": 37970008
+   },
+   {
+    "file": "bass.wav",
+    "role": "stem",
+    "sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1",
+    "bytes": 37970008
+   },
+   {
+    "file": "brass.wav",
+    "role": "stem",
+    "sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b",
+    "bytes": 37970008
+   },
+   {
+    "file": "drums.wav",
+    "role": "stem",
+    "sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21",
+    "bytes": 37970008
+   },
+   {
+    "file": "fx.wav",
+    "role": "stem",
+    "sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c",
+    "bytes": 37970008
+   },
+   {
+    "file": "guitar.wav",
+    "role": "stem",
+    "sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d",
+    "bytes": 37970008
+   },
+   {
+    "file": "keyboard.wav",
+    "role": "stem",
+    "sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312",
+    "bytes": 37970008
+   },
+   {
+    "file": "percussion.wav",
+    "role": "stem",
+    "sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4",
+    "bytes": 37970008
+   },
+   {
+    "file": "strings.wav",
+    "role": "stem",
+    "sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357",
+    "bytes": 37970008
+   },
+   {
+    "file": "synth.wav",
+    "role": "stem",
+    "sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6",
+    "bytes": 37970008
+   },
+   {
+    "file": "vocals.wav",
+    "role": "stem",
+    "sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c",
+    "bytes": 37970008
+   },
+   {
+    "file": "woodwinds.wav",
+    "role": "stem",
+    "sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac",
+    "bytes": 37970008
+   },
+   {
+    "file": "fullmix_conformed.wav",
+    "role": "reference_fullmix",
+    "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd",
+    "bytes": 37970008
+   }
+  ],
+  "excluded": [],
+  "selection_note": "the 12 stems and the conformed full mix are selected by name; every other audio file of the folder is excluded explicitly (listed under excluded). Importing the folder itself would skip other/no_vocals (derived_sum) but take 0_fullmix as the full mix, so the 13 selected files are given to run as an explicit file list (imported as one set, unchanged)"
+ },
+ "listening_copies": {
+  "format": "mp3",
+  "bitrate_kbps": 320,
+  "masters": false,
+  "note": "MP3 files are listening copies made from the masters, NOT masters (SPEC 5.3, 15.3). The lossless masters are Release attachments.",
+  "committed": false,
+  "commit_policy": "audio is not committed until the owner approves the M9 public audit (D-061)",
+  "encoder": {
+   "tool": "ffmpeg (external process)",
+   "version": "9.0.2-essentials_build-www.gyan.dev",
+   "license": "GPL-3.0-or-later",
+   "codec": "libmp3lame",
+   "bitrate_kbps": 320,
+   "mode": "CBR",
+   "options": [
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    "320k",
+    "-map_metadata",
+    "-1",
+    "-id3v2_version",
+    "0",
+    "-write_id3v1",
+    "0",
+    "-fflags",
+    "+bitexact",
+    "-flags:a",
+    "+bitexact"
+   ]
+  },
+  "generated": true
+ },
+ "release_assets": {
+  "staging": "tmp/release_assets/ (gitignored)",
+  "content": "lossless masters in their delivery formats, only of variants that passed verification"
+ },
+ "audio": {
+  "before": {
+   "file": "audio/before.mp3",
+   "definition": "unity-gain sum of the 12 stems, stereo as-is, no processing (D-036)",
+   "kind": "stem_sum",
+   "made_by": "core listen (audio_set): static stem sum, gain 0 dB",
+   "lossless": {
+    "format": {
+     "sample_rate": 48000,
+     "channels": 2,
+     "frames": 4746240,
+     "subtype": "FLOAT",
+     "container": "wav"
+    },
+    "sha256": "5c8f9402c8fe78e6c2c6dc8503171d14c0b548fd58583dc435aed4af737ac376"
+   },
+   "measured": {
+    "lufs_i": -15.03,
+    "true_peak_dbtp": -0.59,
+    "sample_peak_dbfs": -0.61,
+    "lra_lu": 4.79,
+    "short_term_max_lufs": -12.15,
+    "plr_db": 14.44,
+    "psr_db": 11.56,
+    "correlation_full_band": 0.945,
+    "low_band_min_correlation": -0.307,
+    "mono_loss_db_full_band": 0.121,
+    "band_balance_ratio_db": {
+     "sub": -12.08,
+     "bass": -1.74,
+     "lowmid": -6.37,
+     "mid": -12.74,
+     "highmid": -14.93,
+     "air": -22.79
+    },
+    "clipped_samples": 0,
+    "over_full_scale_samples": 0,
+    "duration_s": 98.88,
+    "sample_rate": 48000
+   },
+   "mp3_sha256": "1b8e5bf1dde5760c3f3cd15e569ff70c781a4f47ca17006bfa54ed64c532f10b",
+   "mp3_measured": {
+    "lufs_i": -15.03,
+    "true_peak_dbtp": -0.6
+   }
+  },
+  "fullmix_reference": {
+   "file": "audio/fullmix_reference.mp3",
+   "definition": "the service's full mix (conformed), reference only; never the before baseline (the stem sum does not equal it)",
+   "lossless": {
+    "format": {
+     "sample_rate": 48000,
+     "channels": 2,
+     "frames": 4746240,
+     "subtype": "FLOAT",
+     "container": "wav"
+    },
+    "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd"
+   },
+   "measured": {
+    "lufs_i": -15.5,
+    "true_peak_dbtp": -2.48,
+    "sample_peak_dbfs": -2.54,
+    "lra_lu": 3.32,
+    "short_term_max_lufs": -13.37,
+    "plr_db": 13.02,
+    "psr_db": 10.9,
+    "correlation_full_band": 0.963,
+    "low_band_min_correlation": -0.236,
+    "mono_loss_db_full_band": 0.08,
+    "band_balance_ratio_db": {
+     "sub": -11.45,
+     "bass": -1.82,
+     "lowmid": -6.58,
+     "mid": -12.39,
+     "highmid": -14.65,
+     "air": -21.63
+    },
+    "clipped_samples": 0,
+    "over_full_scale_samples": 0,
+    "duration_s": 98.88,
+    "sample_rate": 48000
+   },
+   "mp3_sha256": "799cf3e6ad90e7f38f5d9d8f97b11b3b55b89e1df8b8e78a8dfb95515145995e",
+   "mp3_measured": {
+    "lufs_i": -15.5,
+    "true_peak_dbtp": -2.44
+   }
+  },
+  "level_matched_pair": {
+   "file": "audio/v01_level_matched.mp3",
+   "pair": [
+    "before",
+    "v01"
+   ],
+   "lowered": "after",
+   "gain_db": -1.02,
+   "applied_by": "ffmpeg volume filter on the listening copy (static gain)",
+   "mp3_sha256": "59d44d5d4f57485b92da4de35171ac02c207901f75b2d6f51c3523ae93bca12b",
+   "mp3_measured": {
+    "lufs_i": -15.03,
+    "true_peak_dbtp": -2.01
+   }
+  },
+  "delta": {
+   "file": "audio/delta.mp3",
+   "of": "v01",
+   "definition": "only what the cleanup stage removed (input minus output), main sample",
+   "stems": [
+    "ast_backing_vocals",
+    "ast_bass",
+    "ast_brass",
+    "ast_drums",
+    "ast_fx",
+    "ast_guitar",
+    "ast_keyboard",
+    "ast_percussion",
+    "ast_strings",
+    "ast_synth",
+    "ast_vocals",
+    "ast_woodwinds"
+   ],
+   "made_by": "core clean delta stems: unprocessed stem sum minus the cleaned stem sum (unity gain)",
+   "lossless": {
+    "format": {
+     "sample_rate": 48000,
+     "channels": 2,
+     "frames": 4746240,
+     "subtype": "FLOAT",
+     "container": "wav"
+    },
+    "sha256": "bfb67ac4ff0a631c3ad8cee939f868ebbd65d654f0a767bc8d296960d0d0ddab"
+   },
+   "measured": {
+    "lufs_i": -39.78,
+    "true_peak_dbtp": -3.43,
+    "sample_peak_dbfs": -4.11,
+    "lra_lu": 19.5,
+    "short_term_max_lufs": -35.34,
+    "plr_db": 36.35,
+    "psr_db": 31.92,
+    "correlation_full_band": 0.942,
+    "low_band_min_correlation": null,
+    "mono_loss_db_full_band": 0.13,
+    "band_balance_ratio_db": {
+     "sub": -149.67,
+     "bass": -140.55,
+     "lowmid": -124.15,
+     "mid": -5.25,
+     "highmid": -2.38,
+     "air": -9.1
+    },
+    "clipped_samples": 0,
+    "over_full_scale_samples": 0,
+    "duration_s": 98.88,
+    "sample_rate": 48000
+   },
+   "mp3_sha256": "462441f9a1a02b2238afff011904637224f0c672d16e19e5b1902be71685a690",
+   "mp3_measured": {
+    "lufs_i": -39.79,
+    "true_peak_dbtp": -3.42
+   }
+  }
+ },
+ "before_consistency": {
+  "identical_in_every_project": true,
+  "sha256": [
+   "5c8f9402c8fe78e6c2c6dc8503171d14c0b548fd58583dc435aed4af737ac376"
+  ]
+ },
+ "variants": [
+  {
+   "id": "v01",
+   "n": 1,
+   "role": "main",
+   "objective": "comfort",
+   "profile": "streaming_universal",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native",
+    "distributor_44k16"
+   ],
+   "project_variant": "var_streaming_universal",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "66ba0f4e4d9f7564556ad3529a4b42b8f284d8bc7f0707d955d744306d143a84",
+     "measured": {
+      "lufs_i": -14.01,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.02,
+      "lra_lu": 2.77,
+      "short_term_max_lufs": -12.32,
+      "plr_db": 13.0,
+      "psr_db": 11.31,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.455,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.1,
+       "bass": -2.11,
+       "lowmid": -5.9,
+       "mid": -10.75,
+       "highmid": -14.46,
+       "air": -22.27
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v01_comfort__streaming_universal__hires_native.wav",
+     "withheld": null
+    },
+    {
+     "delivery": "distributor_44k16",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 44100,
+      "channels": 2,
+      "frames": 4360608,
+      "subtype": "PCM_16",
+      "container": "wav"
+     },
+     "sha256": "7822fcaaf84d10bf0cd1903aac4a147b4e6945dae46a7ebdfcde2beac979102e",
+     "measured": {
+      "lufs_i": -14.0,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.01,
+      "lra_lu": 2.77,
+      "short_term_max_lufs": -12.32,
+      "plr_db": 13.0,
+      "psr_db": 11.31,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.455,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.1,
+       "bass": -2.11,
+       "lowmid": -5.9,
+       "mid": -10.75,
+       "highmid": -14.46,
+       "air": -22.27
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 44100
+     },
+     "render_status": "pass",
+     "release_file": "v01_comfort__streaming_universal__distributor_44k16.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v01_comfort__streaming_universal.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "485a35ed8a863cb12ea941d0b135a7435440ff501c91fd37f54efc45a2d74239",
+    "mp3_measured": {
+     "lufs_i": -14.01,
+     "true_peak_dbtp": -0.99
+    }
+   },
+   "level_match": {
+    "gain_db": -1.02,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -1.02,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "streaming_universal",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     },
+     {
+      "profile": "streaming_universal",
+      "delivery": "distributor_44k16",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v01/report.json",
+     "md_en": "reports/v01/report.en.md",
+     "md_ja": "reports/v01/report.ja.md",
+     "verification": "reports/v01/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v02",
+   "n": 2,
+   "role": "objective_axis",
+   "objective": "bass_heavy",
+   "profile": "streaming_universal",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_streaming_universal",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "dee000e7f32b321dc24f47e656952c6e440585eee1f433d863549044cc9dcbe4",
+     "measured": {
+      "lufs_i": -14.01,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.02,
+      "lra_lu": 2.77,
+      "short_term_max_lufs": -12.32,
+      "plr_db": 13.0,
+      "psr_db": 11.31,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.455,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.1,
+       "bass": -2.11,
+       "lowmid": -5.9,
+       "mid": -10.75,
+       "highmid": -14.46,
+       "air": -22.27
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v02_bass_heavy__streaming_universal__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v02_bass_heavy__streaming_universal.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "ec3c6026b27f303b6953581d67e4140d00f4eb4f7724539cd7cc6a1060d94452",
+    "mp3_measured": {
+     "lufs_i": -14.01,
+     "true_peak_dbtp": -0.99
+    }
+   },
+   "level_match": {
+    "gain_db": -1.02,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -1.02,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "streaming_universal",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v02/report.json",
+     "md_en": "reports/v02/report.en.md",
+     "md_ja": "reports/v02/report.ja.md",
+     "verification": "reports/v02/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    }
+   ]
+  },
+  {
+   "id": "v03",
+   "n": 3,
+   "role": "objective_axis",
+   "objective": "vocal_forward",
+   "profile": "streaming_universal",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_streaming_universal",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "a88ef2eb5e4e7dcbe772eff7f162fb9bc0306b81540a30b0817753019876ace4",
+     "measured": {
+      "lufs_i": -14.01,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.02,
+      "lra_lu": 2.7,
+      "short_term_max_lufs": -12.38,
+      "plr_db": 13.0,
+      "psr_db": 11.37,
+      "correlation_full_band": 0.954,
+      "low_band_min_correlation": -0.442,
+      "mono_loss_db_full_band": 0.102,
+      "band_balance_ratio_db": {
+       "sub": -13.42,
+       "bass": -2.25,
+       "lowmid": -5.45,
+       "mid": -10.72,
+       "highmid": -13.81,
+       "air": -22.54
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v03_vocal_forward__streaming_universal__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v03_vocal_forward__streaming_universal.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "695f1672f823fb6b78f5a9601cf932a334799da354dceef24693b5a3639a05b4",
+    "mp3_measured": {
+     "lufs_i": -14.01,
+     "true_peak_dbtp": -1.0
+    }
+   },
+   "level_match": {
+    "gain_db": -1.02,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -1.02,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "streaming_universal",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v03/report.json",
+     "md_en": "reports/v03/report.en.md",
+     "md_ja": "reports/v03/report.ja.md",
+     "verification": "reports/v03/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v04",
+   "n": 4,
+   "role": "objective_axis",
+   "objective": "clarity",
+   "profile": "streaming_universal",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_streaming_universal",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "6dc7c7fa402e80db813b415f25f9e25d33fab1cbe4ca39d46bf5d71fd59f5864",
+     "measured": {
+      "lufs_i": -13.97,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.02,
+      "lra_lu": 2.72,
+      "short_term_max_lufs": -12.27,
+      "plr_db": 12.96,
+      "psr_db": 11.26,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.455,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.05,
+       "bass": -2.07,
+       "lowmid": -5.87,
+       "mid": -10.87,
+       "highmid": -15.19,
+       "air": -22.44
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v04_clarity__streaming_universal__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v04_clarity__streaming_universal.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "01bd4ba3f165ed4811da2bfda39e4f90584233c21b44c7c33adbe80bb1aa659d",
+    "mp3_measured": {
+     "lufs_i": -13.97,
+     "true_peak_dbtp": -0.97
+    }
+   },
+   "level_match": {
+    "gain_db": -1.06,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -1.06,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "streaming_universal",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v04/report.json",
+     "md_en": "reports/v04/report.en.md",
+     "md_ja": "reports/v04/report.ja.md",
+     "verification": "reports/v04/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    }
+   ]
+  },
+  {
+   "id": "v05",
+   "n": 5,
+   "role": "objective_axis",
+   "objective": "low_fatigue",
+   "profile": "streaming_universal",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_streaming_universal",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "d4385d1e9491f43c081befba661b5bea34685a1dea5196e2baa77550e1c4e542",
+     "measured": {
+      "lufs_i": -14.0,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.01,
+      "lra_lu": 2.7,
+      "short_term_max_lufs": -12.28,
+      "plr_db": 12.99,
+      "psr_db": 11.27,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.454,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.03,
+       "bass": -2.05,
+       "lowmid": -5.86,
+       "mid": -10.93,
+       "highmid": -15.56,
+       "air": -22.52
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v05_low_fatigue__streaming_universal__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v05_low_fatigue__streaming_universal.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "dd3c013117b8981ba52e0a80934d988168d9ffdff251e0da68aace3c208488de",
+    "mp3_measured": {
+     "lufs_i": -14.0,
+     "true_peak_dbtp": -0.98
+    }
+   },
+   "level_match": {
+    "gain_db": -1.03,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -1.03,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "streaming_universal",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v05/report.json",
+     "md_en": "reports/v05/report.en.md",
+     "md_ja": "reports/v05/report.ja.md",
+     "verification": "reports/v05/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v06",
+   "n": 6,
+   "role": "media_axis",
+   "objective": "comfort",
+   "profile": "apple_music",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_apple_music",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "apple_music",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "68e7f5a6a662eb8dbde8861eaf1befb682027e6504825cb9fd6059099c7f22b0",
+     "measured": {
+      "lufs_i": -16.0,
+      "true_peak_dbtp": -2.01,
+      "sample_peak_dbfs": -2.02,
+      "lra_lu": 2.77,
+      "short_term_max_lufs": -14.28,
+      "plr_db": 13.99,
+      "psr_db": 12.28,
+      "correlation_full_band": 0.955,
+      "low_band_min_correlation": -0.453,
+      "mono_loss_db_full_band": 0.1,
+      "band_balance_ratio_db": {
+       "sub": -13.1,
+       "bass": -2.12,
+       "lowmid": -5.9,
+       "mid": -10.74,
+       "highmid": -14.44,
+       "air": -22.28
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v06_comfort__apple_music__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v06_comfort__apple_music.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "d3fb00da9862ada5fad2858a3756593cd9e30d2461dec066676507939853ce25",
+    "mp3_measured": {
+     "lufs_i": -16.0,
+     "true_peak_dbtp": -2.0
+    }
+   },
+   "level_match": {
+    "gain_db": -0.97,
+    "target": "before",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -0.97,
+     "target": "before",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "apple_music",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v06/report.json",
+     "md_en": "reports/v06/report.en.md",
+     "md_ja": "reports/v06/report.ja.md",
+     "verification": "reports/v06/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v07",
+   "n": 7,
+   "role": "media_axis",
+   "objective": "comfort",
+   "profile": "sns_hot",
+   "intensity": 0.5,
+   "deliveries": [
+    "hires_native"
+   ],
+   "project_variant": "var_sns_hot",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "hires_native",
+     "profile": "sns_hot",
+     "format": {
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 4746240,
+      "subtype": "PCM_24",
+      "container": "wav"
+     },
+     "sha256": "6cc2a02b3e3f735e3ecab63df5d3da0057cf44df9af306f1f2412dd085a3fe02",
+     "measured": {
+      "lufs_i": -9.97,
+      "true_peak_dbtp": -1.01,
+      "sample_peak_dbfs": -1.01,
+      "lra_lu": 2.19,
+      "short_term_max_lufs": -8.56,
+      "plr_db": 8.96,
+      "psr_db": 7.55,
+      "correlation_full_band": 0.953,
+      "low_band_min_correlation": -0.466,
+      "mono_loss_db_full_band": 0.102,
+      "band_balance_ratio_db": {
+       "sub": -13.48,
+       "bass": -2.19,
+       "lowmid": -5.66,
+       "mid": -10.7,
+       "highmid": -14.42,
+       "air": -21.92
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 48000
+     },
+     "render_status": "pass",
+     "release_file": "v07_comfort__sns_hot__hires_native.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v07_comfort__sns_hot.mp3",
+    "of_master": "hires_native",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "759e6912d45a34a19ea1afc7650c0f0d4821bf0940d8f6d6fd7f79210bc2f7a1",
+    "mp3_measured": {
+     "lufs_i": -9.97,
+     "true_peak_dbtp": -0.88
+    }
+   },
+   "level_match": {
+    "gain_db": -5.06,
+    "target": "after",
+    "after_master": "hires_native",
+    "core_audio_set": {
+     "gain_db": -5.06,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "sns_hot",
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v07/report.json",
+     "md_en": "reports/v07/report.en.md",
+     "md_ja": "reports/v07/report.ja.md",
+     "verification": "reports/v07/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v08",
+   "n": 8,
+   "role": "media_axis",
+   "objective": "comfort",
+   "profile": "cd",
+   "intensity": 0.5,
+   "deliveries": [
+    "cd_redbook"
+   ],
+   "project_variant": "var_cd",
+   "run": {
+    "exit_code": 0,
+    "status": "ok",
+    "stopped_at": null,
+    "reason": null,
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "incomplete",
+       "failed": []
+      }
+     }
+    },
+    "render": {
+     "status": "ok"
+    },
+    "verify": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "report": {
+     "status": "ok"
+    },
+    "deliver": {
+     "status": "ok"
+    }
+   },
+   "masters": [
+    {
+     "delivery": "cd_redbook",
+     "profile": "cd",
+     "format": {
+      "sample_rate": 44100,
+      "channels": 2,
+      "frames": 4360608,
+      "subtype": "PCM_16",
+      "container": "wav"
+     },
+     "sha256": "7b81cd6b291eb7b6b3ce25380651ffa76e5b0112f48b59151b6f40e83a400008",
+     "measured": {
+      "lufs_i": -10.2,
+      "true_peak_dbtp": -0.48,
+      "sample_peak_dbfs": -0.48,
+      "lra_lu": 2.36,
+      "short_term_max_lufs": -8.78,
+      "plr_db": 9.72,
+      "psr_db": 8.3,
+      "correlation_full_band": 0.954,
+      "low_band_min_correlation": -0.464,
+      "mono_loss_db_full_band": 0.102,
+      "band_balance_ratio_db": {
+       "sub": -13.33,
+       "bass": -2.15,
+       "lowmid": -5.76,
+       "mid": -10.76,
+       "highmid": -14.48,
+       "air": -22.07
+      },
+      "clipped_samples": 0,
+      "over_full_scale_samples": 0,
+      "duration_s": 98.88,
+      "sample_rate": 44100
+     },
+     "render_status": "pass",
+     "release_file": "v08_comfort__cd__cd_redbook.wav",
+     "withheld": null
+    }
+   ],
+   "listening_copy": {
+    "file": "audio/v08_comfort__cd.mp3",
+    "of_master": "cd_redbook",
+    "is_master": false,
+    "verification_failed_master": false,
+    "mp3_sha256": "0f9a765ba8b53d5ac5d4098cb51a11e717c50b1c05c28143320fa4aae6280ff4",
+    "mp3_measured": {
+     "lufs_i": -10.2,
+     "true_peak_dbtp": -0.42
+    }
+   },
+   "level_match": {
+    "gain_db": -4.83,
+    "target": "after",
+    "after_master": "cd_redbook",
+    "core_audio_set": {
+     "gain_db": -5.03,
+     "target": "after",
+     "after": "archive_f32 master"
+    }
+   },
+   "verification": {
+    "passed": true,
+    "overall": "pass",
+    "outputs": [
+     {
+      "profile": "cd",
+      "delivery": "cd_redbook",
+      "overall": "pass",
+      "failed": []
+     }
+    ]
+   },
+   "translation_gate": {
+    "planner": {
+     "status": "incomplete",
+     "failed": []
+    },
+    "status": "incomplete",
+    "source": "render",
+    "failed": [],
+    "not_evaluated": [
+     "band_limited_lead_preserved",
+     "low_level_balance_preserved"
+    ]
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v08/report.json",
+     "md_en": "reports/v08/report.en.md",
+     "md_ja": "reports/v08/report.ja.md",
+     "verification": "reports/v08/verify.json"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": null,
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "gate_incomplete"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    }
+   ]
+  },
+  {
+   "id": "v09",
+   "n": 9,
+   "role": "media_axis",
+   "objective": "comfort",
+   "profile": "club",
+   "intensity": 0.5,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "project_variant": "var_club",
+   "run": {
+    "exit_code": 1,
+    "status": "stopped",
+    "stopped_at": "master",
+    "reason": {
+     "ja": "マスタリング段からの差し戻し（var_club: S-08）: ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "the master plan sends the problem back (var_club: S-08): The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    },
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "failed",
+     "gate": {
+      "status": "fail",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      },
+      "send_back": [
+       "S-08"
+      ]
+     }
+    }
+   },
+   "masters": [],
+   "listening_copy": null,
+   "level_match": null,
+   "verification": null,
+   "translation_gate": {
+    "planner": {
+     "status": "pass",
+     "failed": []
+    }
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v09/report.json",
+     "md_en": "reports/v09/report.en.md",
+     "md_ja": "reports/v09/report.ja.md"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": {
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   },
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "term_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "send_back",
+     "rules": [
+      "S-08"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "v10",
+   "n": 10,
+   "role": "composite",
+   "objective": "club_impact",
+   "profile": "club",
+   "intensity": 0.5,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "project_variant": "var_club",
+   "run": {
+    "exit_code": 1,
+    "status": "stopped",
+    "stopped_at": "master",
+    "reason": {
+     "ja": "マスタリング段からの差し戻し（var_club: S-08）: ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "the master plan sends the problem back (var_club: S-08): The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    },
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "failed",
+     "gate": {
+      "status": "fail",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      },
+      "send_back": [
+       "S-08"
+      ]
+     }
+    }
+   },
+   "masters": [],
+   "listening_copy": null,
+   "level_match": null,
+   "verification": null,
+   "translation_gate": {
+    "planner": {
+     "status": "pass",
+     "failed": []
+    }
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v10/report.json",
+     "md_en": "reports/v10/report.en.md",
+     "md_ja": "reports/v10/report.ja.md"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": {
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   },
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "send_back",
+     "rules": [
+      "S-08"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "v11",
+   "n": 11,
+   "role": "composite",
+   "objective": "bass_heavy",
+   "profile": "club",
+   "intensity": 0.5,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "project_variant": "var_club",
+   "run": {
+    "exit_code": 1,
+    "status": "stopped",
+    "stopped_at": "master",
+    "reason": {
+     "ja": "マスタリング段からの差し戻し（var_club: S-08）: ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "the master plan sends the problem back (var_club: S-08): The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    },
+    "error": null,
+    "route": "stem_mix"
+   },
+   "stages": {
+    "project": {
+     "status": "ok"
+    },
+    "import": {
+     "status": "ok",
+     "gate": {
+      "status": "pass"
+     }
+    },
+    "separate": {
+     "status": "skipped"
+    },
+    "analyze": {
+     "status": "ok"
+    },
+    "clean": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "failed": [],
+      "check": "S-07"
+     },
+     "cleaned": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds",
+      "ast_fullmix"
+     ]
+    },
+    "mix": {
+     "status": "applied",
+     "gate": {
+      "status": "pass",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      }
+     }
+    },
+    "master": {
+     "status": "failed",
+     "gate": {
+      "status": "fail",
+      "constraints_failed": [],
+      "of5": {
+       "status": "pass",
+       "failed": []
+      },
+      "send_back": [
+       "S-08"
+      ]
+     }
+    }
+   },
+   "masters": [],
+   "listening_copy": null,
+   "level_match": null,
+   "verification": null,
+   "translation_gate": {
+    "planner": {
+     "status": "pass",
+     "failed": []
+    }
+   },
+   "report": {
+    "status": "ok",
+    "files": {
+     "json": "reports/v11/report.json",
+     "md_en": "reports/v11/report.en.md",
+     "md_ja": "reports/v11/report.ja.md"
+    },
+    "languages": [
+     "ja",
+     "en"
+    ],
+    "states": {
+     "no_references_note": true,
+     "genre_prior_note": true
+    }
+   },
+   "send_back": {
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   },
+   "unresolved": [
+    {
+     "stage": "mix",
+     "code": "band_density"
+    },
+    {
+     "stage": "mix",
+     "code": "p10_off_target"
+    },
+    {
+     "stage": "master",
+     "code": "not_measured"
+    },
+    {
+     "stage": "master",
+     "code": "send_back",
+     "rules": [
+      "S-08"
+     ]
+    }
+   ]
+  }
+ ],
+ "verification_only_profiles": {
+  "profiles": [
+   "spotify",
+   "youtube",
+   "amazon_music",
+   "tidal",
+   "sns_safe"
+  ],
+  "of": "v01",
+  "rows": [
+   {
+    "profile": "spotify",
+    "passed": true,
+    "overall": "pass",
+    "failed": [],
+    "outputs": [
+     {
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac",
+       "ogg_vorbis"
+      ]
+     },
+     {
+      "delivery": "distributor_44k16",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac",
+       "ogg_vorbis"
+      ]
+     }
+    ]
+   },
+   {
+    "profile": "youtube",
+    "passed": true,
+    "overall": "pass",
+    "failed": [],
+    "outputs": [
+     {
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac",
+       "opus"
+      ]
+     },
+     {
+      "delivery": "distributor_44k16",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac",
+       "opus"
+      ]
+     }
+    ]
+   },
+   {
+    "profile": "amazon_music",
+    "passed": false,
+    "overall": "fail",
+    "failed": [
+     "S-01"
+    ],
+    "outputs": [
+     {
+      "delivery": "hires_native",
+      "overall": "fail",
+      "failed": [
+       "S-01"
+      ],
+      "codecs": [
+       "opus"
+      ]
+     },
+     {
+      "delivery": "distributor_44k16",
+      "overall": "fail",
+      "failed": [
+       "S-01"
+      ],
+      "codecs": [
+       "opus"
+      ]
+     }
+    ]
+   },
+   {
+    "profile": "tidal",
+    "passed": true,
+    "overall": "pass",
+    "failed": [],
+    "outputs": [
+     {
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac"
+      ]
+     },
+     {
+      "delivery": "distributor_44k16",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac"
+      ]
+     }
+    ]
+   },
+   {
+    "profile": "sns_safe",
+    "passed": true,
+    "overall": "pass",
+    "failed": [],
+    "outputs": [
+     {
+      "delivery": "hires_native",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac"
+      ]
+     },
+     {
+      "delivery": "distributor_44k16",
+      "overall": "pass",
+      "failed": [],
+      "codecs": [
+       "aac"
+      ]
+     }
+    ]
+   }
+  ],
+  "method": "core verify with verification-only profiles: the main variant's rendered masters (every delivery) judged against each profile's P-03 loudness window, S-01 ceiling and S-02 codec round trip, without re-rendering",
+  "status": "ok",
+  "passed": false,
+  "checks": [
+   "P-03",
+   "S-01",
+   "S-02"
+  ],
+  "project_unchanged": true,
+  "report": "reports/v01/verify_against.json"
+ },
+ "summary": {
+  "verified": [
+   "v01",
+   "v02",
+   "v03",
+   "v04",
+   "v05",
+   "v06",
+   "v07",
+   "v08"
+  ],
+  "failed_verification": [],
+  "stopped": [
+   {
+    "id": "v09",
+    "at": "master"
+   },
+   {
+    "id": "v10",
+    "at": "master"
+   },
+   {
+    "id": "v11",
+    "at": "master"
+   }
+  ],
+  "send_backs": [
+   {
+    "id": "v09",
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   },
+   {
+    "id": "v10",
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   },
+   {
+    "id": "v11",
+    "rules": [
+     "S-08"
+    ],
+    "reason": {
+     "ja": "ノイズ戻り監視（S-08）がプロファイルのレンジ内で目標を下げても合格しない。最も悪化の小さい候補（-8.7 LUFS）でも shimmer index +1.5 dB（許容 1.5 dB）。許容幅は緩めない。ミックス段（または整音段）へ差し戻す",
+     "en": "The noise-return guard (S-08) does not pass even with the target lowered within the profile window. The least-failing candidate (-8.7 LUFS) still has shimmer index +1.5 dB (tolerance 1.5 dB). The tolerance is not relaxed; sent back to the mix (or cleanup) stage"
+    }
+   }
+  ],
+  "errors": []
+ },
+ "regeneration": {
+  "placeholders": {
+   "$MANKOMIX_SAMPLE_DIR": "the sample folder, given from outside via MANKOMIX_SAMPLE_DIR (never recorded)",
+   "$WORK": "the build folder (default tmp/sample_build/conformed, gitignored)"
+  },
+  "one_shot": "python -I tools/build_samples.py --source-kind conformed",
+  "per_variant": {
+   "v01": [
+    "python -m mankomix.cli init \"$WORK/v01/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v01",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v01/song.mmx\" --out \"$WORK/v01/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"comfort:0.5\",\"profile\":\"streaming_universal\",\"delivery\":[\"hires_native\",\"distributor_44k16\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v01/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v01/song.mmx\""
+   ],
+   "v02": [
+    "python -m mankomix.cli init \"$WORK/v02/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v02",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v02/song.mmx\" --out \"$WORK/v02/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"bass_heavy:0.5\",\"profile\":\"streaming_universal\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v02/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v02/song.mmx\""
+   ],
+   "v03": [
+    "python -m mankomix.cli init \"$WORK/v03/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v03",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v03/song.mmx\" --out \"$WORK/v03/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"vocal_forward:0.5\",\"profile\":\"streaming_universal\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v03/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v03/song.mmx\""
+   ],
+   "v04": [
+    "python -m mankomix.cli init \"$WORK/v04/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v04",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v04/song.mmx\" --out \"$WORK/v04/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"clarity:0.5\",\"profile\":\"streaming_universal\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v04/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v04/song.mmx\""
+   ],
+   "v05": [
+    "python -m mankomix.cli init \"$WORK/v05/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v05",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v05/song.mmx\" --out \"$WORK/v05/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"low_fatigue:0.5\",\"profile\":\"streaming_universal\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v05/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v05/song.mmx\""
+   ],
+   "v06": [
+    "python -m mankomix.cli init \"$WORK/v06/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v06",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v06/song.mmx\" --out \"$WORK/v06/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"comfort:0.5\",\"profile\":\"apple_music\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v06/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v06/song.mmx\""
+   ],
+   "v07": [
+    "python -m mankomix.cli init \"$WORK/v07/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v07",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v07/song.mmx\" --out \"$WORK/v07/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"comfort:0.5\",\"profile\":\"sns_hot\",\"delivery\":[\"hires_native\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v07/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v07/song.mmx\""
+   ],
+   "v08": [
+    "python -m mankomix.cli init \"$WORK/v08/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v08",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v08/song.mmx\" --out \"$WORK/v08/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"comfort:0.5\",\"profile\":\"cd\",\"delivery\":[\"cd_redbook\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v08/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v08/song.mmx\""
+   ],
+   "v09": [
+    "python -m mankomix.cli init \"$WORK/v09/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v09",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v09/song.mmx\" --out \"$WORK/v09/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"comfort:0.5\",\"profile\":\"club\",\"delivery\":[\"dj_wav\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v09/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v09/song.mmx\""
+   ],
+   "v10": [
+    "python -m mankomix.cli init \"$WORK/v10/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v10",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v10/song.mmx\" --out \"$WORK/v10/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"club_impact:0.5\",\"profile\":\"club\",\"delivery\":[\"dj_wav\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v10/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v10/song.mmx\""
+   ],
+   "v11": [
+    "python -m mankomix.cli init \"$WORK/v11/song.mmx\" --title 'マンコ主義' --genre hiphop --project-id sample_v11",
+    "python -m mankomix.cli run \"$MANKOMIX_SAMPLE_DIR/backing_vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/bass.wav\" \"$MANKOMIX_SAMPLE_DIR/brass.wav\" \"$MANKOMIX_SAMPLE_DIR/drums.wav\" \"$MANKOMIX_SAMPLE_DIR/fx.wav\" \"$MANKOMIX_SAMPLE_DIR/guitar.wav\" \"$MANKOMIX_SAMPLE_DIR/keyboard.wav\" \"$MANKOMIX_SAMPLE_DIR/percussion.wav\" \"$MANKOMIX_SAMPLE_DIR/strings.wav\" \"$MANKOMIX_SAMPLE_DIR/synth.wav\" \"$MANKOMIX_SAMPLE_DIR/vocals.wav\" \"$MANKOMIX_SAMPLE_DIR/woodwinds.wav\" \"$MANKOMIX_SAMPLE_DIR/fullmix_conformed.wav\" --project \"$WORK/v11/song.mmx\" --out \"$WORK/v11/out\" --genre hiphop --title 'マンコ主義' --variants '[{\"objective\":\"bass_heavy:0.5\",\"profile\":\"club\",\"delivery\":[\"dj_wav\"]}]'",
+    "python -m mankomix.cli listen --project \"$WORK/v11/song.mmx\"",
+    "python -m mankomix.cli gate --project \"$WORK/v11/song.mmx\""
+   ]
+  },
+  "main_delta": [
+   "python -m mankomix.cli clean delta stems --project \"$WORK/v01/song.mmx\""
+  ],
+  "verification_only_profiles": [
+   "python -m mankomix.cli verify --project \"$WORK/v01/song.mmx\" --against-profile spotify --against-profile youtube --against-profile amazon_music --against-profile tidal --against-profile sns_safe"
+  ],
+  "notes": [
+   "Every command runs from the repository root. Masters, reports and verification come from run; before/after/delta files and the level-match gain from listen; the translation gate from gate; measurements from measure <file>.",
+   "The MP3 listening copies are made by an external ffmpeg process (libmp3lame, 320 kbps CBR, options under listening_copies.encoder)."
+  ]
+ },
+ "timings": {
+  "v01": {
+   "run_wall_s": 1623.5,
+   "stages_s": {
+    "project": 0.014,
+    "import": 46.453,
+    "separate": 0.0,
+    "analyze": 217.436,
+    "clean": 695.179,
+    "mix": 398.99,
+    "master": 89.24,
+    "render": 78.498,
+    "verify": 42.996,
+    "report": 44.521,
+    "deliver": 0.121,
+    "total": 1613.693
+   },
+   "postprocess_s": 49.4
+  },
+  "v02": {
+   "run_wall_s": 1257.7,
+   "stages_s": {
+    "project": 0.003,
+    "import": 54.701,
+    "separate": 0.0,
+    "analyze": 126.84,
+    "clean": 418.695,
+    "mix": 363.118,
+    "master": 107.187,
+    "render": 85.563,
+    "verify": 37.536,
+    "report": 55.445,
+    "deliver": 0.105,
+    "total": 1249.462
+   },
+   "postprocess_s": 35.5
+  },
+  "v03": {
+   "run_wall_s": 1259.1,
+   "stages_s": {
+    "project": 0.016,
+    "import": 51.273,
+    "separate": 0.0,
+    "analyze": 124.063,
+    "clean": 405.776,
+    "mix": 383.493,
+    "master": 117.994,
+    "render": 73.499,
+    "verify": 37.347,
+    "report": 56.274,
+    "deliver": 0.084,
+    "total": 1250.126
+   },
+   "postprocess_s": 39.6
+  },
+  "v04": {
+   "run_wall_s": 979.2,
+   "stages_s": {
+    "project": 0.01,
+    "import": 36.51,
+    "separate": 0.0,
+    "analyze": 103.728,
+    "clean": 409.656,
+    "mix": 190.478,
+    "master": 95.862,
+    "render": 62.391,
+    "verify": 24.311,
+    "report": 48.396,
+    "deliver": 0.061,
+    "total": 971.609
+   },
+   "postprocess_s": 31.5
+  },
+  "v05": {
+   "run_wall_s": 979.3,
+   "stages_s": {
+    "project": 0.012,
+    "import": 36.497,
+    "separate": 0.0,
+    "analyze": 103.32,
+    "clean": 408.698,
+    "mix": 181.27,
+    "master": 110.24,
+    "render": 60.719,
+    "verify": 24.482,
+    "report": 46.352,
+    "deliver": 0.062,
+    "total": 971.897
+   },
+   "postprocess_s": 31.1
+  },
+  "v06": {
+   "run_wall_s": 876.7,
+   "stages_s": {
+    "project": 0.016,
+    "import": 38.254,
+    "separate": 0.0,
+    "analyze": 84.314,
+    "clean": 370.716,
+    "mix": 167.451,
+    "master": 83.78,
+    "render": 42.754,
+    "verify": 32.826,
+    "report": 48.765,
+    "deliver": 0.064,
+    "total": 869.151
+   },
+   "postprocess_s": 37.3
+  },
+  "v07": {
+   "run_wall_s": 977.2,
+   "stages_s": {
+    "project": 0.009,
+    "import": 38.342,
+    "separate": 0.0,
+    "analyze": 84.404,
+    "clean": 371.892,
+    "mix": 167.931,
+    "master": 171.874,
+    "render": 44.297,
+    "verify": 28.893,
+    "report": 61.903,
+    "deliver": 0.055,
+    "total": 969.792
+   },
+   "postprocess_s": 36.0
+  },
+  "v08": {
+   "run_wall_s": 858.2,
+   "stages_s": {
+    "project": 0.017,
+    "import": 40.619,
+    "separate": 0.0,
+    "analyze": 96.389,
+    "clean": 311.668,
+    "mix": 145.404,
+    "master": 114.508,
+    "render": 57.0,
+    "verify": 28.388,
+    "report": 54.842,
+    "deliver": 0.06,
+    "total": 849.128
+   },
+   "postprocess_s": 30.2
+  },
+  "v09": {
+   "run_wall_s": 807.2,
+   "stages_s": {
+    "project": 0.011,
+    "import": 33.803,
+    "separate": 0.0,
+    "analyze": 77.452,
+    "clean": 323.048,
+    "mix": 154.898,
+    "master": 211.383,
+    "total": 800.785
+   },
+   "postprocess_s": 85.4
+  },
+  "v10": {
+   "run_wall_s": 869.4,
+   "stages_s": {
+    "project": 0.02,
+    "import": 36.805,
+    "separate": 0.0,
+    "analyze": 87.627,
+    "clean": 355.497,
+    "mix": 160.416,
+    "master": 217.603,
+    "total": 858.21
+   },
+   "postprocess_s": 74.8
+  },
+  "v11": {
+   "run_wall_s": 869.8,
+   "stages_s": {
+    "project": 0.012,
+    "import": 37.67,
+    "separate": 0.0,
+    "analyze": 93.669,
+    "clean": 354.917,
+    "mix": 155.518,
+    "master": 221.38,
+    "total": 863.409
+   },
+   "postprocess_s": 56.2
+  },
+  "listening_copies_s": 157.1,
+  "total_s": 4549.3
+ },
+ "main_sample": {
+  "id": "v01_main_direction",
+  "role": "main",
+  "of": "v01",
+  "definition": "the floor of sample #1 (comfort:0.5 x streaming_universal default processing, the v01 run) with the direction dir_cf3e85c484fa applied on top (direction apply -> master plan -> render -> verify -> gate -> direction check against the floor)",
+  "direction": {
+   "id": "dir_cf3e85c484fa",
+   "request": "空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル。主張は測定可能な形で、床との差を指揮の分として説明できるように。主役の明瞭さと配信出口の健全さは崩さない）",
+   "pattern": "sample_main",
+   "document": "private (D-068: case records stay in the local kb); id and outcome are published"
+  },
+  "files": {
+   "after": "audio/v01_main_direction.mp3",
+   "after_level_matched": "audio/v01_main_direction_level_matched.mp3",
+   "before": "audio/before.mp3",
+   "delta": "audio/delta.mp3",
+   "floor": "audio/v01_comfort__streaming_universal.mp3",
+   "report": "reports/main/",
+   "outcome": "reports/main/dir_cf3e85c484fa.outcome.json"
+  },
+  "level_match": {
+   "lowered_side": "after",
+   "gain_db": -1.02,
+   "source": "../../logs/main/listen.out",
+   "filter": "volume=-1.02dB",
+   "lufs_difference_after_minus_before_lu": 0.005583667646972046
+  },
+  "masters": [
+   {
+    "delivery": "hires_native",
+    "measured": {
+     "lufs_i": -14.007,
+     "true_peak_dbtp": -1.01,
+     "sample_rate": 48000,
+     "frames": 4746240,
+     "subtype": "PCM_24"
+    },
+    "overall": "pass"
+   },
+   {
+    "delivery": "distributor_44k16",
+    "measured": {
+     "lufs_i": -14.003,
+     "true_peak_dbtp": -1.007,
+     "sample_rate": 44100,
+     "frames": 4360608,
+     "subtype": "PCM_16"
+    },
+    "overall": "pass"
+   }
+  ],
+  "verify": "pass",
+  "translation_gate": "incomplete",
+  "mp3": {
+   "main": {
+    "file": "audio/v01_main_direction.mp3",
+    "sha256": "ee87dd66f274221f2e1ec03cef0a6c12f532f20d9205ff2393751589ecb09a2d",
+    "bytes": 3957120,
+    "applied_gain_db": 0.0,
+    "lufs_i": -14.006923631048661,
+    "true_peak_dbtp": -0.9995884451689676,
+    "duration_s": 98.88,
+    "sample_rate": 48000
+   },
+   "level_matched": {
+    "file": "audio/v01_main_direction_level_matched.mp3",
+    "sha256": "1002eef7363262d398678d9c9199bf2f44fbea875de1b791fbd54aba513926f0",
+    "bytes": 3957120,
+    "applied_gain_db": -1.02,
+    "lufs_i": -15.026901200125462,
+    "true_peak_dbtp": -2.015887726263598,
+    "duration_s": 98.88,
+    "sample_rate": 48000
+   }
+  },
+  "delta_note": "the direction does not change the cleanup; the delta of the main sample is byte-identical to the floor's (stem_sum_delta sha256 bfb67ac4...)",
+  "outcome": {
+   "summary": {
+    "primary_met": 3,
+    "primary": 3,
+    "claims_met": 23,
+    "claims": 23,
+    "safeguards_not_met": []
+   },
+   "status": "checked",
+   "convergence": {
+    "mix_state_equal": false,
+    "master_chain_equal": false,
+    "diff_rms_rel_db": -27.94,
+    "frames_compared": 4746240,
+    "converged": false
+   },
+   "gate_definitions": {
+    "at_apply": "ba2f2976c595710e",
+    "at_check": "ba2f2976c595710e",
+    "unchanged": true
+   },
+   "loudness": {
+    "result_lufs_i": -14.007,
+    "floor_lufs_i": -14.007,
+    "level_match_gain_db": -0.0
+   },
+   "claims": [
+    {
+     "id": "c1",
+     "primary": false,
+     "quantity": "obs:o01",
+     "direction": "up",
+     "floor": 0.3358,
+     "result": 0.5276,
+     "delta": 0.1918,
+     "verdict": "met"
+    },
+    {
+     "id": "c2",
+     "primary": false,
+     "quantity": "obs:o02",
+     "direction": "up",
+     "floor": -0.2951,
+     "result": 0.231,
+     "delta": 0.5261,
+     "verdict": "met"
+    },
+    {
+     "id": "c3",
+     "primary": false,
+     "quantity": "obs:o03",
+     "direction": "up",
+     "floor": 0.003,
+     "result": 0.3508,
+     "delta": 0.3478,
+     "verdict": "met"
+    },
+    {
+     "id": "c4",
+     "primary": false,
+     "quantity": "obs:o04",
+     "direction": "down",
+     "floor": 0.0057,
+     "result": -0.4461,
+     "delta": -0.4518,
+     "verdict": "met"
+    },
+    {
+     "id": "c5",
+     "primary": true,
+     "quantity": "obs:o05",
+     "direction": "down",
+     "floor": 0.0015,
+     "result": -0.677,
+     "delta": -0.6785,
+     "verdict": "met"
+    },
+    {
+     "id": "c6",
+     "primary": true,
+     "quantity": "obs:o06",
+     "direction": "up",
+     "floor": 0.0015,
+     "result": 0.294,
+     "delta": 0.2925,
+     "verdict": "met"
+    },
+    {
+     "id": "c7",
+     "primary": true,
+     "quantity": "obs:o07",
+     "direction": "up",
+     "floor": -14.0988,
+     "result": -9.9532,
+     "delta": 4.1456,
+     "verdict": "met"
+    },
+    {
+     "id": "c8",
+     "primary": false,
+     "quantity": "obs:o08",
+     "direction": "up",
+     "floor": 0.0455,
+     "result": 0.3376,
+     "delta": 0.2921,
+     "verdict": "met"
+    },
+    {
+     "id": "c9",
+     "primary": false,
+     "quantity": "obs:o09",
+     "direction": "not_worse",
+     "floor": 0.0744,
+     "result": 0.1313,
+     "delta": 0.0569,
+     "verdict": "met"
+    },
+    {
+     "id": "c10",
+     "primary": false,
+     "quantity": "obs:o10",
+     "direction": "down",
+     "floor": 0.0656,
+     "result": -0.231,
+     "delta": -0.2966,
+     "verdict": "met"
+    },
+    {
+     "id": "c11",
+     "primary": false,
+     "quantity": "obs:o11",
+     "direction": "not_worse",
+     "floor": 0.0641,
+     "result": 0.0334,
+     "delta": -0.0307,
+     "verdict": "met"
+    },
+    {
+     "id": "c12",
+     "primary": false,
+     "quantity": "obs:o12",
+     "direction": "up",
+     "floor": -19.1598,
+     "result": -14.7165,
+     "delta": 4.4433,
+     "verdict": "met"
+    },
+    {
+     "id": "c13",
+     "primary": false,
+     "quantity": "obs:o13",
+     "direction": "up",
+     "floor": -19.2923,
+     "result": -15.9425,
+     "delta": 3.3498,
+     "verdict": "met"
+    },
+    {
+     "id": "c14",
+     "primary": false,
+     "quantity": "obs:o14",
+     "direction": "not_worse",
+     "floor": 0.0153,
+     "result": 0.0149,
+     "delta": -0.0004,
+     "verdict": "met"
+    },
+    {
+     "id": "c15",
+     "primary": false,
+     "quantity": "obs:o15",
+     "direction": "not_worse",
+     "floor": 0.0082,
+     "result": 0.0108,
+     "delta": 0.0026,
+     "verdict": "met"
+    },
+    {
+     "id": "c16",
+     "primary": false,
+     "quantity": "obs:o16",
+     "direction": "not_worse",
+     "floor": 0.013,
+     "result": 0.0121,
+     "delta": -0.0009,
+     "verdict": "met"
+    },
+    {
+     "id": "c17",
+     "primary": false,
+     "quantity": "obs:o17",
+     "direction": "not_worse",
+     "floor": -0.09972838635240108,
+     "result": -0.09892281724267496,
+     "delta": 0.0008,
+     "verdict": "met"
+    },
+    {
+     "id": "c18",
+     "primary": false,
+     "quantity": "obs:o18",
+     "direction": "not_worse",
+     "floor": -0.09972838635240108,
+     "result": -0.09892281724267496,
+     "delta": 0.0008,
+     "verdict": "met"
+    },
+    {
+     "id": "c19",
+     "primary": false,
+     "quantity": "obs:o19",
+     "direction": "not_worse",
+     "floor": -23.6675,
+     "result": -23.8869,
+     "delta": -0.2194,
+     "verdict": "met"
+    },
+    {
+     "id": "c20",
+     "primary": false,
+     "quantity": "obs:o20",
+     "direction": "not_worse",
+     "floor": 0.9547,
+     "result": 0.9551,
+     "delta": 0.0004,
+     "verdict": "met"
+    },
+    {
+     "id": "c21",
+     "primary": false,
+     "quantity": "obs:o21",
+     "direction": "not_worse",
+     "floor": 0.7467,
+     "result": 0.723,
+     "delta": -0.0237,
+     "verdict": "met"
+    },
+    {
+     "id": "c22",
+     "primary": false,
+     "quantity": "obs:o22",
+     "direction": "not_worse",
+     "floor": 7.0849,
+     "result": 7.5306,
+     "delta": 0.4457,
+     "verdict": "met"
+    },
+    {
+     "id": "c23",
+     "primary": false,
+     "quantity": "obs:o23",
+     "direction": "not_worse",
+     "floor": 38.5169,
+     "result": 40.0991,
+     "delta": 1.5822,
+     "verdict": "met"
+    }
+   ]
+  },
+  "known_issue": {
+   "claim": "c18",
+   "en": "direction check ignored the band [300, 5000] of the mono_loss observation and measured the full band (same value as c17). An independent FFT measurement of the 300-5000 Hz band gives a mono loss of 0.1390 dB (floor) and 0.1388 dB (main)."
+  }
+ }
+}

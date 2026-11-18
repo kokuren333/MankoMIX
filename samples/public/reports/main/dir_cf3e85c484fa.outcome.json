@@ -1,0 +1,1671 @@
+{
+ "kind": "direction_outcome",
+ "schema_version": 1,
+ "direction": "dir_cf3e85c484fa",
+ "song": "manko-shugi",
+ "pattern": "sample_main",
+ "request": "空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル。主張は測定可能な形で、床との差を指揮の分として説明できるように。主役の明瞭さと配信出口の健全さは崩さない）",
+ "variant": "var_streaming_universal",
+ "files": {
+  "result": "streaming_universal__hires_native.wav",
+  "floor": "streaming_universal__hires_native.wav"
+ },
+ "loudness": {
+  "result_lufs_i": -14.007,
+  "floor_lufs_i": -14.007,
+  "level_match_gain_db": -0.0
+ },
+ "observations": {
+  "o01": {
+   "floor": {
+    "status": "ok",
+    "value": 0.3358,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.5276,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o02": {
+   "floor": {
+    "status": "ok",
+    "value": -0.2951,
+    "unit": "",
+    "range_s": [
+     88.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.231,
+    "unit": "",
+    "range_s": [
+     88.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o03": {
+   "floor": {
+    "status": "ok",
+    "value": 0.003,
+    "unit": "",
+    "range_s": [
+     13.7,
+     16.6
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.3508,
+    "unit": "",
+    "range_s": [
+     13.7,
+     16.6
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o04": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0057,
+    "unit": "",
+    "range_s": [
+     58.9,
+     60.9
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -0.4461,
+    "unit": "",
+    "range_s": [
+     58.9,
+     60.9
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o05": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0015,
+    "unit": "",
+    "range_s": [
+     95.05,
+     96.15
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -0.677,
+    "unit": "",
+    "range_s": [
+     95.05,
+     96.15
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o06": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0015,
+    "unit": "",
+    "range_s": [
+     96.38,
+     97.46
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.294,
+    "unit": "",
+    "range_s": [
+     96.38,
+     97.46
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o07": {
+   "floor": {
+    "status": "ok",
+    "value": -14.0988,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -9.9532,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o08": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0455,
+    "unit": "",
+    "range_s": [
+     92.0,
+     96.8
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.3376,
+    "unit": "",
+    "range_s": [
+     92.0,
+     96.8
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o09": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0744,
+    "unit": "",
+    "range_s": [
+     86.7,
+     91.5
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.1313,
+    "unit": "",
+    "range_s": [
+     86.7,
+     91.5
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o10": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0656,
+    "unit": "",
+    "range_s": [
+     86.7,
+     91.5
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -0.231,
+    "unit": "",
+    "range_s": [
+     86.7,
+     91.5
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o11": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0641,
+    "unit": "",
+    "range_s": [
+     92.0,
+     96.8
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.0334,
+    "unit": "",
+    "range_s": [
+     92.0,
+     96.8
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o12": {
+   "floor": {
+    "status": "ok",
+    "value": -19.1598,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -14.7165,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o13": {
+   "floor": {
+    "status": "ok",
+    "value": -19.2923,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   },
+   "result": {
+    "status": "ok",
+    "value": -15.9425,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "solo"
+   }
+  },
+  "o14": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0153,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.0149,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": -0.0003
+   }
+  },
+  "o15": {
+   "floor": {
+    "status": "ok",
+    "value": 0.0082,
+    "unit": "",
+    "range_s": [
+     84.3,
+     95.7
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.0108,
+    "unit": "",
+    "range_s": [
+     84.3,
+     95.7
+    ],
+    "gain_db": -0.0003
+   }
+  },
+  "o16": {
+   "floor": {
+    "status": "ok",
+    "value": 0.013,
+    "unit": "",
+    "range_s": [
+     3.1,
+     32.5
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.0121,
+    "unit": "",
+    "range_s": [
+     3.1,
+     32.5
+    ],
+    "gain_db": -0.0003
+   }
+  },
+  "o17": {
+   "floor": {
+    "status": "ok",
+    "value": -0.09972838635240108,
+    "confidence": "high",
+    "params": {
+     "band": "full"
+    },
+    "unit": "dB",
+    "stereo": {
+     "correlation": 0.9547087867201008,
+     "side_ratio": 0.02270165939436804,
+     "level_change_db": -0.09972838635240108,
+     "mono_loss_db": 0.09972838635240108,
+     "cancelled": false,
+     "silent": false,
+     "range_hz": [
+      20.0,
+      20000.0
+     ]
+    },
+    "convention": "P-06 level_change_db; null with cancelled=true means negative infinity",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": -0.09892281724267496,
+    "confidence": "high",
+    "params": {
+     "band": "full"
+    },
+    "unit": "dB",
+    "stereo": {
+     "correlation": 0.9550656744384016,
+     "side_ratio": 0.022520364349744314,
+     "level_change_db": -0.09892281724267496,
+     "mono_loss_db": 0.09892281724267496,
+     "cancelled": false,
+     "silent": false,
+     "range_hz": [
+      20.0,
+      20000.0
+     ]
+    },
+    "convention": "P-06 level_change_db; null with cancelled=true means negative infinity",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": -0.00027563993501544815
+   }
+  },
+  "o18": {
+   "floor": {
+    "status": "ok",
+    "value": -0.09972838635240108,
+    "confidence": "high",
+    "params": {
+     "band": "full"
+    },
+    "unit": "dB",
+    "stereo": {
+     "correlation": 0.9547087867201008,
+     "side_ratio": 0.02270165939436804,
+     "level_change_db": -0.09972838635240108,
+     "mono_loss_db": 0.09972838635240108,
+     "cancelled": false,
+     "silent": false,
+     "range_hz": [
+      20.0,
+      20000.0
+     ]
+    },
+    "convention": "P-06 level_change_db; null with cancelled=true means negative infinity",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": -0.09892281724267496,
+    "confidence": "high",
+    "params": {
+     "band": "full"
+    },
+    "unit": "dB",
+    "stereo": {
+     "correlation": 0.9550656744384016,
+     "side_ratio": 0.022520364349744314,
+     "level_change_db": -0.09892281724267496,
+     "mono_loss_db": 0.09892281724267496,
+     "cancelled": false,
+     "silent": false,
+     "range_hz": [
+      20.0,
+      20000.0
+     ]
+    },
+    "convention": "P-06 level_change_db; null with cancelled=true means negative infinity",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": -0.00027563993501544815
+   }
+  },
+  "o19": {
+   "floor": {
+    "status": "ok",
+    "value": -23.6675,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": -23.8869,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": -0.0003
+   }
+  },
+  "o20": {
+   "floor": {
+    "status": "ok",
+    "value": 0.9547,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.9551,
+    "unit": "",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": -0.0003
+   }
+  },
+  "o21": {
+   "floor": {
+    "status": "ok",
+    "value": 0.7467,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   },
+   "result": {
+    "status": "ok",
+    "value": 0.723,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   }
+  },
+  "o22": {
+   "floor": {
+    "status": "ok",
+    "value": 7.0849,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   },
+   "result": {
+    "status": "ok",
+    "value": 7.5306,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   }
+  },
+  "o23": {
+   "floor": {
+    "status": "ok",
+    "value": 38.5169,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   },
+   "result": {
+    "status": "ok",
+    "value": 40.0991,
+    "unit": "dB",
+    "range_s": [
+     0.0,
+     98.88
+    ],
+    "gain_db": 0.0,
+    "signal": "mix_stage",
+    "path": "dry"
+   }
+  }
+ },
+ "translation": {
+  "note": "参考値。どの判定にも入らない（主張・期待・ガード・summary・ゲート）",
+  "view": {
+   "mono_band_hz": [
+    150.0,
+    6000.0
+   ]
+  },
+  "mono_fold_lu": {
+   "floor": -0.1073,
+   "result": -0.1109,
+   "change": -0.0036
+  },
+  "small_speaker_lu": {
+   "floor": -2.7875,
+   "result": -2.8075,
+   "change": -0.02
+  },
+  "low_harmonic_db": {
+   "floor": -4.8089,
+   "result": -4.8791,
+   "change": -0.0702
+  },
+  "presence_db": {
+   "floor": -5.8827,
+   "result": -5.8398,
+   "change": 0.0429
+  },
+  "crest_db": {
+   "floor": 18.8869,
+   "result": 18.901,
+   "change": 0.0141
+  }
+ },
+ "scene": {
+  "note": "参考値。どの判定にも入らない（主張・期待・ガード・summary・ゲート）。奥行きの知覚は 1 つの量で決まらない。expected_image は sin(azimuth·π/2) の目安（モノ素材の等電力則の値。ステレオで取り込んだ素材は釣り合い則で、これより中央寄りに出る）",
+  "sources": {
+   "trk_vocals": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.007,
+     "result": 0.007
+    },
+    "depth": 1,
+    "wet_ratio_db": {
+     "floor": -20.39,
+     "result": -20.39
+    },
+    "level_lufs": {
+     "floor": -20.027,
+     "result": -20.027
+    }
+   },
+   "trk_drums": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.007,
+     "result": 0.007
+    },
+    "depth": 1,
+    "wet_ratio_db": {
+     "floor": -120.0,
+     "result": -120.0
+    },
+    "level_lufs": {
+     "floor": -21.091,
+     "result": -21.091
+    }
+   },
+   "trk_bass": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.022,
+     "result": 0.022
+    },
+    "depth": 1,
+    "wet_ratio_db": {
+     "floor": -120.0,
+     "result": -120.0
+    },
+    "level_lufs": {
+     "floor": -26.039,
+     "result": -26.039
+    }
+   },
+   "trk_backing_vocals": {
+    "image_position": {
+     "floor": 0.067,
+     "result": 0.069
+    },
+    "depth": 2,
+    "wet_ratio_db": {
+     "floor": -19.292,
+     "result": -15.943
+    },
+    "level_lufs": {
+     "floor": -28.745,
+     "result": -28.785
+    }
+   },
+   "trk_guitar": {
+    "azimuth": 0.5,
+    "expected_image": 0.707,
+    "image_position": {
+     "floor": 0.336,
+     "result": 0.528
+    },
+    "depth": 2,
+    "wet_ratio_db": {
+     "floor": -18.999,
+     "result": -16.232
+    },
+    "level_lufs": {
+     "floor": -34.37,
+     "result": -34.976
+    }
+   },
+   "trk_percussion": {
+    "azimuth": -0.15,
+    "expected_image": -0.233,
+    "image_position": {
+     "floor": 0.056,
+     "result": 0.036
+    },
+    "depth": 2,
+    "wet_ratio_db": {
+     "floor": -120.0,
+     "result": -18.559
+    },
+    "level_lufs": {
+     "floor": -40.339,
+     "result": -41.752
+    }
+   },
+   "trk_keyboard": {
+    "azimuth": -0.2,
+    "expected_image": -0.309,
+    "image_position": {
+     "floor": -0.01,
+     "result": -0.171
+    },
+    "depth": 3,
+    "wet_ratio_db": {
+     "floor": -19.16,
+     "result": -14.716
+    },
+    "level_lufs": {
+     "floor": -33.073,
+     "result": -34.307
+    }
+   },
+   "trk_synth": {
+    "azimuth": 0.2,
+    "expected_image": 0.309,
+    "image_position": {
+     "floor": 0.017,
+     "result": 0.234
+    },
+    "depth": 3,
+    "wet_ratio_db": {
+     "floor": -17.237,
+     "result": -13.389
+    },
+    "level_lufs": {
+     "floor": -34.735,
+     "result": -35.921
+    }
+   },
+   "trk_woodwinds": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": -0.296,
+     "result": 0.229
+    },
+    "depth": 3,
+    "wet_ratio_db": {
+     "floor": -16.822,
+     "result": -11.809
+    },
+    "level_lufs": {
+     "floor": -35.367,
+     "result": -34.67
+    }
+   },
+   "trk_brass": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.08,
+     "result": -0.062
+    },
+    "depth": 3,
+    "wet_ratio_db": {
+     "floor": -21.959,
+     "result": -17.058
+    },
+    "level_lufs": {
+     "floor": -58.889,
+     "result": -59.624
+    }
+   },
+   "trk_strings": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.61,
+     "result": -0.028
+    },
+    "depth": 3,
+    "wet_ratio_db": {
+     "floor": -25.72,
+     "result": -18.985
+    },
+    "level_lufs": {
+     "floor": -67.043,
+     "result": -66.362
+    }
+   },
+   "trk_fx": {
+    "azimuth": 0.0,
+    "expected_image": 0.0,
+    "image_position": {
+     "floor": 0.001,
+     "result": 0.041
+    },
+    "depth": 5,
+    "wet_ratio_db": {
+     "floor": -14.099,
+     "result": -9.953
+    },
+    "level_lufs": {
+     "floor": -50.52,
+     "result": -51.957
+    }
+   }
+  },
+  "depth_consistency": {
+   "n": 12,
+   "tau_wet": 0.702,
+   "tau_level": 0.627
+  },
+  "room": {
+   "note": "中くらいの乾いた部屋（8×12×4 m、初期反射だけ、80 ms まで）。全音源が同じ部屋に居て、反射は各音源の方位と動きに付いていく。床のプレートは部屋ではなく効果の尾として残す",
+   "bus": "bus_room"
+  }
+ },
+ "claims": [
+  {
+   "quantity": "obs:o01",
+   "direction": "up",
+   "floor": 0.3358,
+   "result": 0.5276,
+   "delta": 0.1918,
+   "verdict": "met",
+   "id": "c1",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o02",
+   "direction": "up",
+   "floor": -0.2951,
+   "result": 0.231,
+   "delta": 0.5261,
+   "verdict": "met",
+   "id": "c2",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o03",
+   "direction": "up",
+   "floor": 0.003,
+   "result": 0.3508,
+   "delta": 0.3478,
+   "verdict": "met",
+   "id": "c3",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o04",
+   "direction": "down",
+   "floor": 0.0057,
+   "result": -0.4461,
+   "delta": -0.4518,
+   "verdict": "met",
+   "id": "c4",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o05",
+   "direction": "down",
+   "floor": 0.0015,
+   "result": -0.677,
+   "delta": -0.6785,
+   "verdict": "met",
+   "id": "c5",
+   "primary": true
+  },
+  {
+   "quantity": "obs:o06",
+   "direction": "up",
+   "floor": 0.0015,
+   "result": 0.294,
+   "delta": 0.2925,
+   "verdict": "met",
+   "id": "c6",
+   "primary": true
+  },
+  {
+   "quantity": "obs:o07",
+   "direction": "up",
+   "floor": -14.0988,
+   "result": -9.9532,
+   "delta": 4.1456,
+   "verdict": "met",
+   "id": "c7",
+   "primary": true
+  },
+  {
+   "quantity": "obs:o08",
+   "direction": "up",
+   "floor": 0.0455,
+   "result": 0.3376,
+   "delta": 0.2921,
+   "verdict": "met",
+   "id": "c8",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o09",
+   "direction": "not_worse",
+   "floor": 0.0744,
+   "result": 0.1313,
+   "delta": 0.0569,
+   "verdict": "met",
+   "id": "c9",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o10",
+   "direction": "down",
+   "floor": 0.0656,
+   "result": -0.231,
+   "delta": -0.2966,
+   "verdict": "met",
+   "id": "c10",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o11",
+   "direction": "not_worse",
+   "floor": 0.0641,
+   "result": 0.0334,
+   "delta": -0.0307,
+   "verdict": "met",
+   "id": "c11",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o12",
+   "direction": "up",
+   "floor": -19.1598,
+   "result": -14.7165,
+   "delta": 4.4433,
+   "verdict": "met",
+   "id": "c12",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o13",
+   "direction": "up",
+   "floor": -19.2923,
+   "result": -15.9425,
+   "delta": 3.3498,
+   "verdict": "met",
+   "id": "c13",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o14",
+   "direction": "not_worse",
+   "floor": 0.0153,
+   "result": 0.0149,
+   "delta": -0.0004,
+   "verdict": "met",
+   "id": "c14",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o15",
+   "direction": "not_worse",
+   "floor": 0.0082,
+   "result": 0.0108,
+   "delta": 0.0026,
+   "verdict": "met",
+   "id": "c15",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o16",
+   "direction": "not_worse",
+   "floor": 0.013,
+   "result": 0.0121,
+   "delta": -0.0009,
+   "verdict": "met",
+   "id": "c16",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o17",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "id": "c17",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o18",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "id": "c18",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o19",
+   "direction": "not_worse",
+   "floor": -23.6675,
+   "result": -23.8869,
+   "delta": -0.2194,
+   "verdict": "met",
+   "id": "c19",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "id": "c20",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o21",
+   "direction": "not_worse",
+   "floor": 0.7467,
+   "result": 0.723,
+   "delta": -0.0237,
+   "verdict": "met",
+   "id": "c21",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o22",
+   "direction": "not_worse",
+   "floor": 7.0849,
+   "result": 7.5306,
+   "delta": 0.4457,
+   "verdict": "met",
+   "id": "c22",
+   "primary": false
+  },
+  {
+   "quantity": "obs:o23",
+   "direction": "not_worse",
+   "floor": 38.5169,
+   "result": 40.0991,
+   "delta": 1.5822,
+   "verdict": "met",
+   "id": "c23",
+   "primary": false
+  }
+ ],
+ "move_checks": [
+  {
+   "quantity": "obs:o07",
+   "direction": "up",
+   "floor": -14.0988,
+   "result": -9.9532,
+   "delta": 4.1456,
+   "verdict": "met",
+   "move": "m01",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o17",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "move": "m01",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o13",
+   "direction": "up",
+   "floor": -19.2923,
+   "result": -15.9425,
+   "delta": 3.3498,
+   "verdict": "met",
+   "move": "m02",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o18",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "move": "m02",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o01",
+   "direction": "up",
+   "floor": 0.3358,
+   "result": 0.5276,
+   "delta": 0.1918,
+   "verdict": "met",
+   "move": "m03",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o19",
+   "direction": "not_worse",
+   "floor": -23.6675,
+   "result": -23.8869,
+   "delta": -0.2194,
+   "verdict": "met",
+   "move": "m03",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o14",
+   "direction": "not_worse",
+   "floor": 0.0153,
+   "result": 0.0149,
+   "delta": -0.0004,
+   "verdict": "met",
+   "move": "m03",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o12",
+   "direction": "up",
+   "floor": -19.1598,
+   "result": -14.7165,
+   "delta": 4.4433,
+   "verdict": "met",
+   "move": "m04",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o19",
+   "direction": "not_worse",
+   "floor": -23.6675,
+   "result": -23.8869,
+   "delta": -0.2194,
+   "verdict": "met",
+   "move": "m04",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o15",
+   "direction": "not_worse",
+   "floor": 0.0082,
+   "result": 0.0108,
+   "delta": 0.0026,
+   "verdict": "met",
+   "move": "m05",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o02",
+   "direction": "up",
+   "floor": -0.2951,
+   "result": 0.231,
+   "delta": 0.5261,
+   "verdict": "met",
+   "move": "m06",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m06",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m07",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m08",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o23",
+   "direction": "not_worse",
+   "floor": 38.5169,
+   "result": 40.0991,
+   "delta": 1.5822,
+   "verdict": "met",
+   "move": "m09",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o13",
+   "direction": "up",
+   "floor": -19.2923,
+   "result": -15.9425,
+   "delta": 3.3498,
+   "verdict": "met",
+   "move": "m10",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o21",
+   "direction": "not_worse",
+   "floor": 0.7467,
+   "result": 0.723,
+   "delta": -0.0237,
+   "verdict": "met",
+   "move": "m10",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o18",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "move": "m10",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o07",
+   "direction": "up",
+   "floor": -14.0988,
+   "result": -9.9532,
+   "delta": 4.1456,
+   "verdict": "met",
+   "move": "m11",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o22",
+   "direction": "not_worse",
+   "floor": 7.0849,
+   "result": 7.5306,
+   "delta": 0.4457,
+   "verdict": "met",
+   "move": "m11",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o13",
+   "direction": "up",
+   "floor": -19.2923,
+   "result": -15.9425,
+   "delta": 3.3498,
+   "verdict": "met",
+   "move": "m12",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o18",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "move": "m12",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o10",
+   "direction": "down",
+   "floor": 0.0656,
+   "result": -0.231,
+   "delta": -0.2966,
+   "verdict": "met",
+   "move": "m13",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o11",
+   "direction": "not_worse",
+   "floor": 0.0641,
+   "result": 0.0334,
+   "delta": -0.0307,
+   "verdict": "met",
+   "move": "m13",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o17",
+   "direction": "not_worse",
+   "floor": -0.09972838635240108,
+   "result": -0.09892281724267496,
+   "delta": 0.0008,
+   "verdict": "met",
+   "move": "m13",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o08",
+   "direction": "up",
+   "floor": 0.0455,
+   "result": 0.3376,
+   "delta": 0.2921,
+   "verdict": "met",
+   "move": "m14",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o09",
+   "direction": "not_worse",
+   "floor": 0.0744,
+   "result": 0.1313,
+   "delta": 0.0569,
+   "verdict": "met",
+   "move": "m14",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o15",
+   "direction": "not_worse",
+   "floor": 0.0082,
+   "result": 0.0108,
+   "delta": 0.0026,
+   "verdict": "met",
+   "move": "m14",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m15",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m16",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o20",
+   "direction": "not_worse",
+   "floor": 0.9547,
+   "result": 0.9551,
+   "delta": 0.0004,
+   "verdict": "met",
+   "move": "m17",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o19",
+   "direction": "not_worse",
+   "floor": -23.6675,
+   "result": -23.8869,
+   "delta": -0.2194,
+   "verdict": "met",
+   "move": "m18",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o05",
+   "direction": "down",
+   "floor": 0.0015,
+   "result": -0.677,
+   "delta": -0.6785,
+   "verdict": "met",
+   "move": "m19",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o06",
+   "direction": "up",
+   "floor": 0.0015,
+   "result": 0.294,
+   "delta": 0.2925,
+   "verdict": "met",
+   "move": "m19",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o23",
+   "direction": "not_worse",
+   "floor": 38.5169,
+   "result": 40.0991,
+   "delta": 1.5822,
+   "verdict": "met",
+   "move": "m19",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o15",
+   "direction": "not_worse",
+   "floor": 0.0082,
+   "result": 0.0108,
+   "delta": 0.0026,
+   "verdict": "met",
+   "move": "m19",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o03",
+   "direction": "up",
+   "floor": 0.003,
+   "result": 0.3508,
+   "delta": 0.3478,
+   "verdict": "met",
+   "move": "m20",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o04",
+   "direction": "down",
+   "floor": 0.0057,
+   "result": -0.4461,
+   "delta": -0.4518,
+   "verdict": "met",
+   "move": "m20",
+   "kind": "expect",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  },
+  {
+   "quantity": "obs:o14",
+   "direction": "not_worse",
+   "floor": 0.0153,
+   "result": 0.0149,
+   "delta": -0.0004,
+   "verdict": "met",
+   "move": "m20",
+   "kind": "safeguard",
+   "note": "evaluated on the combined result (moves are not isolated in v0)"
+  }
+ ],
+ "move_ref": {
+  "items": 32,
+  "by_move": {
+   "m10": [
+    "dr.trk_backing_vocals.m10",
+    "send:trk_backing_vocals->bus_room"
+   ],
+   "m12": [
+    "send:trk_backing_vocals->bus_echo"
+   ],
+   "m07": [
+    "dr.trk_brass.m07",
+    "send:trk_brass->bus_room"
+   ],
+   "m16": [
+    "dr.trk_brass.m16"
+   ],
+   "m11": [
+    "dr.trk_fx.m11",
+    "send:trk_fx->bus_room"
+   ],
+   "m20": [
+    "dr.trk_fx.m20"
+   ],
+   "m03": [
+    "dr.trk_guitar.m03",
+    "send:trk_guitar->bus_room"
+   ],
+   "m04": [
+    "dr.trk_keyboard.m04",
+    "send:trk_keyboard->bus_room"
+   ],
+   "m13": [
+    "dr.trk_keyboard.m13"
+   ],
+   "m18": [
+    "dr.trk_keyboard.m18"
+   ],
+   "m09": [
+    "dr.trk_percussion.m09",
+    "send:trk_percussion->bus_room"
+   ],
+   "m19": [
+    "dr.trk_percussion.m19"
+   ],
+   "m08": [
+    "dr.trk_strings.m08",
+    "send:trk_strings->bus_room"
+   ],
+   "m17": [
+    "dr.trk_strings.m17"
+   ],
+   "m05": [
+    "dr.trk_synth.m05",
+    "send:trk_synth->bus_room"
+   ],
+   "m14": [
+    "dr.trk_synth.m14"
+   ],
+   "m06": [
+    "dr.trk_woodwinds.m06",
+    "send:trk_woodwinds->bus_room"
+   ],
+   "m15": [
+    "dr.trk_woodwinds.m15"
+   ],
+   "m01": [
+    "bus:bus_room",
+    "dr.bus_room.m01.1"
+   ],
+   "m02": [
+    "bus:bus_echo",
+    "dr.bus_echo.m02.1",
+    "dr.bus_echo.m02.2"
+   ]
+  },
+  "unknown_refs": [],
+  "moves_without_trace": [],
+  "ok": true
+ },
+ "gate_definitions": {
+  "at_apply": "ba2f2976c595710e",
+  "at_check": "ba2f2976c595710e",
+  "unchanged": true
+ },
+ "convergence": {
+  "mix_state_equal": false,
+  "master_chain_equal": false,
+  "diff_rms_rel_db": -27.94,
+  "frames_compared": 4746240,
+  "converged": false
+ },
+ "summary": {
+  "primary_met": 3,
+  "primary": 3,
+  "claims_met": 23,
+  "claims": 23,
+  "safeguards_not_met": []
+ },
+ "status": "checked"
+}

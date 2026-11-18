@@ -25,8 +25,8 @@
 *.pt
 *.onnx
 *.safetensors
-# samples/public/ の音声は、M9 の公開監査でオーナーが承認するまでコミットしない（D-061）。
-# 目録・Mix Report など音声以外のファイルは通常どおりコミットできる
+# 例外: 公式サンプルの試聴用 MP3（samples/public/audio/）。オーナー承認済み（D-061）。SPEC §15.4 の「samples/public/ だけを例外にする」
+!samples/public/audio/*.mp3
 
 # --- プロジェクト作業生成物 ---
 *.mmx/cache/

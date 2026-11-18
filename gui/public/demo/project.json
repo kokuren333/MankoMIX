@@ -372,106 +372,97 @@
   {
    "chain": [
     {
-     "id": "dr.bus_space_far.m07.1",
-     "move_ref": "dir_b465721f74fb/m07",
+     "id": "dr.bus_room.m01.1",
+     "move_ref": "dir_cf3e85c484fa/m01",
      "owner": "director",
      "params": {
-      "bpm": 91.2,
-      "er_late_db": 3.0,
-      "highcut_hz": 4500.0,
-      "lowcut_hz": 350.0,
+      "absorption": 0.3,
+      "azimuth": 0.0,
+      "damping_hz": 10000.0,
+      "direct": false,
+      "distance_m": 4.0,
+      "highcut_hz": 9000.0,
+      "lowcut_hz": 150.0,
+      "max_ms": 80.0,
+      "max_order": 3,
       "mix": 1.0,
-      "predelay_ms": 12.0,
-      "rt60_high_mult": 0.5,
-      "rt60_low_mult": 0.7,
-      "rt60_s": 1.8
+      "room_h_m": 4.0,
+      "room_l_m": 12.0,
+      "room_w_m": 8.0,
+      "width": 1.0
      },
-     "reason": "direction dir_b465721f74fb move m07 (aim a1): 07 §3-1（Room/Hall の測定ベクトル）/ 07 §3-2 短いプリディレイ＋強い ER＋HF 減衰 = 遠い / mix_rules reverb 既定からの派生（lowcut を 350 に下げ胴を残す）/ R-11",
-     "type": "reverb"
-    },
-    {
-     "id": "dr.bus_space_far.m08.pan",
-     "move_ref": "dir_b465721f74fb/m08",
-     "owner": "director",
-     "params": {
-      "center_db": -3.0,
-      "position": 0.0
-     },
-     "reason": "direction dir_b465721f74fb move m08 (aim a1): 07 §2-3 幅は側成分の増大 / 返しは 350 Hz 以上なので低域の側は増えない",
-     "type": "pan"
-    },
-    {
-     "id": "dr.bus_space_far.m08.width",
-     "move_ref": "dir_b465721f74fb/m08",
-     "owner": "director",
-     "params": {
-      "crossovers_hz": [],
-      "mono_below_hz": 0.0,
-      "width": 1.5,
-      "widths": []
-     },
-     "reason": "direction dir_b465721f74fb move m08 (aim a1): 07 §2-3 幅は側成分の増大 / 返しは 350 Hz 以上なので低域の側は増えない",
-     "type": "stereo"
+     "reason": "direction dir_cf3e85c484fa move m01 (aim a1): RESEARCH H8（K1、L6、T4、P2、M6）: 部屋を 1 つ、初期反射で位置と距離の手がかり。バスに置くと wet_ratio で測れ、入力の左右が残る。下見: 戻りは入力比 -6.5〜-10.9 dB",
+     "type": "early_reflections"
     }
    ],
-   "id": "bus_space_far",
+   "id": "bus_room",
    "kind": "fx",
-   "move_ref": "dir_b465721f74fb/m07",
-   "name": "bus_space_far (direction dir_b465721f74fb)",
+   "move_ref": "dir_cf3e85c484fa/m01",
+   "name": "bus_room (direction dir_cf3e85c484fa)",
    "output": "bus_mix",
    "owner": "director"
   },
   {
    "chain": [
     {
-     "id": "dr.bus_echo_L.m13.1",
-     "move_ref": "dir_b465721f74fb/m13",
+     "id": "dr.bus_echo.m02.1",
+     "move_ref": "dir_cf3e85c484fa/m02",
      "owner": "director",
      "params": {
-      "bpm": 91.2,
+      "bpm": 91.208,
       "feedback": 0.3,
       "highcut_hz": 5000.0,
-      "lowcut_hz": 400.0,
+      "lowcut_hz": 300.0,
       "mix": 1.0,
       "note": "1/8d",
-      "route": "left",
-      "time_ms": 493.4
+      "route": "both",
+      "time_ms": 250.0
      },
-     "reason": "direction dir_b465721f74fb move m13 (aim a2): 07 §3-3 テンポシンク（60000/91.2 × 0.75 = 493 ms）/ R-11 音価で記録 / 左だけに返して右の 1/4 と交互に動く",
+     "reason": "direction dir_cf3e85c484fa move m02 (aim a2): RESEARCH H7（K2、K6、P4）: BV の原音は動かさず戻りだけを動かす。pingpong_delay は下見で像が片側へ寄ったので delay と autopan にした",
      "type": "delay"
-    }
-   ],
-   "id": "bus_echo_L",
-   "kind": "fx",
-   "move_ref": "dir_b465721f74fb/m13",
-   "name": "bus_echo_L (direction dir_b465721f74fb)",
-   "output": "bus_mix",
-   "owner": "director"
-  },
-  {
-   "chain": [
+    },
     {
-     "id": "dr.bus_echo_R.m14.1",
-     "move_ref": "dir_b465721f74fb/m14",
+     "id": "dr.bus_echo.m02.2",
+     "move_ref": "dir_cf3e85c484fa/m02",
      "owner": "director",
      "params": {
-      "bpm": 91.2,
-      "feedback": 0.2,
-      "highcut_hz": 5000.0,
-      "lowcut_hz": 400.0,
-      "mix": 1.0,
-      "note": "1/4",
-      "route": "right",
-      "time_ms": 657.9
+      "bpm": 91.208,
+      "center": 0.0,
+      "depth": 0.6,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "1/1",
+      "origin_s": 0.28,
+      "phase": 0.0,
+      "rate_hz": 1.0,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
      },
-     "reason": "direction dir_b465721f74fb move m14 (aim a2): 07 §3-3 テンポシンク（60000/91.2 = 658 ms）/ R-11 / 左の 1/8 付点と非対称にして動きを出す",
-     "type": "delay"
+     "reason": "direction dir_cf3e85c484fa move m02 (aim a2): RESEARCH H7（K2、K6、P4）: BV の原音は動かさず戻りだけを動かす。pingpong_delay は下見で像が片側へ寄ったので delay と autopan にした",
+     "type": "autopan"
     }
    ],
-   "id": "bus_echo_R",
+   "id": "bus_echo",
    "kind": "fx",
-   "move_ref": "dir_b465721f74fb/m14",
-   "name": "bus_echo_R (direction dir_b465721f74fb)",
+   "move_ref": "dir_cf3e85c484fa/m02",
+   "name": "bus_echo (direction dir_cf3e85c484fa)",
    "output": "bus_mix",
    "owner": "director"
   },
@@ -500,28 +491,6 @@
      },
      "reason": "R-11: light mix-bus glue (1-2 dB) (mixplan)",
      "type": "compressor"
-    },
-    {
-     "id": "dr.bus_mix.m20",
-     "move_ref": "dir_b465721f74fb/m20",
-     "owner": "director",
-     "params": {
-      "crossovers_hz": [
-       120.0,
-       500.0,
-       3000.0
-      ],
-      "mono_below_hz": 0.0,
-      "width": 1.0,
-      "widths": [
-       1.0,
-       1.1,
-       1.3,
-       1.4
-      ]
-     },
-     "reason": "direction dir_b465721f74fb move m20 (aim a1): 07 §3-4 M/S は既存の側を増減するだけ → パンで側を作った後に掛ける / 07 §2-3 健全域 0.3–0.8 / 120 Hz 以下は 1.0 のまま（R-09、S-03 最小相関 -0.455）",
-     "type": "stereo"
     }
    ],
    "id": "bus_mix",
@@ -1081,7 +1050,7 @@
     }
    ],
    "lead": "trk_vocals",
-   "proposal_id": "mxp_25c0755feb9d",
+   "proposal_id": "mxp_da2060acf631",
    "reorderings": [],
    "restrictions": {},
    "route": {
@@ -1922,7 +1891,7 @@
      "total": 0.3109
     }
    },
-   "proposal_id": "mxp_25c0755feb9d",
+   "proposal_id": "mxp_da2060acf631",
    "scope": "full_length",
    "score": 0.19161257936512777,
    "terms": [
@@ -2074,6 +2043,20 @@
      },
      "reason": "R-05: accompaniment yields 1-3 kHz (template stage 4) (mixplan)",
      "type": "eq"
+    },
+    {
+     "id": "dr.trk_backing_vocals.m10",
+     "move_ref": "dir_cf3e85c484fa/m10",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -0.5,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m10 (aim a1): RESEARCH H7（K2、K6）: 主役と共有 -11 dB → 方位・幅は触らず距離だけ。単体のモノ損失 lowmid 1.46 dB なので広げない",
+     "type": "eq"
     }
    ],
    "cleanup": {
@@ -2128,7 +2111,7 @@
    "output": "bus_mix",
    "pan": {
     "position": 0.0,
-    "width": 1.45
+    "width": 1.0
    },
    "role": "backing_vocals",
    "sends": [
@@ -2139,16 +2122,16 @@
      "pre_fader": false
     },
     {
-     "bus": "bus_echo_L",
-     "level_db": -14.0,
-     "move_ref": "dir_b465721f74fb/m15",
+     "bus": "bus_room",
+     "level_db": -9.77,
+     "move_ref": "dir_cf3e85c484fa/m10",
      "owner": "director",
      "pre_fader": false
     },
     {
-     "bus": "bus_echo_R",
-     "level_db": -16.0,
-     "move_ref": "dir_b465721f74fb/m16",
+     "bus": "bus_echo",
+     "level_db": -18.0,
+     "move_ref": "dir_cf3e85c484fa/m12",
      "owner": "director",
      "pre_fader": false
     }
@@ -2261,6 +2244,57 @@
      },
      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
      "type": "filter"
+    },
+    {
+     "id": "dr.trk_brass.m07",
+     "move_ref": "dir_cf3e85c484fa/m07",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -1.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m07 (aim a1): RESEARCH H3（K2）: strings と共有 -2.4、woodwinds と -3.7 dB → 3 本を同じ点に",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_brass.m16",
+     "move_ref": "dir_cf3e85c484fa/m16",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.2,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 7.56,
+      "phase": 0.0,
+      "rate_hz": 0.09501,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m16 (aim a2): RESEARCH H4（Q3）: m13 と同じ設定",
+     "type": "autopan"
     }
    ],
    "cleanup": {
@@ -2323,6 +2357,13 @@
      "bus": "bus_reverb",
      "level_db": -15.0,
      "owner": "mixplan",
+     "pre_fader": false
+    },
+    {
+     "bus": "bus_room",
+     "level_db": -7.5,
+     "move_ref": "dir_cf3e85c484fa/m07",
+     "owner": "director",
      "pre_fader": false
     }
    ]
@@ -2387,7 +2428,59 @@
    "sends": []
   },
   {
-   "chain": [],
+   "chain": [
+    {
+     "id": "dr.trk_fx.m11",
+     "move_ref": "dir_cf3e85c484fa/m11",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -2.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m11 (aim a1): RESEARCH H6（L6）: 最奥。共有成分なし・重要度 0.3。床の実測 wet_ratio -14.10 dB、見積もり -10.0 dB",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_fx.m20",
+     "move_ref": "dir_cf3e85c484fa/m20",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.55,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 5.78,
+      "phase": 0.0,
+      "rate_hz": 0.12668,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m20 (aim a2): RESEARCH H6（L1、T3）: 共有成分なし・モノ・点在。3 小節周期（0.12668 Hz）で塊の 4 小節と割り切れない。origin_s は稼働の下見から",
+     "type": "autopan"
+    }
+   ],
    "cleanup": {
     "applied": {
      "assets": {
@@ -2451,16 +2544,9 @@
      "pre_fader": false
     },
     {
-     "bus": "bus_space_far",
-     "level_db": -10.5,
-     "move_ref": "dir_b465721f74fb/m12",
-     "owner": "director",
-     "pre_fader": false
-    },
-    {
-     "bus": "bus_echo_L",
-     "level_db": -14.0,
-     "move_ref": "dir_b465721f74fb/m18",
+     "bus": "bus_room",
+     "level_db": -3.0,
+     "move_ref": "dir_cf3e85c484fa/m11",
      "owner": "director",
      "pre_fader": false
     }
@@ -2478,6 +2564,20 @@
      },
      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
      "type": "filter"
+    },
+    {
+     "id": "dr.trk_guitar.m03",
+     "move_ref": "dir_cf3e85c484fa/m03",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -0.5,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m03 (aim a1): RESEARCH H2（L7、P3）: 共有の小さい常在の器楽を右の錨に。K4: レベル係数 0（p8 の c5 の教訓）。床の実測 像 +0.336",
+     "type": "eq"
     }
    ],
    "cleanup": {
@@ -2531,7 +2631,7 @@
    "kind": "audio",
    "output": "bus_mix",
    "pan": {
-    "position": 0.7,
+    "position": 0.5,
     "width": 1.0
    },
    "role": "guitar",
@@ -2541,11 +2641,83 @@
      "level_db": -15.0,
      "owner": "mixplan",
      "pre_fader": false
+    },
+    {
+     "bus": "bus_room",
+     "level_db": -9.77,
+     "move_ref": "dir_cf3e85c484fa/m03",
+     "owner": "director",
+     "pre_fader": false
     }
    ]
   },
   {
-   "chain": [],
+   "chain": [
+    {
+     "id": "dr.trk_keyboard.m04",
+     "move_ref": "dir_cf3e85c484fa/m04",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -1.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m04 (aim a1): RESEARCH H3（K2）: 塊の土台。synth と小さく対称。bass と共有 -8.8 dB なので大きく振らない",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_keyboard.m13",
+     "move_ref": "dir_cf3e85c484fa/m13",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.2,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 7.56,
+      "phase": 0.0,
+      "rate_hz": 0.09501,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m13 (aim a2): RESEARCH H4（L1、T1、M2、M3、Q3）: 塊は剛体。4 小節周期（91.208 BPM で 0.09501 Hz）、持続音なので depth 0.2。m13〜m17 は同じ設定",
+     "type": "autopan"
+    },
+    {
+     "id": "dr.trk_keyboard.m18",
+     "move_ref": "dir_cf3e85c484fa/m18",
+     "owner": "director",
+     "params": {
+      "crossovers_hz": [],
+      "mono_below_hz": 150.0,
+      "width": 1.0,
+      "widths": []
+     },
+     "reason": "direction dir_cf3e85c484fa move m18 (aim a3): RESEARCH M7、Q5: autopan の後ろで 150 Hz 以下の側成分を除く（bass との共有 -8.8 dB の漏れを動かさない）。m13 の後ろに並ぶこと",
+     "type": "stereo"
+    }
+   ],
    "cleanup": {
     "applied": {
      "assets": {
@@ -2597,8 +2769,8 @@
    "kind": "audio",
    "output": "bus_mix",
    "pan": {
-    "position": -0.425,
-    "width": 1.3
+    "position": -0.2,
+    "width": 1.0
    },
    "role": "keyboard",
    "sends": [
@@ -2609,9 +2781,9 @@
      "pre_fader": false
     },
     {
-     "bus": "bus_space_far",
-     "level_db": -16.0,
-     "move_ref": "dir_b465721f74fb/m09",
+     "bus": "bus_room",
+     "level_db": -7.5,
+     "move_ref": "dir_cf3e85c484fa/m04",
      "owner": "director",
      "pre_fader": false
     }
@@ -2631,21 +2803,63 @@
      "type": "filter"
     },
     {
-     "id": "dr.trk_percussion.m19",
-     "move_ref": "dir_b465721f74fb/m19",
+     "id": "dr.trk_percussion.m09",
+     "move_ref": "dir_cf3e85c484fa/m09",
      "owner": "director",
      "params": {
-      "bpm": 91.2,
-      "feedback": 0.0,
-      "highcut_hz": 12000.0,
-      "lowcut_hz": 300.0,
-      "mix": 0.4,
-      "note": "none",
-      "route": "right",
-      "time_ms": 11.5
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -0.5,
+      "phase": "minimum",
+      "shape": "high_shelf"
      },
-     "reason": "direction dir_b465721f74fb move m19 (aim a2): 07a E1 先行音効果 / 07 §3-3 5–20 ms はタイトな幅、モノでコム（最初のノッチ 1000/(2×11.5) ≈ 43 Hz、以降 87 Hz 間隔）/ R-10 時間域とモノ損失を報告 / 曲資料 §4.1 percu",
-     "type": "delay"
+     "reason": "direction dir_cf3e85c484fa move m09 (aim a1): RESEARCH Q1: 乾いた点を主役の 1 歩後ろに。方位は m19 の中心で決める（パンと二重にしない）",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_percussion.m19",
+     "move_ref": "dir_cf3e85c484fa/m19",
+     "owner": "director",
+     "params": {
+      "bpm": 91.208,
+      "center": -0.15,
+      "depth": 0.45,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "1/1",
+      "origin_s": 0.28,
+      "phase": 0.0,
+      "rate_hz": 1.0,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.45,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        0.95,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 10.0,
+      "source": "shape"
+     },
+     "reason": "direction dir_cf3e85c484fa move m19 (aim a2): RESEARCH H5（L1 の跳び、T1、T2、T5）: 乾いた過渡の点を 2 拍ごとに左右へ。origin_s は下見（query onsets、drums 低域）の拍の格子",
+     "type": "autopan"
     }
    ],
    "cleanup": {
@@ -2703,7 +2917,15 @@
     "width": 1.0
    },
    "role": "percussion",
-   "sends": []
+   "sends": [
+    {
+     "bus": "bus_room",
+     "level_db": -9.77,
+     "move_ref": "dir_cf3e85c484fa/m09",
+     "owner": "director",
+     "pre_fader": false
+    }
+   ]
   },
   {
    "chain": [
@@ -2717,6 +2939,57 @@
      },
      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
      "type": "filter"
+    },
+    {
+     "id": "dr.trk_strings.m08",
+     "move_ref": "dir_cf3e85c484fa/m08",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -1.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m08 (aim a1): RESEARCH H3（K2）: brass と共有 -2.4 dB → 同じ点に（床 +0.5 は brass 0 と離れていた）",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_strings.m17",
+     "move_ref": "dir_cf3e85c484fa/m17",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.2,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 7.56,
+      "phase": 0.0,
+      "rate_hz": 0.09501,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m17 (aim a2): RESEARCH H4（Q3）: m13 と同じ設定",
+     "type": "autopan"
     }
    ],
    "cleanup": {
@@ -2770,7 +3043,7 @@
    "kind": "audio",
    "output": "bus_mix",
    "pan": {
-    "position": 0.5,
+    "position": 0.0,
     "width": 1.0
    },
    "role": "strings",
@@ -2780,11 +3053,70 @@
      "level_db": -15.0,
      "owner": "mixplan",
      "pre_fader": false
+    },
+    {
+     "bus": "bus_room",
+     "level_db": -7.5,
+     "move_ref": "dir_cf3e85c484fa/m08",
+     "owner": "director",
+     "pre_fader": false
     }
    ]
   },
   {
-   "chain": [],
+   "chain": [
+    {
+     "id": "dr.trk_synth.m05",
+     "move_ref": "dir_cf3e85c484fa/m05",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -1.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m05 (aim a1): RESEARCH H3（K2）: keyboard と対称。keyboard との共有 -8.1 dB → 方位差 0.4 以内",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_synth.m14",
+     "move_ref": "dir_cf3e85c484fa/m14",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.2,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 7.56,
+      "phase": 0.0,
+      "rate_hz": 0.09501,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m14 (aim a2): RESEARCH H4: m13 と同じ設定（同じ周期・位相・深さ）",
+     "type": "autopan"
+    }
+   ],
    "cleanup": {
     "applied": {
      "assets": {
@@ -2836,8 +3168,8 @@
    "kind": "audio",
    "output": "bus_mix",
    "pan": {
-    "position": 0.425,
-    "width": 1.3
+    "position": 0.2,
+    "width": 1.0
    },
    "role": "synth",
    "sends": [
@@ -2848,9 +3180,9 @@
      "pre_fader": false
     },
     {
-     "bus": "bus_space_far",
-     "level_db": -16.0,
-     "move_ref": "dir_b465721f74fb/m10",
+     "bus": "bus_room",
+     "level_db": -7.5,
+     "move_ref": "dir_cf3e85c484fa/m05",
      "owner": "director",
      "pre_fader": false
     }
@@ -3035,7 +3367,59 @@
    ]
   },
   {
-   "chain": [],
+   "chain": [
+    {
+     "id": "dr.trk_woodwinds.m06",
+     "move_ref": "dir_cf3e85c484fa/m06",
+     "owner": "director",
+     "params": {
+      "bw_oct": 1.9,
+      "freq_hz": 5000.0,
+      "gain_db": -1.0,
+      "phase": "minimum",
+      "shape": "high_shelf"
+     },
+     "reason": "direction dir_cf3e85c484fa move m06 (aim a1): RESEARCH H3（K2、Q3）: synth -3.7／keyboard -4.3 dB を共有 → 2 本の真ん中へ（床 -0.35 は塊を割っていた）",
+     "type": "eq"
+    },
+    {
+     "id": "dr.trk_woodwinds.m15",
+     "move_ref": "dir_cf3e85c484fa/m15",
+     "owner": "director",
+     "params": {
+      "bpm": 0.0,
+      "center": 0.0,
+      "depth": 0.2,
+      "env_attack_ms": 20.0,
+      "env_release_ms": 300.0,
+      "env_threshold_db": -40.0,
+      "lfo_shape": "sine",
+      "note": "none",
+      "origin_s": 7.56,
+      "phase": 0.0,
+      "rate_hz": 0.09501,
+      "seed": 0,
+      "shape": [
+       [
+        0.0,
+        -1.0
+       ],
+       [
+        0.5,
+        1.0
+       ],
+       [
+        1.0,
+        -1.0
+       ]
+      ],
+      "smooth_ms": 5.0,
+      "source": "lfo"
+     },
+     "reason": "direction dir_cf3e85c484fa move m15 (aim a2): RESEARCH H4（Q3）: synth -3.7／keyboard -4.3 dB を共有 → 単独では動かさず、m13 と同じ設定で塊ごと",
+     "type": "autopan"
+    }
+   ],
    "cleanup": {
     "applied": {
      "assets": {
@@ -3087,7 +3471,7 @@
    "kind": "audio",
    "output": "bus_mix",
    "pan": {
-    "position": -0.7,
+    "position": 0.0,
     "width": 1.0
    },
    "role": "woodwinds",
@@ -3099,16 +3483,9 @@
      "pre_fader": false
     },
     {
-     "bus": "bus_space_far",
-     "level_db": -14.0,
-     "move_ref": "dir_b465721f74fb/m11",
-     "owner": "director",
-     "pre_fader": false
-    },
-    {
-     "bus": "bus_echo_R",
-     "level_db": -18.0,
-     "move_ref": "dir_b465721f74fb/m17",
+     "bus": "bus_room",
+     "level_db": -7.5,
+     "move_ref": "dir_cf3e85c484fa/m06",
      "owner": "director",
      "pre_fader": false
     }
@@ -3123,7 +3500,7 @@
      {
       "id": "mst_loudness",
       "params": {
-       "gain_db": 3.548
+       "gain_db": 3.656
       },
       "reason": "R-18",
       "type": "loudness_gain"
@@ -3163,7 +3540,7 @@
       "codec_after_ceiling_dbtp": -0.1,
       "limiter_gr": {
        "gr_fraction_gt_1db": 0.0,
-       "gr_max_db": 1.05,
+       "gr_max_db": 1.02,
        "gr_median_db": 0.0,
        "gr_p95_db": 0.0
       },
@@ -3181,30 +3558,30 @@
          "tolerance_db": 2.0
         },
         "shimmer_index_db": {
-         "delta_db": 0.02,
+         "delta_db": 0.01,
          "tolerance_db": 1.5
         },
         "side_shimmer_index_db": {
-         "delta_db": 0.02,
+         "delta_db": 0.01,
          "tolerance_db": 1.5
         }
        },
        "failing": [],
        "frame_selection": "baseline_frames",
-       "gain_db": 3.537,
+       "gain_db": 3.649,
        "margin_db": 0.2,
        "status": "pass",
        "verify_tolerance_status": "pass",
-       "worst_excess_db": -1.28
+       "worst_excess_db": -1.29
       },
       "target_lufs_i": -14.0,
       "true_peak": -1.01
      },
      "input": {
       "frames": 4746240,
-      "lufs_i": -17.55,
+      "lufs_i": -17.66,
       "sample_rate": 48000,
-      "true_peak": -3.5045589786918585
+      "true_peak": -3.6500230647224785
      },
      "rationale": [
       {
@@ -3229,7 +3606,7 @@
            0.0005,
            0.12
           ],
-          "ratio": 0.00616
+          "ratio": 0.00599
          },
          "bass": {
           "deviation_db": 0.0,
@@ -3237,7 +3614,7 @@
            0.05,
            0.7
           ],
-          "ratio": 0.60735
+          "ratio": 0.60608
          },
          "high_mid": {
           "deviation_db": 0.0,
@@ -3245,7 +3622,7 @@
            0.01,
            0.25
           ],
-          "ratio": 0.03613
+          "ratio": 0.03592
          },
          "low_mid": {
           "deviation_db": 0.0,
@@ -3253,7 +3630,7 @@
            0.03,
            0.3
           ],
-          "ratio": 0.11593
+          "ratio": 0.11773
          },
          "mid": {
           "deviation_db": 0.0,
@@ -3261,7 +3638,7 @@
            0.04,
            0.4
           ],
-          "ratio": 0.17525
+          "ratio": 0.1751
          },
          "sub": {
           "deviation_db": 0.0,
@@ -3293,8 +3670,8 @@
        ],
        "expected": {},
        "measured": {
-        "lra_lu": 3.330388693797831,
-        "plr_db": 14.043350282618075
+        "lra_lu": 2.79189754866756,
+        "plr_db": 14.005821367401968
        },
        "rule": "R-30",
        "stage": "dynamics"
@@ -3329,10 +3706,10 @@
        "expected": {},
        "measured": {
         "low_band_hz": 120.0,
-        "low_band_mono_loss_db": 0.03,
+        "low_band_mono_loss_db": 0.02,
         "low_band_negative_corr": {
          "longest_run_s": 0.0,
-         "min_corr": 0.26244878897578827,
+         "min_corr": 0.47909907152108233,
          "negative_fraction": 0.0,
          "windows": 231
         }
@@ -3352,12 +3729,12 @@
         }
        ],
        "expected": {
-        "gain_db": 3.548,
+        "gain_db": 3.656,
         "lufs_i": -14.01
        },
        "measured": {
-        "input_lufs_i": -17.55,
-        "pre_limiter_lufs_i": -17.55,
+        "input_lufs_i": -17.66,
+        "pre_limiter_lufs_i": -17.66,
         "profile_target_lufs_i": -14.0,
         "tried": [
          {
@@ -3395,7 +3772,7 @@
        "measured": {
         "limiter_gr": {
          "gr_fraction_gt_1db": 0.0,
-         "gr_max_db": 1.05,
+         "gr_max_db": 1.02,
          "gr_median_db": 0.0,
          "gr_p95_db": 0.0
         }
@@ -3430,21 +3807,21 @@
            "tolerance_db": 2.0
           },
           "shimmer_index_db": {
-           "delta_db": 0.02,
+           "delta_db": 0.01,
            "tolerance_db": 1.5
           },
           "side_shimmer_index_db": {
-           "delta_db": 0.02,
+           "delta_db": 0.01,
            "tolerance_db": 1.5
           }
          },
          "failing": [],
          "frame_selection": "baseline_frames",
-         "gain_db": 3.537,
+         "gain_db": 3.649,
          "margin_db": 0.2,
          "status": "pass",
          "verify_tolerance_status": "pass",
-         "worst_excess_db": -1.28
+         "worst_excess_db": -1.29
         }
        },
        "measured": {
@@ -3464,21 +3841,21 @@
            "tolerance_db": 2.0
           },
           "shimmer_index_db": {
-           "delta_db": 0.02,
+           "delta_db": 0.01,
            "tolerance_db": 1.5
           },
           "side_shimmer_index_db": {
-           "delta_db": 0.02,
+           "delta_db": 0.01,
            "tolerance_db": 1.5
           }
          },
          "failing": [],
          "frame_selection": "baseline_frames",
-         "gain_db": 3.537,
+         "gain_db": 3.649,
          "margin_db": 0.2,
          "status": "pass",
          "verify_tolerance_status": "pass",
-         "worst_excess_db": -1.28
+         "worst_excess_db": -1.29
         },
         "scope": "full input, simulated chain"
        },
@@ -3495,7 +3872,7 @@
      "warnings": []
     },
     "profile": "streaming_universal",
-    "proposal_id": "mpl_b411cfaaf2a0",
+    "proposal_id": "mpl_46aa3ebe63ef",
     "route": "stem_mix",
     "route_detail": "stem_mix"
    },

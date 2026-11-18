@@ -128,16 +128,47 @@ mankomix serve -p my_song.mmx
 
 ## サンプル聴き比べ
 
-> 準備中。公式サンプル楽曲のステムを本ツールで処理し、処理前と処理後を聴き比べられるようにする予定。先行して、Pages デモには指揮書の実例1件（空間音響・パンニング）の試聴用 MP3 が収録されている。
+公式サンプル「マンコ主義」（Suno で生成、hiphop、98.9 秒、12 ステム）を本ツールで処理した試聴用の MP3（320 kbps）。**マスターではない**。2026-11-18 に現在のハーネスで作り直した。利用条件は [samples/README.md](samples/README.md)（Suno の規約に従う。AI の学習への利用は許諾しない。本体の Apache-2.0 の対象外）。目録（測定値・検証結果・ハッシュ・再生成コマンド）は [samples/public/manifest.json](samples/public/manifest.json)、Mix Report は [samples/public/reports/](samples/public/reports/)。
 
 | 音声 | 内容 | 試聴 |
 |---|---|---|
-| 処理前 | ステムをそのまま合算したもの | （準備中） |
-| 処理後（主サンプル） | 本ツールの出力（聞き心地 × ストリーミング） | （準備中） |
-| 処理後（各種別） | 目的関数を変えた版、媒体を変えた版、両方を組み合わせた版。全 11 種 | （準備中） |
-| 除去分 | 整音で取り除いた成分だけ | （準備中） |
+| 処理前 | 12 ステムの単純合算（各ステムのゲイン 0 dB、無加工）。−15.03 LUFS、True Peak −0.59 dBTP | [before.mp3](samples/public/audio/before.mp3) |
+| 処理後（主サンプル） | 床（下の #1 の既定処理）に指揮書 `dir_cf3e85c484fa`「空間音響 × 複雑で心地の良いパンニング」を重ねた版。−14.01 LUFS、True Peak −1.01 dBTP（streaming_universal の検証に合格） | [v01_main_direction.mp3](samples/public/audio/v01_main_direction.mp3)<br>レベルマッチ版: [v01_main_direction_level_matched.mp3](samples/public/audio/v01_main_direction_level_matched.mp3) |
+| 処理後（各種別） | 目的関数を変えた版、媒体を変えた版、両方を組み合わせた版。全 11 種のうち 8 種を収録（下表） | 下表 |
+| 除去分 | 整音で取り除いた成分だけ（処理前のステム合算 − 整音後のステム合算）。主サンプルの指揮は整音を変えていないため、床と同一 | [delta.mp3](samples/public/audio/delta.mp3) |
+| 参考: フルミックス | Suno のフルミックス（時間整合済み）。参考であり、処理前の基準ではない（ステムの合算とは一致しない） | [fullmix_reference.mp3](samples/public/audio/fullmix_reference.mp3) |
 
-聴き比べは、処理前と処理後の音量を揃えた版（レベルマッチ版）を主に置く。音量が大きい方を「良い音」と感じる錯覚を除くためである。用意する種別の一覧は [samples/sample_set.json](samples/sample_set.json)、方針は [docs/SPEC.md](docs/SPEC.md) の §15。
+聴き比べは、処理前と処理後の音量を揃えた版（レベルマッチ版）を主に置く。音量が大きい方を「良い音」と感じる錯覚を除くためである。主サンプルのレベルマッチ版は、処理後を純ゲイン −1.02 dB で下げて処理前と統合ラウドネスを揃えたもの（実測の差 0.006 LU）。処理前 [before.mp3](samples/public/audio/before.mp3) と対で聴く。
+
+### 主サンプル: 指揮の分（床との差）
+
+床は #1（聞き心地 × ストリーミング共通）の既定処理。主サンプルは床をそのまま出発点にし、次だけを変えた。vocals・drums・bass、整音、床のチェーンとフェーダー、マスター段は床のまま。
+
+- 方位: guitar +0.35 → +0.5、keyboard −0.2、synth +0.2、woodwinds・brass・strings を中央へ寄せ直し（床は woodwinds −0.35、strings +0.5）
+- 動き（`autopan`、レベル差のパン）: fx は 3 小節周期の周回、上物 5 本（keyboard・synth・woodwinds・brass・strings）は同じ設定で 4 小節周期の浅い流れ、percussion は 1 小節で左右に跳ぶ、BV はエコーの戻りだけが動く
+- 部屋: 初期反射だけの部屋（`early_reflections` のバス）を追加し、`place` で距離 4 段（センド量と高域）を付けた。フェーダーは動かしていない。BV に付点 8 分のエコー
+
+測定の結果（`direction check`、床と比較）: 指揮書の主張 23 本のうち、主たる主張 3 本（percussion の左右の跳び 2 本、fx の部屋への送り 1 本）を含む 22 本が自動チェックで成立した。残る 1 本（主役帯域 300–5000 Hz のモノ損失）は、チェック側が帯域指定を無視する不具合のため未評価（別計算では床 0.1390 dB → 0.1388 dB で悪化なし）。安全弁の不成立はない。ただし全体の被り（masking）は許容 0.5 dB の内側で 0.45 dB 増えている。翻訳ゲート（OF-5）はステムが必要な 2 項目が未評価で incomplete。これらは測定できる量（像の左右比、センド量、被り、モノ互換）についての事実で、動きの心地よさなど聴感の評価は含まない。人の耳による確認は未実施。
+
+### 各種別
+
+強度 0.5、ジャンル `hiphop`、リファレンスなし。各種別は独立したプロジェクトで `run` した結果（指揮書なし）。
+
+| # | 目的関数 × 媒体 | 結果 | LUFS-I／True Peak | 試聴 |
+|---|---|---|---|---|
+| 1 | 聞き心地 × ストリーミング共通（主サンプルの床） | 検証合格 | −14.01／−1.01 dBTP | [v01_comfort__streaming_universal.mp3](samples/public/audio/v01_comfort__streaming_universal.mp3)<br>レベルマッチ版: [v01_level_matched.mp3](samples/public/audio/v01_level_matched.mp3) |
+| 2 | 重低音強化 × ストリーミング共通 | 検証合格 | −14.01／−1.01 dBTP | [v02_bass_heavy__streaming_universal.mp3](samples/public/audio/v02_bass_heavy__streaming_universal.mp3) |
+| 3 | ボーカル前面 × ストリーミング共通 | 検証合格 | −14.01／−1.01 dBTP | [v03_vocal_forward__streaming_universal.mp3](samples/public/audio/v03_vocal_forward__streaming_universal.mp3) |
+| 4 | 明瞭さ × ストリーミング共通 | 検証合格 | −13.97／−1.01 dBTP | [v04_clarity__streaming_universal.mp3](samples/public/audio/v04_clarity__streaming_universal.mp3) |
+| 5 | 疲れにくさ × ストリーミング共通 | 検証合格 | −14.00／−1.01 dBTP | [v05_low_fatigue__streaming_universal.mp3](samples/public/audio/v05_low_fatigue__streaming_universal.mp3) |
+| 6 | 聞き心地 × Apple Music | 検証合格 | −16.00／−2.01 dBTP | [v06_comfort__apple_music.mp3](samples/public/audio/v06_comfort__apple_music.mp3) |
+| 7 | 聞き心地 × SNS（熱いバリアント） | 検証合格 | −9.97／−1.01 dBTP | [v07_comfort__sns_hot.mp3](samples/public/audio/v07_comfort__sns_hot.mp3) |
+| 8 | 聞き心地 × CD（Red Book） | 検証合格 | −10.20／−0.48 dBTP | [v08_comfort__cd.mp3](samples/public/audio/v08_comfort__cd.mp3) |
+| 9 | 聞き心地 × クラブ／DJ | 未完成: マスター段で停止（S-08 ノイズ戻り監視の差し戻し。許容幅は緩めていない） | — | なし |
+| 10 | クラブ・インパクト × クラブ／DJ | 未完成: 同上 | — | なし |
+| 11 | 重低音強化 × クラブ／DJ | 未完成: 同上 | — | なし |
+
+LUFS-I／True Peak はマスター（ロスレス）の実測。翻訳ゲート（OF-5）は 8 種とも incomplete（マスター段にステムを渡さないため 2 項目が未評価）。#1 のマスターを他の配信先の基準で検証した結果は、Spotify・YouTube・TIDAL・SNS（安全既定）が合格、Amazon Music が不合格（S-01、True Peak）。種別の定義は [samples/sample_set.json](samples/sample_set.json)、方針は [docs/SPEC.md](docs/SPEC.md) の §15。Pages デモには主サンプルが収録されている。
 
 ## ドキュメント
 
