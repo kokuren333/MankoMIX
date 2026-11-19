@@ -52,11 +52,11 @@ describe("capabilities in mock mode", () => {
   it("heads the direction example with its direction, not its floor", async () => {
     renderWithApp(<App />, { engineFactory: () => new FakeEngine() });
     const banner = await screen.findByTestId("direction-banner");
-    expect(banner.textContent).toContain("空間音響と複雑なパンニング");
+    expect(banner.textContent).toContain("空間音響 × 複雑で心地の良いパンニング");
     expect(banner.textContent).toContain("comfort");
     const picker = (await screen.findByLabelText(STRINGS.en["app.variant"])) as HTMLSelectElement;
     const selected = picker.options[picker.selectedIndex]?.textContent ?? "";
-    expect(selected).toContain("空間音響と複雑なパンニング");
+    expect(selected).toContain("空間音響 × 複雑で心地の良いパンニング");
     expect(selected).not.toMatch(/^#1 comfort/);
   });
 
