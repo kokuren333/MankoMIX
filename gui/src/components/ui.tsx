@@ -84,9 +84,15 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
   );
 }
 
-/** Loading / error wrapper for useAsync results. */
-export function Async<T>({ state, children }: { state: AsyncState<T>; children: (data: T) => ReactNode }) {
+export function StoppedNotice() {
   const { t } = useApp();
+  return <div className="notice info" role="status">{t("stopped.reason")}</div>;
+}
+
+/** Loading / error wrapper for useAsync results. */
+export function Async<T>({ state, children, variantDependent = false }: { state: AsyncState<T>; children: (data: T) => ReactNode; variantDependent?: boolean }) {
+  const { t, variant } = useApp();
+  if (variantDependent && variant?.stopped) return <StoppedNotice />;
   if (state.error) {
     const notGen = state.error instanceof BackendError && state.error.code === "not_generated";
     return (

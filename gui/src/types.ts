@@ -300,6 +300,7 @@ export interface DirectionRef {
 }
 
 export interface VariantSummary {
+  stopped?: { at: string; rule: string };
   id: string;
   n?: number;
   label?: Label;
@@ -441,12 +442,30 @@ export interface Verification {
 // Audio set for A/B listening (GET /api/audio)
 // ---------------------------------------------------------------------------
 
+export interface AudioMeasurement {
+  lufs_i?: number | null;
+  true_peak_dbtp?: number | null;
+}
+
+export interface AudioFloor {
+  project_variant: string;
+  project_id: string;
+  content_hash: string;
+  objective: string;
+  profile: string;
+  measurements: AudioMeasurement;
+  match_gain_db: number;
+  match_target: "before" | "floor";
+  source_files: Record<string, string>;
+}
+
 export interface AudioSet {
   variant: string;
   /** URLs (relative to the page or same-origin absolute paths). null = not available. */
   files: {
     before: string | null;
     after: string | null;
+    floor?: string | null;
     delta?: string | null;
     before_level_matched?: string | null;
     fullmix_reference?: string | null;
@@ -454,10 +473,13 @@ export interface AudioSet {
   /** Gain in dB applied to `match_target` so that Before and After have equal integrated loudness. */
   match_gain_db: number;
   /** The louder side, which is turned down (SPEC 15.2: match by lowering the louder one). */
-  match_target: "before" | "after";
+  match_target: "before" | "floor" | "after";
+  floor?: AudioFloor;
+  level_match_gains_db?: { before: number; floor: number; after: number };
   measurements?: {
-    before?: { lufs_i?: number | null; true_peak_dbtp?: number | null };
-    after?: { lufs_i?: number | null; true_peak_dbtp?: number | null };
+    before?: AudioMeasurement;
+    floor?: AudioMeasurement;
+    after?: AudioMeasurement;
   };
   note?: Label;
 }

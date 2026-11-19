@@ -1,0 +1,73 @@
+{
+ "entries": [
+  {
+   "actor": "planner",
+   "after_hash": "89e942bb2629028d267adf4501c58fc928dd25db94659b05d35fbd50e4c509e6",
+   "op": "create",
+   "reason": "create project 'マンコ主義'",
+   "seq": 1,
+   "summary": "create project 'マンコ主義'",
+   "ts": "2026-11-18T12:19:23.555Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "fd96a813ff0676e4b0a1eb12fba4d29b6a3776761006e857abbb09c6daed9f94",
+   "op": "import",
+   "patch_ops": 9,
+   "reason": "import 13 file(s) as stem_folder (copy); checks: 0 reject, 0 warning",
+   "seq": 2,
+   "summary": "import 13 file(s) as stem_folder (copy); checks: 0 reject, 0 warning",
+   "ts": "2026-11-18T12:20:03.280Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "5fab7c848d6cb41fe87fc94f6215b19e79634e396fc4c70267fc7fcee180e66f",
+   "op": "analyze",
+   "patch_ops": 1,
+   "reason": "analysis (analyzer mankomix-measure/1.0.0)",
+   "seq": 3,
+   "summary": "analysis (analyzer mankomix-measure/1.0.0)",
+   "ts": "2026-11-18T12:21:47.035Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "ed82022d7ce592ed2369161ce6dac548164ce711aed013ed3a36893a30614b3b",
+   "op": "objective_set",
+   "patch_ops": 2,
+   "reason": "objective set (project)",
+   "seq": 4,
+   "summary": "objective set (project)",
+   "ts": "2026-11-18T12:21:47.104Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "8db1bbe8bc6be47ac57a80e296dc831efcff9bf976ff86b1ad75e3aa6635af49",
+   "op": "clean_apply",
+   "patch_ops": 13,
+   "reason": "apply cleanup cln_f70daa1f62b0: ast_backing_vocals=ede9e6ba, ast_bass=b5f3d108, ast_brass=81cf4b91, ast_drums=c2551282, ast_fx=301ed26d, ast_guitar=df2ff4d6, ast_keyboard=e4efe319, ast_percussion=d736dd67, ast_strings=ba50c7c7, ast_synth=fc784e87, ast_vocals=cd71dd42, ast_woodwinds=fc94bac9, ast_fullmix=4896e25e",
+   "seq": 5,
+   "summary": "apply cleanup cln_f70daa1f62b0: ast_backing_vocals=ede9e6ba, ast_bass=b5f3d108, ast_brass=81cf4b91, ast_drums=c2551282, ast_fx=301ed26d, ast_guitar=df2ff4d6, ast_keyboard=e4efe319, ast_percussion=d736dd67, ast_strings=ba50c7c7, ast_synth=fc784e87, ast_vocals=cd71dd42, ast_woodwinds=fc94bac9, ast_fullmix=4896e25e",
+   "ts": "2026-11-18T12:28:31.915Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "f47a1c057e3ca3a475faf061180e4fbd7f647aecb109e1198412f92cbd343efc",
+   "op": "mix_apply",
+   "patch_ops": 5,
+   "reason": "mix plan mxp_863aafcdb383",
+   "seq": 6,
+   "summary": "mix plan mxp_863aafcdb383",
+   "ts": "2026-11-18T12:31:47.166Z"
+  },
+  {
+   "actor": "planner",
+   "after_hash": "8ca5616d3fd5303e6e97bfe1ab6bb7bec6e96ac661e3228cf7b845073c2c3c2d",
+   "op": "master_apply",
+   "patch_ops": 1,
+   "reason": "master plan mpl_dd94a3b0edea for streaming_universal",
+   "seq": 7,
+   "summary": "master plan mpl_dd94a3b0edea for streaming_universal",
+   "ts": "2026-11-18T12:33:23.102Z"
+  }
+ ]
+}

@@ -7,7 +7,7 @@ import type { MediaProfile, Verification } from "../types";
 export function VerifyScreen() {
   const { backend, revision, variantId } = useApp();
   const state = useAsync(() => Promise.all([backend.getVerification(variantId), backend.listProfiles()]), [backend, revision, variantId]);
-  return <Async state={state}>{([v, p]) => <VerifyView v={v} profiles={p} />}</Async>;
+  return <Async state={state} variantDependent>{([v, p]) => <VerifyView v={v} profiles={p} />}</Async>;
 }
 
 function fmtVal(v: unknown): string {

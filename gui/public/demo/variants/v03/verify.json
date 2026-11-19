@@ -1,0 +1,532 @@
+{
+ "archive": {
+  "checks": {
+   "S-05": {
+    "expected": "no dither (word length not reduced)",
+    "facts": {
+     "delivery_dither_policy": "none",
+     "depth_reduced": false,
+     "dither_count": 0,
+     "quantization": "none",
+     "seed": null,
+     "steps_after_dither": [],
+     "target_bit_depth": "32f"
+    },
+    "rule": "S-05",
+    "status": "pass"
+   },
+   "S-06": {
+    "issues": [],
+    "rule": "S-06",
+    "status": "pass"
+   },
+   "S-09": {
+    "measured": {
+     "channels": 2,
+     "clipped_samples": 0,
+     "dc_offset": [
+      0.000165,
+      0.000131
+     ],
+     "expected_frames": 4746240,
+     "frames": 4746240,
+     "inf": 0,
+     "input_dc_scaled": [
+      0.000165,
+      0.000131
+     ],
+     "nan": 0,
+     "tolerance": 1
+    },
+    "problems": [],
+    "rule": "S-09",
+    "status": "pass"
+   }
+  },
+  "file": "renders/var_streaming_universal/master__archive_f32.wav",
+  "overall": "pass"
+ },
+ "codec": [
+  {
+   "ceiling_dbtp": -0.1,
+   "codec": "aac",
+   "note": "streaming_universal / hires_native",
+   "status": "pass",
+   "true_peak_dbtp": -1.001
+  },
+  {
+   "ceiling_dbtp": -0.1,
+   "codec": "opus",
+   "note": "streaming_universal / hires_native",
+   "status": "pass",
+   "true_peak_dbtp": -0.667
+  },
+  {
+   "ceiling_dbtp": -0.1,
+   "codec": "mp3",
+   "note": "streaming_universal / hires_native",
+   "status": "pass",
+   "true_peak_dbtp": -1.004
+  }
+ ],
+ "constraints": [
+  {
+   "id": "OF-5",
+   "limit": null,
+   "note": "translation gate is implemented in M3",
+   "status": "not_run",
+   "value": null
+  },
+  {
+   "id": "P-03",
+   "limit": [
+    -15.0,
+    -13.5
+   ],
+   "note": null,
+   "status": "pass",
+   "value": -14.01
+  },
+  {
+   "id": "S-01",
+   "limit": -1.0,
+   "note": null,
+   "status": "pass",
+   "value": -1.01
+  },
+  {
+   "id": "S-02",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": null
+  },
+  {
+   "id": "S-03",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": 120.0
+  },
+  {
+   "id": "S-04",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": 0.019
+  },
+  {
+   "id": "S-05",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": null
+  },
+  {
+   "id": "S-06",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": null
+  },
+  {
+   "id": "S-07",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": null
+  },
+  {
+   "id": "S-08",
+   "limit": 1.5,
+   "note": null,
+   "status": "pass",
+   "value": 0.011
+  },
+  {
+   "id": "S-09",
+   "limit": null,
+   "note": null,
+   "status": "pass",
+   "value": 0
+  }
+ ],
+ "gate": {
+  "checks": [
+   {
+    "id": "band_limited_lead_preserved",
+    "label": "band_limited_lead_preserved",
+    "note": "not_evaluable_without_stems",
+    "status": "not_run"
+   },
+   {
+    "id": "mono_fold_loss_within_limit",
+    "label": "mono_fold_loss_within_limit",
+    "note": null,
+    "status": "pass"
+   },
+   {
+    "id": "low_level_balance_preserved",
+    "label": "low_level_balance_preserved",
+    "note": "not_evaluable_without_stems",
+    "status": "not_run"
+   },
+   {
+    "id": "pitch_preserved_without_fundamental",
+    "label": "pitch_preserved_without_fundamental",
+    "note": null,
+    "status": "pass"
+   }
+  ],
+  "status": "not_run"
+ },
+ "noise_return": {
+  "delta_db": 0.011,
+  "metric": "side_shimmer_index_db",
+  "note": null,
+  "status": "pass",
+  "tolerance_db": 1.5
+ },
+ "outputs": [
+  {
+   "checks": {
+    "OF-5": {
+     "milestone": "M3",
+     "reason": "translation gate is implemented in M3",
+     "rule": "OF-5",
+     "status": "not_evaluated"
+    },
+    "P-03": {
+     "measured": {
+      "lufs_i": -14.01
+     },
+     "rule": "P-03",
+     "status": "pass",
+     "target_lufs_i": -14.0,
+     "window_lufs_i": [
+      -15.0,
+      -13.5
+     ]
+    },
+    "S-01": {
+     "ceiling_dbtp": -1.0,
+     "conditional_applied": false,
+     "measured": {
+      "true_peak_dbtp": -1.01
+     },
+     "oversample": 4,
+     "rule": "S-01",
+     "status": "pass"
+    },
+    "S-02": {
+     "codec_after_ceiling_dbtp": -0.1,
+     "codecs": {
+      "aac": {
+       "bitrate": "256k",
+       "ceiling_dbtp": -0.1,
+       "codec": "aac",
+       "encoder": "aac",
+       "source": "render manifest (file sha256 verified)",
+       "status": "pass",
+       "true_peak_dbtp": -1.001
+      },
+      "mp3": {
+       "bitrate": "320k",
+       "ceiling_dbtp": -0.1,
+       "codec": "mp3",
+       "encoder": "libmp3lame",
+       "source": "render manifest (file sha256 verified)",
+       "status": "pass",
+       "true_peak_dbtp": -1.004
+      },
+      "opus": {
+       "bitrate": "160k",
+       "ceiling_dbtp": -0.1,
+       "codec": "opus",
+       "encoder": "libopus",
+       "source": "render manifest (file sha256 verified)",
+       "status": "pass",
+       "true_peak_dbtp": -0.667
+      }
+     },
+     "final_limiter_ceiling_dbtp": -1.0,
+     "render_iterations": 1,
+     "rule": "S-02",
+     "status": "pass"
+    },
+    "S-03": {
+     "limits": {
+      "max_negative_fraction": 0.1,
+      "max_persistence_s": 1.0
+     },
+     "measured": {
+      "boundary_hz": 120.0,
+      "longest_negative_run_s": 0.1,
+      "min_correlation": -0.44244629256528845,
+      "negative_fraction": 0.0021
+     },
+     "rule": "S-03",
+     "status": "pass"
+    },
+    "S-04": {
+     "limits": {
+      "lead_clarity_band_hz": [
+       300,
+       5000
+      ],
+      "lead_clarity_max_db": 3.0,
+      "low_band_max_db": 1.5
+     },
+     "measured": {
+      "lead_clarity_mono_loss_db": 0.13,
+      "low_band_mono_loss_db": 0.019
+     },
+     "note": "full-mix proxy: the lead band is evaluated on the whole mix (stems arrive with M4)",
+     "rule": "S-04",
+     "status": "pass"
+    },
+    "S-05": {
+     "expected": "TPDF dither exactly once at the final export (word length reduced)",
+     "facts": {
+      "delivery_dither_policy": "tpdf",
+      "depth_reduced": true,
+      "dither_count": 1,
+      "quantization": "tpdf_dither",
+      "seed": 2171677991,
+      "steps_after_dither": [],
+      "target_bit_depth": 24
+     },
+     "rule": "S-05",
+     "status": "pass"
+    },
+    "S-06": {
+     "issues": [],
+     "rule": "S-06",
+     "status": "pass"
+    },
+    "S-07": {
+     "assets": {
+      "ast_backing_vocals": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "ede9e6ba0f18f8b4048f6cd9478fb80a6db13a9f5570842d67f1d42375f6449d",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -168.723
+      },
+      "ast_bass": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "b5f3d10865b6284e287b85d7ea8163921943ae1c9be1159e72a2287e10878045",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -166.229
+      },
+      "ast_brass": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "81cf4b91ab35a282412351081280da8683bba467b82b943cade2c71a02c9c55a",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -190.795
+      },
+      "ast_drums": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "c2551282580f47ad49d1c1345f534334bd4c04ac1038fe97a6b678ebb3a2fadd",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -159.846
+      },
+      "ast_fx": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "301ed26dd460be35c250299d504a76432955e7485da5ac4a051e4285ab898b89",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -180.463
+      },
+      "ast_guitar": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "df2ff4d636ed930975352964ac5516cd4e36b7172df95e88cc80006a0a7dfb44",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -172.528
+      },
+      "ast_keyboard": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "e4efe3197ca63de07605d0114c2a6563fddf584a9edd619798adde713253513a",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -192.019
+      },
+      "ast_percussion": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "d736dd6719f6cf0b260445eb481590af3d8e7e4843dcde60453dd0ea51f6e00d",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -182.443
+      },
+      "ast_strings": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "ba50c7c719b44fdc7b537576596af7daab5ad35294f4e3bb5a32f6325b23932a",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -190.514
+      },
+      "ast_synth": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "fc784e8770712b1ab2b1670d4487036fad52c8c7ecaec42519d50edf3c495722",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -172.524
+      },
+      "ast_vocals": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "cd71dd420835085e7df5b4a22809ff9030ac8a137142d3c01a71717f64570b17",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -166.374
+      },
+      "ast_woodwinds": {
+       "crossover_hz": 1000.0,
+       "limit_dbfs": -80.0,
+       "pass": true,
+       "plan_hash": "fc94bac9d226437a6012da4c121f10f93a5ae5cea7719d2bf3db0e07ca626e48",
+       "residual_dbfs": -300.0,
+       "residual_stored_dbfs": -176.222
+      }
+     },
+     "method": "null test: peak of (cleaned - input) after a brick-wall low-pass at the crossover",
+     "rule": "S-07",
+     "status": "pass"
+    },
+    "S-08": {
+     "baseline": {
+      "cleaned": true,
+      "cleaned_assets": [
+       "ast_backing_vocals",
+       "ast_bass",
+       "ast_brass",
+       "ast_drums",
+       "ast_fx",
+       "ast_guitar",
+       "ast_keyboard",
+       "ast_percussion",
+       "ast_strings",
+       "ast_synth",
+       "ast_vocals",
+       "ast_woodwinds"
+      ],
+      "source": "measured on the master input built from cleaned assets"
+     },
+     "deltas": {
+      "above_ceiling_level_db": {
+       "after": null,
+       "before": null,
+       "delta_db": null,
+       "note": "not measurable",
+       "pass": null,
+       "tolerance_db": null
+      },
+      "noise_floor_dbfs": {
+       "after": -25.445,
+       "before": -28.625,
+       "delta_db": -0.005,
+       "gain_compensated": true,
+       "pass": true,
+       "tolerance_db": 2.0
+      },
+      "noise_floor_hf_dbfs": {
+       "after": -43.864,
+       "before": -47.053,
+       "delta_db": 0.004,
+       "gain_compensated": true,
+       "pass": true,
+       "tolerance_db": 2.0
+      },
+      "shimmer_index_db": {
+       "after": -36.678,
+       "before": -36.688,
+       "delta_db": 0.01,
+       "gain_compensated": false,
+       "pass": true,
+       "tolerance_db": 1.5
+      },
+      "side_shimmer_index_db": {
+       "after": -49.293,
+       "before": -49.304,
+       "delta_db": 0.011,
+       "gain_compensated": false,
+       "pass": true,
+       "tolerance_db": 1.5
+      }
+     },
+     "frame_selection": "baseline_frames",
+     "gain_db": 3.185,
+     "gain_source": "output integrated loudness - baseline integrated loudness",
+     "note": "tolerances are initial values (knowledge/cleanup_policy.json s08)",
+     "rule": "S-08",
+     "status": "pass",
+     "suggestions": []
+    },
+    "S-09": {
+     "measured": {
+      "channels": 2,
+      "clipped_samples": 0,
+      "dc_offset": [
+       0.000165,
+       0.000131
+      ],
+      "expected_frames": 4746240,
+      "frames": 4746240,
+      "inf": 0,
+      "input_dc_scaled": [
+       0.000165,
+       0.000131
+      ],
+      "nan": 0,
+      "tolerance": 1
+     },
+     "problems": [],
+     "rule": "S-09",
+     "status": "pass"
+    }
+   },
+   "delivery": "hires_native",
+   "file": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+   "manifest": "renders/var_streaming_universal/streaming_universal__hires_native.manifest.json",
+   "measured": {
+    "frames": 4746240,
+    "lufs_i": -14.005,
+    "sample_rate": 48000,
+    "subtype": "PCM_24",
+    "true_peak_dbtp": -1.01
+   },
+   "overall": "pass",
+   "profile": "streaming_universal"
+  }
+ ],
+ "overall": "pass",
+ "passed": true,
+ "path": "reports/verify_var_streaming_universal.json",
+ "profiles": [
+  {
+   "delivery": "hires_native",
+   "lufs_i": -14.005,
+   "note": null,
+   "profile": "streaming_universal",
+   "status": "pass",
+   "true_peak_dbtp": -1.01
+  }
+ ],
+ "schema_version": 1,
+ "stale": false,
+ "variant": "var_streaming_universal"
+}

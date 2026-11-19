@@ -1,4 +1,4 @@
-import { BAND_LIMIT_HP_HZ, BAND_LIMIT_LP_HZ, monitorGain, type MonitorSettings, type SourceId } from "./gains";
+import { BAND_LIMIT_HP_HZ, BAND_LIMIT_LP_HZ, monitorGain, type MonitorSettings, type SourceId, type SourceGains } from "./gains";
 
 export type LoadStatus = "ok" | "missing" | "error" | "none";
 
@@ -13,14 +13,14 @@ export interface AudioEngine {
   currentTime(): number;
   duration(): number;
   /** Linear gains per source (applied with a short ramp, click-free). */
-  setSourceGains(gains: Record<SourceId, number>): void;
+  setSourceGains(gains: SourceGains): void;
   setMonitor(settings: MonitorSettings): void;
   dispose(): void;
 }
 
 export type EngineFactory = () => AudioEngine;
 
-const SOURCES: SourceId[] = ["before", "after", "delta"];
+const SOURCES: SourceId[] = ["before", "floor", "after", "delta"];
 const RAMP_S = 0.008;
 
 /**
@@ -44,7 +44,7 @@ export class WebAudioEngine implements AudioEngine {
   private playing = false;
   private startedAt = 0;
   private offset = 0;
-  private wanted: Record<SourceId, number> = { before: 0, after: 0, delta: 0 };
+  private wanted: SourceGains = { before: 0, floor: 0, after: 0, delta: 0 };
   private monitor: MonitorSettings = { mono: false, bandLimit: false, lowLevel: false };
 
   constructor() {
@@ -65,7 +65,7 @@ export class WebAudioEngine implements AudioEngine {
       this.out.connect(ctx.destination);
       for (const id of SOURCES) {
         const g = ctx.createGain();
-        g.gain.value = this.wanted[id];
+        g.gain.value = this.wanted[id] ?? 0;
         g.connect(this.sum);
         this.gains.set(id, g);
       }
@@ -95,7 +95,7 @@ export class WebAudioEngine implements AudioEngine {
   }
 
   async load(urls: Partial<Record<SourceId, string | null>>): Promise<Record<SourceId, LoadStatus>> {
-    const status: Record<SourceId, LoadStatus> = { before: "none", after: "none", delta: "none" };
+    const status: Record<SourceId, LoadStatus> = { before: "none", floor: "none", after: "none", delta: "none" };
     if (!this.supported) return status;
     this.pause();
     this.offset = 0;
@@ -180,10 +180,10 @@ export class WebAudioEngine implements AudioEngine {
     return d;
   }
 
-  setSourceGains(gains: Record<SourceId, number>): void {
+  setSourceGains(gains: SourceGains): void {
     this.wanted = { ...gains };
     if (!this.ctx) return;
-    for (const id of SOURCES) this.gains.get(id)?.gain.setTargetAtTime(gains[id], this.ctx.currentTime, RAMP_S);
+    for (const id of SOURCES) this.gains.get(id)?.gain.setTargetAtTime(gains[id] ?? 0, this.ctx.currentTime, RAMP_S);
   }
 
   setMonitor(settings: MonitorSettings): void {

@@ -6,7 +6,47 @@
   "before": "audio/before.mp3",
   "before_level_matched": null,
   "delta": "audio/delta.mp3",
+  "floor": "variants/v01/floor.mp3",
   "fullmix_reference": "audio/fullmix_reference.mp3"
+ },
+ "floor": {
+  "after_master": "hires_native",
+  "content_hash": "68dac781164a6ca59140fdb3b72e599c3f9253375cb0fa7a3e00e65a37feecfd",
+  "core_audio_set": {
+   "gain_db": -1.02,
+   "measurements": {
+    "after": {
+     "lufs_i": -14.01,
+     "true_peak_dbtp": -1.01
+    },
+    "before": {
+     "lufs_i": -15.03,
+     "true_peak_dbtp": -0.59
+    }
+   },
+   "target": "after"
+  },
+  "match_gain_db": -1.02,
+  "match_target": "floor",
+  "measurements": {
+   "lufs_i": -14.01,
+   "true_peak_dbtp": -1.01
+  },
+  "objective": "comfort",
+  "profile": "streaming_universal",
+  "project_id": "prj_sample_v01",
+  "project_variant": "var_streaming_universal",
+  "source_files": {
+   "after": "renders/var_streaming_universal/streaming_universal__hires_native.wav",
+   "before": "cache/listen/before_stem_sum_188ce11a3ae09293.wav",
+   "delta": "renders/delta/stem_sum_delta.wav",
+   "fullmix_reference": "assets/fullmix_conformed.wav"
+  }
+ },
+ "level_match_gains_db": {
+  "after": -1.02,
+  "before": 0.0,
+  "floor": -1.02
  },
  "listening_copies": {
   "bitrate_kbps": 320,
@@ -23,6 +63,10 @@
   "before": {
    "lufs_i": -15.03,
    "true_peak_dbtp": -0.59
+  },
+  "floor": {
+   "lufs_i": -14.01,
+   "true_peak_dbtp": -1.01
   }
  },
  "note": {

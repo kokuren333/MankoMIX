@@ -39,7 +39,8 @@ export function overlaps(a: MapPoint, b: MapPoint): boolean {
 
 export function MixMapScreen() {
   const { backend, revision, variantId } = useApp();
-  const state = useAsync(() => Promise.all([backend.getProject(), backend.getAnalysis(variantId)]), [backend, revision, variantId]);
+  const projectVariant = backend.kind === "mock" ? variantId : undefined;
+  const state = useAsync(() => Promise.all([backend.getProject(projectVariant), backend.getAnalysis(variantId)]), [backend, revision, variantId]);
   return <Async state={state}>{([p, a]) => <MixMap project={p} analysis={a} />}</Async>;
 }
 

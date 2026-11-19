@@ -1,0 +1,3783 @@
+{
+ "analysis_index": {
+  "ast_backing_vocals": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_backing_vocals.json",
+   "sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d"
+  },
+  "ast_bass": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_bass.json",
+   "sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1"
+  },
+  "ast_brass": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_brass.json",
+   "sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b"
+  },
+  "ast_drums": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_drums.json",
+   "sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21"
+  },
+  "ast_fullmix": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_fullmix.json",
+   "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd"
+  },
+  "ast_fx": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_fx.json",
+   "sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c"
+  },
+  "ast_guitar": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_guitar.json",
+   "sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d"
+  },
+  "ast_keyboard": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_keyboard.json",
+   "sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312"
+  },
+  "ast_percussion": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_percussion.json",
+   "sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4"
+  },
+  "ast_strings": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_strings.json",
+   "sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357"
+  },
+  "ast_synth": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_synth.json",
+   "sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6"
+  },
+  "ast_vocals": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_vocals.json",
+   "sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c"
+  },
+  "ast_woodwinds": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "path": "analysis/ast_woodwinds.json",
+   "sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac"
+  },
+  "stem_sum": {
+   "analyzer_version": "mankomix-measure/1.0.0",
+   "inputs": [
+    "ast_backing_vocals",
+    "ast_bass",
+    "ast_brass",
+    "ast_drums",
+    "ast_fx",
+    "ast_guitar",
+    "ast_keyboard",
+    "ast_percussion",
+    "ast_strings",
+    "ast_synth",
+    "ast_vocals",
+    "ast_woodwinds"
+   ],
+   "path": "analysis/stem_sum.json",
+   "sha256": "188ce11a3ae09293245a3a37116bd2e24e4fd4e6400c261fbd8c86fcd34869ad"
+  }
+ },
+ "assets": [
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_backing_vocals",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "backing_vocals.wav",
+   "path": "assets/backing_vocals.wav",
+   "role": "backing_vocals",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_bass",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "bass.wav",
+   "path": "assets/bass.wav",
+   "role": "bass",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_brass",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "brass.wav",
+   "path": "assets/brass.wav",
+   "role": "brass",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_drums",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "drums.wav",
+   "path": "assets/drums.wav",
+   "role": "drums",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_fullmix",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "reference_fullmix",
+   "original_name": "fullmix_conformed.wav",
+   "path": "assets/fullmix_conformed.wav",
+   "role": "fullmix",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_fx",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "fx.wav",
+   "path": "assets/fx.wav",
+   "role": "fx",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_guitar",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "guitar.wav",
+   "path": "assets/guitar.wav",
+   "role": "guitar",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_keyboard",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "keyboard.wav",
+   "path": "assets/keyboard.wav",
+   "role": "keyboard",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_percussion",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "percussion.wav",
+   "path": "assets/percussion.wav",
+   "role": "percussion",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_strings",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "strings.wav",
+   "path": "assets/strings.wav",
+   "role": "strings",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_synth",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "synth.wav",
+   "path": "assets/synth.wav",
+   "role": "synth",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_vocals",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "vocals.wav",
+   "path": "assets/vocals.wav",
+   "role": "vocals",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c",
+   "subtype": "FLOAT"
+  },
+  {
+   "channels": 2,
+   "container": "wav",
+   "duration_s": 98.88,
+   "format": "wav_f32",
+   "id": "ast_woodwinds",
+   "length_samples": 4746240,
+   "linked": false,
+   "lossy": false,
+   "origin": "native_stem",
+   "original_name": "woodwinds.wav",
+   "path": "assets/woodwinds.wav",
+   "role": "woodwinds",
+   "role_note": "role from a keyword in the file name (estimate)",
+   "role_source": "filename_keyword",
+   "sample_rate": 48000,
+   "sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac",
+   "subtype": "FLOAT"
+  }
+ ],
+ "buses": [
+  {
+   "chain": [
+    {
+     "id": "mx.bus_reverb.plate",
+     "note_values": {
+      "predelay": {
+       "bpm": 91.208,
+       "ms": 41.11,
+       "note": "1/64",
+       "rule": "R-11"
+      }
+     },
+     "owner": "mixplan",
+     "params": {
+      "bpm": 91.208,
+      "er_late_db": -6.0,
+      "highcut_hz": 6000.0,
+      "lowcut_hz": 600.0,
+      "mix": 1.0,
+      "predelay_ms": 41.11,
+      "rt60_high_mult": 0.6,
+      "rt60_low_mult": 0.8,
+      "rt60_s": 0.8
+     },
+     "reason": "R-10: plate-like reverb, wet low-cut 600 Hz / high-cut 6 kHz keep only the tail (template stage 5) (mixplan)",
+     "type": "reverb"
+    }
+   ],
+   "id": "bus_reverb",
+   "kind": "fx",
+   "name": "plate-like reverb (mixplan)",
+   "output": "bus_mix",
+   "owner": "mixplan"
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.bus_mix.glue",
+     "note_values": {
+      "release": {
+       "bpm": 91.208,
+       "ms": 657.84,
+       "note": "1/4",
+       "rule": "R-11"
+      }
+     },
+     "owner": "mixplan",
+     "params": {
+      "attack_ms": 30.0,
+      "detector": "rms",
+      "knee_db": 6.0,
+      "makeup_db": 0.0,
+      "ratio": 1.5,
+      "release_ms": 657.84,
+      "rms_window_ms": 50.0,
+      "threshold_db": -17.34
+     },
+     "reason": "R-11: light mix-bus glue (1-2 dB) (mixplan)",
+     "type": "compressor"
+    }
+   ],
+   "id": "bus_mix",
+   "kind": "mix"
+  }
+ ],
+ "engine": {
+  "min_version": "0.1.0"
+ },
+ "fullmix_asset": "ast_fullmix",
+ "fullmix_cleanup": {
+  "applied": {
+   "assets": {
+    "ast_fullmix": {
+     "asset_sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd",
+     "overrides": {},
+     "plan_hash": "4896e25eaa9e11b8ec25f577651c77a2985d89f4df8fe4b5ca1130f572ec9f74",
+     "plan_version": 1,
+     "record_path": "analysis/cleanup_ast_fullmix.json",
+     "s07_pass": true,
+     "skipped": false,
+     "steps": {
+      "click_repair": "run",
+      "completion": "skip",
+      "protection": "run",
+      "spectral_reduction": "light"
+     }
+    }
+   },
+   "plan_hash": "4896e25eaa9e11b8ec25f577651c77a2985d89f4df8fe4b5ca1130f572ec9f74",
+   "proposal_id": "cln_f70daa1f62b0",
+   "version": 1
+  },
+  "enabled": true,
+  "overrides": {},
+  "plan": "auto"
+ },
+ "genre": "hiphop",
+ "id": "prj_sample_v05",
+ "ingest": {
+  "adapter": "file",
+  "checks": [
+   {
+    "asset": "ast_backing_vocals",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_bass",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_brass",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_drums",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_fullmix",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_fx",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_guitar",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_keyboard",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_percussion",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_strings",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_synth",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_vocals",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_woodwinds",
+    "check": "format",
+    "level": "info",
+    "message": "wav_f32 48000 Hz 2 ch 4746240 samples",
+    "values": {
+     "bit_depth": "32f",
+     "channels": 2,
+     "container": "wav",
+     "duration_s": 98.88,
+     "length_samples": 4746240,
+     "sample_rate": 48000
+    }
+   },
+   {
+    "asset": "ast_backing_vocals",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 8.43,
+     "integrated_lufs": -23.71,
+     "plr_db": 15.28,
+     "psr_db": 12.37,
+     "sample_peak_dbfs": -8.44,
+     "true_peak_dbtp": -8.43
+    }
+   },
+   {
+    "asset": "ast_bass",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 8.72,
+     "integrated_lufs": -22.99,
+     "plr_db": 14.28,
+     "psr_db": 10.17,
+     "sample_peak_dbfs": -8.72,
+     "true_peak_dbtp": -8.72
+    }
+   },
+   {
+    "asset": "ast_brass",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 9.87,
+     "integrated_lufs": -54.58,
+     "plr_db": 44.71,
+     "psr_db": 45.88,
+     "sample_peak_dbfs": -10.41,
+     "true_peak_dbtp": -9.87
+    }
+   },
+   {
+    "asset": "ast_drums",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 3.73,
+     "integrated_lufs": -18.69,
+     "plr_db": 14.97,
+     "psr_db": 12.14,
+     "sample_peak_dbfs": -3.76,
+     "true_peak_dbtp": -3.73
+    }
+   },
+   {
+    "asset": "ast_fx",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 10.73,
+     "integrated_lufs": -44.63,
+     "plr_db": 33.9,
+     "psr_db": 26.13,
+     "sample_peak_dbfs": -11.2,
+     "true_peak_dbtp": -10.73
+    }
+   },
+   {
+    "asset": "ast_guitar",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 8.87,
+     "integrated_lufs": -28.55,
+     "plr_db": 19.67,
+     "psr_db": 14.91,
+     "sample_peak_dbfs": -8.89,
+     "true_peak_dbtp": -8.87
+    }
+   },
+   {
+    "asset": "ast_keyboard",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 12.2,
+     "integrated_lufs": -28.58,
+     "plr_db": 16.38,
+     "psr_db": 10.75,
+     "sample_peak_dbfs": -12.2,
+     "true_peak_dbtp": -12.2
+    }
+   },
+   {
+    "asset": "ast_percussion",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 10.99,
+     "integrated_lufs": -37.9,
+     "plr_db": 26.91,
+     "psr_db": 19.88,
+     "sample_peak_dbfs": -10.99,
+     "true_peak_dbtp": -10.99
+    }
+   },
+   {
+    "asset": "ast_strings",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 12.97,
+     "integrated_lufs": -64.07,
+     "plr_db": 51.1,
+     "psr_db": 50.15,
+     "sample_peak_dbfs": -13.27,
+     "true_peak_dbtp": -12.97
+    }
+   },
+   {
+    "asset": "ast_synth",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 15.29,
+     "integrated_lufs": -30.23,
+     "plr_db": 14.95,
+     "psr_db": 7.7,
+     "sample_peak_dbfs": -15.29,
+     "true_peak_dbtp": -15.29
+    }
+   },
+   {
+    "asset": "ast_vocals",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 6.23,
+     "integrated_lufs": -19.89,
+     "plr_db": 13.66,
+     "psr_db": 11.62,
+     "sample_peak_dbfs": -6.23,
+     "true_peak_dbtp": -6.23
+    }
+   },
+   {
+    "asset": "ast_woodwinds",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 14.4,
+     "integrated_lufs": -29.67,
+     "plr_db": 15.28,
+     "psr_db": 13.08,
+     "sample_peak_dbfs": -14.55,
+     "true_peak_dbtp": -14.4
+    }
+   },
+   {
+    "asset": "ast_fullmix",
+    "check": "headroom",
+    "level": "info",
+    "message": "peak and headroom recorded [true peak / PLR]",
+    "values": {
+     "headroom_db": 2.48,
+     "integrated_lufs": -15.5,
+     "plr_db": 13.02,
+     "psr_db": 10.9,
+     "sample_peak_dbfs": -2.54,
+     "true_peak_dbtp": -2.48
+    }
+   },
+   {
+    "asset": "ast_fullmix",
+    "check": "stem_sum_consistency",
+    "level": "info",
+    "message": "stem sum vs full mix: null residual -2.91 dB, correlation 0.7588 (record only)",
+    "values": {
+     "alignment": "head",
+     "best_fit_gain_db": -2.86,
+     "compared_samples": 4746240,
+     "correlation": 0.7588,
+     "gain_db": 0.0,
+     "residual_after_gain_fit_db": -3.72,
+     "residual_db": -2.91,
+     "sample_rate": 48000,
+     "stems_summed": [
+      "ast_backing_vocals",
+      "ast_bass",
+      "ast_brass",
+      "ast_drums",
+      "ast_fx",
+      "ast_guitar",
+      "ast_keyboard",
+      "ast_percussion",
+      "ast_strings",
+      "ast_synth",
+      "ast_vocals",
+      "ast_woodwinds"
+     ]
+    }
+   }
+  ],
+  "conform": {
+   "length_samples": 4746240,
+   "policy": {
+    "alignment": "head",
+    "applied": [],
+    "sample_rate": "majority",
+    "short_assets": "pad_silence_at_render"
+   },
+   "rates": {
+    "48000": 13
+   },
+   "sample_rate": 48000
+  },
+  "detected_by": null,
+  "files": [
+   {
+    "asset": "ast_backing_vocals",
+    "original_name": "backing_vocals.wav",
+    "sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d"
+   },
+   {
+    "asset": "ast_bass",
+    "original_name": "bass.wav",
+    "sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1"
+   },
+   {
+    "asset": "ast_brass",
+    "original_name": "brass.wav",
+    "sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b"
+   },
+   {
+    "asset": "ast_drums",
+    "original_name": "drums.wav",
+    "sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21"
+   },
+   {
+    "asset": "ast_fullmix",
+    "original_name": "fullmix_conformed.wav",
+    "sha256": "ba9a2aafb69207678c7831636fe87c242cb1f908736dedc54da24afb06e0dccd"
+   },
+   {
+    "asset": "ast_fx",
+    "original_name": "fx.wav",
+    "sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c"
+   },
+   {
+    "asset": "ast_guitar",
+    "original_name": "guitar.wav",
+    "sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d"
+   },
+   {
+    "asset": "ast_keyboard",
+    "original_name": "keyboard.wav",
+    "sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312"
+   },
+   {
+    "asset": "ast_percussion",
+    "original_name": "percussion.wav",
+    "sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4"
+   },
+   {
+    "asset": "ast_strings",
+    "original_name": "strings.wav",
+    "sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357"
+   },
+   {
+    "asset": "ast_synth",
+    "original_name": "synth.wav",
+    "sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6"
+   },
+   {
+    "asset": "ast_vocals",
+    "original_name": "vocals.wav",
+    "sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c"
+   },
+   {
+    "asset": "ast_woodwinds",
+    "original_name": "woodwinds.wav",
+    "sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac"
+   }
+  ],
+  "input_kind": "stem_folder",
+  "lead_estimate": {
+   "basis": "only track with role 'vocals' (estimate)",
+   "track": "trk_vocals"
+  },
+  "skipped": []
+ },
+ "listening_assumption": {
+  "level": "moderate",
+  "system": "speakers_60deg"
+ },
+ "mix": {
+  "applied": {
+   "arrangement_suggestions": [
+    {
+     "id": "arr1",
+     "kind": "band_owner_rotation",
+     "status": "recommended"
+    },
+    {
+     "id": "arr2",
+     "kind": "band_owner_rotation",
+     "status": "recommended"
+    },
+    {
+     "id": "arr3",
+     "kind": "band_owner_rotation",
+     "status": "recommended"
+    },
+    {
+     "id": "arr4",
+     "kind": "band_owner_rotation",
+     "status": "recommended"
+    },
+    {
+     "id": "arr5",
+     "kind": "band_owner_rotation",
+     "status": "recommended"
+    }
+   ],
+   "lead": "trk_vocals",
+   "proposal_id": "mxp_ccf184697d69",
+   "reorderings": [],
+   "restrictions": {},
+   "route": {
+    "origins": [
+     "native_stem"
+    ],
+    "reason": {
+     "en": "stems exist: the mix-stage result is the master input",
+     "ja": "ステムがあり、ミックス段の結果をマスター入力にする"
+    },
+    "rebalance_needed": true,
+    "route": "stem_mix",
+    "rule": "R-21"
+   },
+   "stage": "mix",
+   "steps": [
+    {
+     "id": "static_balance",
+     "kept": [
+      "m1.01",
+      "m1.02",
+      "m1.03",
+      "m1.04",
+      "m1.05",
+      "m1.06",
+      "m1.07",
+      "m1.08",
+      "m1.09",
+      "m1.10",
+      "m1.11",
+      "m1.12",
+      "m1.13",
+      "m1.14"
+     ],
+     "n": 1,
+     "status": "done"
+    },
+    {
+     "id": "arrangement",
+     "kept": [],
+     "n": 2,
+     "status": "suggestions_only"
+    },
+    {
+     "id": "subtractive_eq",
+     "kept": [
+      "m3.01",
+      "m3.02",
+      "m3.03",
+      "m3.04",
+      "m3.05",
+      "m3.06",
+      "m3.07",
+      "m3.08",
+      "m3.09",
+      "m3.10"
+     ],
+     "n": 3,
+     "status": "done"
+    },
+    {
+     "id": "dynamics",
+     "kept": [
+      "m4.01",
+      "m4.02",
+      "m4.03",
+      "m4.04"
+     ],
+     "n": 4,
+     "status": "done"
+    },
+    {
+     "id": "additive_eq",
+     "kept": [
+      "m5.01"
+     ],
+     "n": 5,
+     "status": "done"
+    },
+    {
+     "id": "space",
+     "kept": [
+      "m6.01",
+      "m6.02",
+      "m6.03",
+      "m6.04",
+      "m6.05",
+      "m6.06",
+      "m6.07",
+      "m6.08",
+      "m6.09",
+      "m6.10"
+     ],
+     "n": 6,
+     "status": "done"
+    },
+    {
+     "id": "mix_bus",
+     "kept": [
+      "m7.01"
+     ],
+     "n": 7,
+     "status": "done"
+    }
+   ]
+  },
+  "decisions": {
+   "balance": [
+    {
+     "action": {
+      "en": "lowered the less important accompaniment first (R-05, R-28), raised the lead only for the rest: trk_backing_vocals -4.5 dB (about 0.73x in sone), trk_bass -3.1 dB (about 0.81x in sone), trk_brass -4.5 dB (about 0.73x in sone), trk_drums -2.4 dB (about 0.85x in sone), trk_fx -5.9 dB (about 0.66x in sone), trk_guitar -4.5 dB (about 0.73x in sone), trk_keyboard -4.5 dB (about 0.73x in sone), trk_percussion -2.4 dB (about 0.85x in sone), trk_strings -4.5 dB (about 0.73x in sone), trk_synth -4.5 dB (about 0.73x in sone), trk_woodwinds -4.5 dB (about 0.73x in sone)",
+      "ja": "重要度の低い伴奏から下げ（R-05、R-28）、不足分だけ主役を上げた: trk_backing_vocals -4.5 dB（知覚倍率 約0.73倍）、trk_bass -3.1 dB（知覚倍率 約0.81倍）、trk_brass -4.5 dB（知覚倍率 約0.73倍）、trk_drums -2.4 dB（知覚倍率 約0.85倍）、trk_fx -5.9 dB（知覚倍率 約0.66倍）、trk_guitar -4.5 dB（知覚倍率 約0.73倍）、trk_keyboard -4.5 dB（知覚倍率 約0.73倍）、trk_percussion -2.4 dB（知覚倍率 約0.85倍）、trk_strings -4.5 dB（知覚倍率 約0.73倍）、trk_synth -4.5 dB（知覚倍率 約0.73倍）、trk_woodwinds -4.5 dB（知覚倍率 約0.73倍）"
+     },
+     "alternatives": [
+      {
+       "en": "raise only the lead",
+       "ja": "主役だけを上げる"
+      },
+      {
+       "en": "solve with EQ first",
+       "ja": "EQ で先に解く"
+      }
+     ],
+     "measured": {
+      "P-10": -0.65,
+      "aim_db": 3.05,
+      "importance": {
+       "trk_backing_vocals": 0.5,
+       "trk_bass": 0.7,
+       "trk_brass": 0.5,
+       "trk_drums": 0.8,
+       "trk_fx": 0.3,
+       "trk_guitar": 0.5,
+       "trk_keyboard": 0.5,
+       "trk_percussion": 0.8,
+       "trk_strings": 0.5,
+       "trk_synth": 0.5,
+       "trk_vocals": 1.0,
+       "trk_woodwinds": 0.5
+      },
+      "target_db": [
+       2.0,
+       5.0
+      ]
+     },
+     "measured_text": {
+      "en": "the lead is buried: lead clarity-band difference P-10 = -0.6 dB (target +2.0..+5.0 dB from genre_prior:hiphop, verdict: buried)",
+      "ja": "主役が「抜けない」状態: 主役の明瞭度帯域レベル差 P-10 = -0.6 dB（目標 +2.0〜+5.0 dB、出典 genre_prior:hiphop、判定: 埋もれている）"
+     },
+     "moves": [
+      "m1.01",
+      "m1.02",
+      "m1.03",
+      "m1.04",
+      "m1.05",
+      "m1.06",
+      "m1.07",
+      "m1.08",
+      "m1.09",
+      "m1.10",
+      "m1.11"
+     ],
+     "result": {
+      "P-10": 3.06,
+      "verdict": "ok"
+     },
+     "result_text": {
+      "en": "P-10 = 3.1 dB (verdict: ok)",
+      "ja": "P-10 = 3.1 dB（判定: ok）"
+     },
+     "rule": "R-04, R-05, R-28",
+     "stage": "mix",
+     "step": 1,
+     "step_id": "static_balance",
+     "vocabulary": {
+      "en": "buried",
+      "id": "nukenai",
+      "ja": "抜けない"
+     }
+    },
+    {
+     "action": {
+      "en": "5 arrangement suggestions (never applied automatically; a human or agent approves them)",
+      "ja": "アレンジの提案 5 件（自動適用しない。人間かエージェントが承認する）"
+     },
+     "alternatives": [
+      {
+       "en": "force it with EQ (R-28 avoids extreme processing of the more important side)",
+       "ja": "EQ で無理に解く（R-28 により重要度の高い側の極端な加工を避ける）"
+      }
+     ],
+     "measured": {
+      "P-02_vs_lead_db": 0.79,
+      "P-22_max_owners": 3
+     },
+     "measured_text": {
+      "en": "lead masking P-02 = 0.79 dB, P-22 band owners up to 3",
+      "ja": "対主役の埋もれ P-02 = 0.79 dB、帯域あたりの主役数 P-22 最大 3"
+     },
+     "moves": [],
+     "result": {
+      "band_owner_rotations": 5,
+      "suggestions": 5
+     },
+     "result_text": {
+      "en": "5 suggestions (5 band-owner rotations)",
+      "ja": "提案 5 件（主役交代 5 件）"
+     },
+     "rule": "R-04, R-28",
+     "stage": "mix",
+     "step": 2,
+     "step_id": "arrangement",
+     "vocabulary": {
+      "en": "muddy",
+      "id": "komori",
+      "ja": "こもり"
+     }
+    }
+   ],
+   "depth": [
+    {
+     "action": {
+      "en": "plate-like reverb on an FX bus; the lead gets the smallest send (-18.0 dB), harmony and ornaments more",
+      "ja": "プレート系リバーブを FX バスに置き、主役の送りを最小（-18.0 dB）、ハーモニーと装飾を多めに送った"
+     },
+     "alternatives": [
+      {
+       "en": "send the lead more (it moves back)",
+       "ja": "主役に多く送る（奥に引っ込む）"
+      },
+      {
+       "en": "depth by delay",
+       "ja": "ディレイで奥行き"
+      }
+     ],
+     "measured": {
+      "P-09_penalty_before": 0.273,
+      "declared_order": null,
+      "sends_db": {
+       "trk_backing_vocals": -15.0,
+       "trk_brass": -15.0,
+       "trk_fx": -13.0,
+       "trk_guitar": -15.0,
+       "trk_keyboard": -15.0,
+       "trk_strings": -15.0,
+       "trk_synth": -15.0,
+       "trk_vocals": -18.0,
+       "trk_woodwinds": -15.0
+      }
+     },
+     "measured_text": {
+      "en": "depth P-09 = 0.273 (0 when the lead is in front); 'forward / set back': dry is front, reverberant is back; 9 sends",
+      "ja": "奥行き P-09 = 0.273（主役が先頭なら 0）。「前に出る」: 乾いた音は手前、残響の多い音は奥。送り 9 本"
+     },
+     "moves": [
+      "m6.01",
+      "m6.02",
+      "m6.03",
+      "m6.04",
+      "m6.05",
+      "m6.06",
+      "m6.07",
+      "m6.08",
+      "m6.09",
+      "m6.10"
+     ],
+     "result": {
+      "P-09_penalty_after": 0.273,
+      "kept": true
+     },
+     "result_text": {
+      "en": "P-09 0.273 -> 0.273 (send returns are not part of the dry stems, so P-09 is measured on the dry signals)",
+      "ja": "P-09 0.273 -> 0.273（送りの残響はステム単体の D/R に現れないため P-09 は乾いた信号で測っている）"
+     },
+     "rule": "R-10, R-11",
+     "stage": "mix",
+     "step": 6,
+     "step_id": "space",
+     "vocabulary": {
+      "en": "forward / set back",
+      "id": "mae_oku",
+      "ja": "前に出る"
+     }
+    }
+   ],
+   "dynamics": [
+    {
+     "action": {
+      "en": "two-stage compression (fast peak control, slow 2.4 dB levelling); releases as note values 1/32 / 1/4 (R-11); makeup +4.6 dB keeps the step-1 balance",
+      "ja": "2段階コンプ（速い検出でピーク、遅い検出で 2.4 dB のレベリング）。リリースは音価 1/32 / 1/4（R-11）。メイクアップ +4.6 dB でステップ 1 のバランスを保持"
+     },
+     "alternatives": [
+      {
+       "en": "single stage",
+       "ja": "1 段のみ"
+      },
+      {
+       "en": "no compression",
+       "ja": "コンプなし"
+      }
+     ],
+     "measured": {
+      "gr_stage_a_p95_db": 2.91,
+      "gr_stage_b_median_db": 2.45,
+      "makeup_db": 4.6
+     },
+     "measured_text": {
+      "en": "lead gain reduction measured: stage A p95 2.9 dB, stage B median 2.4 dB ('squashed' above 10 dB)",
+      "ja": "主役のゲインリダクションを測定: 段A p95 2.9 dB、段B 中央値 2.4 dB（「ペラペラ」の目安は 10 dB 超）"
+     },
+     "moves": [
+      "m4.01",
+      "m4.02"
+     ],
+     "result": {
+      "kept": true,
+      "yardstick_b": "light"
+     },
+     "result_text": {
+      "en": "light glue (1-2 dB) (kept)",
+      "ja": "軽いまとまり（1〜2 dB）（採用）"
+     },
+     "rule": "R-11, R-13",
+     "stage": "mix",
+     "step": 4,
+     "step_id": "dynamics",
+     "vocabulary": {
+      "en": "squashed",
+      "id": "tsubure",
+      "ja": "ペラペラ"
+     }
+    },
+    {
+     "action": {
+      "en": "intermittent problem: de-esser (dynamic, R-13)",
+      "ja": "間欠的な問題なのでディエッサー（ダイナミック処理、R-13）"
+     },
+     "alternatives": [
+      {
+       "en": "static 5-8 kHz cut",
+       "ja": "静的な 5〜8 kHz カット"
+      }
+     ],
+     "measured": {
+      "P-17_lead_after": 1.0,
+      "P-17_lead_before": 1.0
+     },
+     "measured_text": {
+      "en": "the lead is sibilant: 5-8 kHz prominence p99 34.5 dB, event rate 21.4% (P-17 = 1.000)",
+      "ja": "主役が「サ行がきつい」: 5〜8 kHz の突出 p99 34.5 dB、事象率 21.4%（P-17 = 1.000）"
+     },
+     "moves": [
+      "m4.03"
+     ],
+     "result": {
+      "P-17_lead_after": 1.0,
+      "band_drop_db": 2.79,
+      "event_pct_after": 22.85,
+      "p99_prominence_db_after": 30.72
+     },
+     "result_text": {
+      "en": "prominence p99 34.5 -> 30.7 dB, event rate 21.4 -> 22.8%, P-17 (lead) 1.000 -> 1.000, mean 5-8 kHz drop 2.8 dB (consonant floor 3.0 dB)",
+      "ja": "突出 p99 34.5 -> 30.7 dB、事象率 21.4 -> 22.8%、P-17（主役）1.000 -> 1.000、5〜8 kHz の平均低下 2.8 dB（子音の下限 3.0 dB）"
+     },
+     "rule": "R-13, R-29",
+     "stage": "mix",
+     "step": 4,
+     "step_id": "dynamics",
+     "vocabulary": {
+      "en": "sibilant",
+      "id": "sibilant",
+      "ja": "サ行がきつい"
+     }
+    },
+    {
+     "action": {
+      "en": "no ducking",
+      "ja": "ダッキングは入れない"
+     },
+     "alternatives": [
+      {
+       "en": "duck trk_bass with the kick",
+       "ja": "trk_bass をキックでダッキング"
+      }
+     ],
+     "measured": {
+      "kick_buried_db": 0.0,
+      "ok_max_db": 3.0
+     },
+     "measured_text": {
+      "en": "the kick is buried by the bass by 0.00 dB (ok up to 3.0 dB, P-02 time axis)",
+      "ja": "キックがベースに 0.00 dB 埋もれている（許容 3.0 dB まで、P-02 時間軸版）"
+     },
+     "moves": [],
+     "result": null,
+     "result_text": {
+      "en": "0 changes",
+      "ja": "変更 0 件"
+     },
+     "rule": "R-11",
+     "stage": "mix",
+     "step": 4,
+     "step_id": "dynamics",
+     "vocabulary": null
+    },
+    {
+     "action": {
+      "en": "light mix-bus compression (1.5:1, GR p95 1.4 dB, release 1/4 658 ms)",
+      "ja": "ミックスバスに軽いコンプ（1.5:1、GR p95 1.4 dB、リリース 1/4 658 ms）"
+     },
+     "alternatives": [
+      {
+       "en": "no bus processing",
+       "ja": "バス処理なし"
+      }
+     ],
+     "measured": {
+      "gr_p95_db": 1.43,
+      "yardstick": "light"
+     },
+     "measured_text": {
+      "en": "mix-bus GR p95 1.4 dB (1-2 dB light glue, above 10 dB 'squashed')",
+      "ja": "ミックスバスの GR p95 1.4 dB（目安: 1〜2 dB は軽いまとまり、10 dB 超は「ペラペラ」）"
+     },
+     "moves": [
+      "m7.01"
+     ],
+     "result": {
+      "kept": true
+     },
+     "result_text": {
+      "en": "light glue (1-2 dB) (kept)",
+      "ja": "軽いまとまり（1〜2 dB）（採用）"
+     },
+     "rule": "R-11, R-27",
+     "stage": "mix",
+     "step": 7,
+     "step_id": "mix_bus",
+     "vocabulary": {
+      "en": "squashed",
+      "id": "tsubure",
+      "ja": "ペラペラ"
+     }
+    }
+   ],
+   "frequency": [
+    {
+     "action": {
+      "en": "HPFs just below the lowest f0 (7 stems)",
+      "ja": "最低基本周波数の直下に HPF を置いた（7 本）"
+     },
+     "alternatives": [
+      {
+       "en": "no HPF",
+       "ja": "HPF なし"
+      },
+      {
+       "en": "shelving instead",
+       "ja": "シェルフで下げる"
+      }
+     ],
+     "measured": {
+      "hpf_tracks": 7,
+      "low_ratio_db_before": 4.29,
+      "low_role_moves": 0
+     },
+     "measured_text": {
+      "en": "lowest f0 and energy floor measured per stem (7 HPF candidates); low/rest (20-250 Hz) = 4.3 dB; floor against 'thin': at most 1.0 dB drop",
+      "ja": "各ステムの最低基本周波数とエネルギー下限を測定（HPF 候補 7 本）。低域総量（20〜250 Hz 対 残り）= 4.3 dB。「スカスカ」にならない下限: 低下 1.0 dB まで"
+     },
+     "moves": [
+      "m3.01",
+      "m3.02",
+      "m3.03",
+      "m3.04",
+      "m3.05",
+      "m3.06",
+      "m3.07"
+     ],
+     "result": {
+      "low_ratio_db_after": 4.03
+     },
+     "result_text": {
+      "en": "low/rest 4.3 -> 4.0 dB",
+      "ja": "低域総量 4.3 -> 4.0 dB"
+     },
+     "rule": "R-07, R-08, R-29",
+     "stage": "mix",
+     "step": 3,
+     "step_id": "subtractive_eq",
+     "vocabulary": {
+      "en": "thin",
+      "id": "sukasuka",
+      "ja": "スカスカ"
+     }
+    },
+    {
+     "action": {
+      "en": "vocal template stage 1 (lead subtractive EQ) and stage 4 (accompaniment 1-3 kHz -1.5 dB) adapted to the measurement (3 moves)",
+      "ja": "歌もの雛形の第1段（主役の引き算 EQ）と第4段（伴奏の 1〜3 kHz を -1.5 dB）を測定に合わせて入れた（3 手）"
+     },
+     "alternatives": [
+      {
+       "en": "raise the lead fader (it would only sit on top of the accompaniment)",
+       "ja": "主役のフェーダーを上げる（伴奏の上に乗せただけになる）"
+      }
+     ],
+     "measured": {
+      "P-02_vs_lead_db": 0.829,
+      "P-10": 3.09,
+      "accompaniment_presence_db": -41.78
+     },
+     "measured_text": {
+      "en": "against 'buried': lead masking P-02 = 0.83 dB, P-10 = 3.1 dB; 1 accompaniment stems within 15 dB of the lead at 1-3 kHz",
+      "ja": "「抜けない」対策: 対主役の埋もれ P-02 = 0.83 dB、P-10 = 3.1 dB。伴奏 1 本が 1〜3 kHz で主役から 15 dB 以内"
+     },
+     "moves": [
+      "m3.08",
+      "m3.09",
+      "m3.10"
+     ],
+     "result": {
+      "P-02_vs_lead_db": 0.964,
+      "accompaniment_presence_db": -41.92
+     },
+     "result_text": {
+      "en": "P-02 vs lead 0.83 -> 0.96 dB, accompaniment presence -41.8 -> -41.9 dB (floor: at most 3.0 dB drop)",
+      "ja": "P-02 対主役 0.83 -> 0.96 dB、伴奏のプレゼンス -41.8 -> -41.9 dB（下限: 低下 3.0 dB まで）"
+     },
+     "rule": "R-05, R-06, R-29",
+     "stage": "mix",
+     "step": 3,
+     "step_id": "subtractive_eq",
+     "vocabulary": {
+      "en": "buried",
+      "id": "nukenai",
+      "ja": "抜けない"
+     }
+    },
+    {
+     "action": {
+      "en": "cut the competitors in the same band instead of raising the lead, <= 3 dB per move (0 kept, minimum phase, widths in octaves)",
+      "ja": "主役を上げずに、競合側の同じ帯域を 1 手 3 dB 以内で下げた（採用 0 手、最小位相、幅はオクターブ）"
+     },
+     "alternatives": [
+      {
+       "en": "raise the lead",
+       "ja": "主役を上げる"
+      },
+      {
+       "en": "range mute (step 2)",
+       "ja": "区間ミュート（ステップ 2）"
+      }
+     ],
+     "measured": {
+      "P-02_vs_lead_db": 0.964,
+      "candidates": 2
+     },
+     "measured_text": {
+      "en": "the lead is masked by competitors ('buried'): P-02 vs lead = 0.96 dB, 2 competitor candidates",
+      "ja": "主役が競合に埋もれている（「抜けない」）: P-02 対主役 = 0.96 dB、競合候補 2 本"
+     },
+     "moves": [],
+     "result": {
+      "P-02_vs_lead_db": 0.964
+     },
+     "result_text": {
+      "en": "P-02 vs lead 0.96 -> 0.96 dB",
+      "ja": "P-02 対主役 0.96 -> 0.96 dB"
+     },
+     "rule": "R-05, R-06, R-12",
+     "stage": "mix",
+     "status": "rejected",
+     "step": 3,
+     "step_id": "subtractive_eq",
+     "vocabulary": {
+      "en": "buried",
+      "id": "nukenai",
+      "ja": "抜けない"
+     }
+    },
+    {
+     "action": {
+      "en": "light lead saturation (drive 6 dB, mix 0.25)",
+      "ja": "主役に薄いサチュレーション（ドライブ 6 dB、ミックス 0.25）"
+     },
+     "alternatives": [
+      {
+       "en": "no enhancement",
+       "ja": "足し算をしない"
+      },
+      {
+       "en": "1-5 kHz EQ boost (R-05 prefers cuts)",
+       "ja": "1〜5 kHz の EQ ブースト（R-05 によりカット優先）"
+      }
+     ],
+     "measured": {
+      "share_1_5k_db_after": -10.2,
+      "share_1_5k_db_before": -10.19
+     },
+     "measured_text": {
+      "en": "purpose: keep the voice 'airy' on small speakers; lead 1-5 kHz share -10.2 dB",
+      "ja": "目的: 小口径でも「抜けがいい」声を保つ。主役の 1〜5 kHz の比率 -10.2 dB"
+     },
+     "moves": [
+      "m5.01"
+     ],
+     "result": {
+      "kept": true
+     },
+     "result_text": {
+      "en": "1-5 kHz share -10.2 -> -10.2 dB (kept)",
+      "ja": "1〜5 kHz の比率 -10.2 -> -10.2 dB（採用）"
+     },
+     "rule": "R-06",
+     "stage": "mix",
+     "step": 5,
+     "step_id": "additive_eq",
+     "vocabulary": {
+      "en": "airy",
+      "id": "nuke_nobi",
+      "ja": "抜けがいい"
+     }
+    },
+    {
+     "action": {
+      "en": "no harmonic enhancement (no purpose can be stated)",
+      "ja": "倍音付加は入れない（目的が説明できない）"
+     },
+     "alternatives": [
+      {
+       "en": "bass harmonic enhancement",
+       "ja": "ベースに倍音付加"
+      }
+     ],
+     "measured": {
+      "P-08_penalty": 0.0,
+      "gate_pitch_check": "fail"
+     },
+     "measured_text": {
+      "en": "OF-5 check 4 = fail, but harmonic completion P-08 = 0.000 (harmonics are present; the 'full-bodied' quality holds)",
+      "ja": "OF-5 チェック 4 = fail、ただし倍音補完 P-08 = 0.000（倍音は足りている。「太い」さは保たれている）"
+     },
+     "moves": [],
+     "result": null,
+     "result_text": {
+      "en": "0 changes; the check-4 failure stays unresolved",
+      "ja": "変更 0 件。チェック 4 の不合格は未解決として残す"
+     },
+     "rule": "R-16",
+     "stage": "mix",
+     "step": 5,
+     "step_id": "additive_eq",
+     "vocabulary": {
+      "en": "full-bodied",
+      "id": "futoi",
+      "ja": "太い"
+     }
+    }
+   ],
+   "interest": [
+    {
+     "action": {
+      "en": "Interest is the hardest axis to automate and depends on human direction and references; the planner only watched that the arrangement contrast is not flattened",
+      "ja": "「仕掛け」は自動化が最も難しい軸で、人間の指示とリファレンスに依存する。プランナーは展開を平坦にしないことだけを監視した"
+     },
+     "alternatives": [
+      {
+       "en": "delay throws (note values), automation and per-section effects on human direction",
+       "ja": "ディレイの投げ（音価で）、オートメーション、区間ごとの演出は人間の指示で"
+      }
+     ],
+     "measured": {
+      "P-20_contrast_db_after": 5.5,
+      "P-20_contrast_db_before": 5.69
+     },
+     "measured_text": {
+      "en": "section contrast (quiet vs loud short-term) 5.7 dB",
+      "ja": "展開のコントラスト（静と動の Short-term 差）5.7 dB"
+     },
+     "moves": [],
+     "result": {
+      "P-20_contrast_db_after": 5.5
+     },
+     "result_text": {
+      "en": "contrast 5.7 -> 5.5 dB (R-26)",
+      "ja": "コントラスト 5.7 -> 5.5 dB（R-26）"
+     },
+     "rule": "R-26",
+     "stage": "mix",
+     "status": "depends_on_humans_and_references",
+     "step": 0,
+     "step_id": null,
+     "vocabulary": null
+    }
+   ],
+   "panning": [
+    {
+     "action": {
+      "en": "moved off the lead's centre (low end and lead stay centred)",
+      "ja": "主役の中央から外して左右に配置（低域と主役は中央）"
+     },
+     "alternatives": [
+      {
+       "en": "keep centred",
+       "ja": "中央のまま"
+      }
+     ],
+     "measured": {
+      "stereo": {
+       "trk_guitar": {
+        "pan": 0.075,
+        "side_ratio": 0.031
+       },
+       "trk_strings": {
+        "pan": -0.041,
+        "side_ratio": 0.041
+       },
+       "trk_woodwinds": {
+        "pan": 0.039,
+        "side_ratio": 0.001
+       }
+      }
+     },
+     "measured_text": {
+      "en": "3 centred near-mono harmony stems (side ratio <= 0.05)",
+      "ja": "中央かつほぼモノのハーモニー系ステム 3 本（Side 比 0.05 以下）"
+     },
+     "moves": [
+      "m1.12",
+      "m1.13",
+      "m1.14"
+     ],
+     "result": {
+      "kept": true
+     },
+     "result_text": {
+      "en": "kept",
+      "ja": "採用"
+     },
+     "rule": "R-04, R-09",
+     "stage": "mix",
+     "step": 1,
+     "step_id": "static_balance",
+     "vocabulary": null
+    },
+    {
+     "action": {
+      "en": "no width processing",
+      "ja": "幅の処理なし"
+     },
+     "alternatives": [
+      {
+       "en": "band-wise width (stereo)",
+       "ja": "帯域別の幅（stereo）"
+      }
+     ],
+     "measured": {
+      "width_processing": 0
+     },
+     "measured_text": {
+      "en": "no full-band widener by default (0)",
+      "ja": "全帯域ワイドナーは既定にしない（0 件）"
+     },
+     "moves": [],
+     "result": null,
+     "result_text": {
+      "en": "0 changes (assumed: speakers at 60 deg, headphones, mono)",
+      "ja": "変更 0 件（前提: スピーカー 60 度、ヘッドホン、モノ）"
+     },
+     "rule": "R-10",
+     "stage": "mix",
+     "step": 6,
+     "step_id": "space",
+     "vocabulary": null
+    }
+   ]
+  },
+  "declared_depth_order": [],
+  "evaluation": {
+   "constraints": {
+    "S-01": "pass",
+    "S-02": "not_evaluated",
+    "S-03": "pass",
+    "S-04": "pass",
+    "S-05": "not_evaluated",
+    "S-06": "not_evaluated",
+    "S-07": "not_evaluated",
+    "S-08": "not_evaluated",
+    "S-09": "pass",
+    "S-10": "not_evaluated",
+    "S-11": "not_evaluated"
+   },
+   "gate": {
+    "checks": {
+     "band_limited_lead_preserved": "pass",
+     "low_level_balance_preserved": "pass",
+     "mono_fold_loss_within_limit": "pass",
+     "pitch_preserved_without_fundamental": "pass"
+    },
+    "status": "pass",
+    "suggestions": []
+   },
+   "guard": {
+    "P-02:vs_lead": 0.0,
+    "P-10": 0.0164,
+    "P-22": 0.0369
+   },
+   "measurements": {
+    "final": {
+     "P-02_overall_db": 7.085,
+     "P-02_vs_lead_db": 0.684,
+     "P-09_penalty": 0.273,
+     "P-10": 5.77,
+     "P-10_verdict": "floating",
+     "P-22_max_owners": 3,
+     "constraints_failed": [],
+     "gate": "pass",
+     "low_ratio_db": 2.77,
+     "score": 0.3529,
+     "score_unconstrained": 0.3529,
+     "total": 0.3616
+    },
+    "start": {
+     "P-02_overall_db": 6.673,
+     "P-02_vs_lead_db": 1.257,
+     "P-09_penalty": 0.455,
+     "P-10": -0.65,
+     "P-10_verdict": "buried",
+     "P-22_max_owners": 5,
+     "constraints_failed": [
+      "S-01"
+     ],
+     "gate": "fail",
+     "low_ratio_db": 4.55,
+     "score": null,
+     "score_unconstrained": 0.3971,
+     "total": 0.4832
+    }
+   },
+   "proposal_id": "mxp_ccf184697d69",
+   "scope": "full_length",
+   "score": 0.352948963448709,
+   "terms": [
+    {
+     "contribution": 0.17473840485759645,
+     "key": "P-11",
+     "objective": "low_fatigue",
+     "penalty": 0.4950921470965232,
+     "status": "measured",
+     "target": [
+      null,
+      1.75
+     ],
+     "value": 1.0473954748806804
+    },
+    {
+     "contribution": 0.001739970355980581,
+     "key": "P-03:lra_density",
+     "objective": "low_fatigue",
+     "penalty": 0.005915899210333975,
+     "status": "measured",
+     "target": [
+      3.0,
+      12.0
+     ],
+     "value": {
+      "lra_lu": 2.768912987861441,
+      "short_term_p95_p10_lu": 2.768912987861441
+     }
+    },
+    {
+     "contribution": 0.17647058823513198,
+     "key": "P-17",
+     "objective": "low_fatigue",
+     "penalty": 0.9999999999990812,
+     "status": "measured",
+     "target": [
+      null,
+      6.5
+     ],
+     "value": 27.295478920714352
+    },
+    {
+     "contribution": 0.0,
+     "key": "P-16",
+     "objective": "low_fatigue",
+     "penalty": null,
+     "status": "not_measured",
+     "target": null,
+     "value": null
+    },
+    {
+     "contribution": 0.0,
+     "key": "P-19",
+     "objective": "low_fatigue",
+     "penalty": 0.0,
+     "status": "measured",
+     "target": null,
+     "value": 1.3050241176162114
+    }
+   ],
+   "total_with_guard": 0.3616
+  },
+  "pan_law_center_db": -3.0
+ },
+ "objective": {
+  "blend": [
+   {
+    "id": "low_fatigue",
+    "weight": 1.0
+   }
+  ],
+  "intensity": 0.5,
+  "lead_stem": null,
+  "overrides": {}
+ },
+ "provenance": {
+  "declared_by_user": false,
+  "detected_by": null,
+  "input_kind": "stem_folder",
+  "notes": "",
+  "service": null,
+  "source": null
+ },
+ "references": [],
+ "schema_version": 1,
+ "timebase": {
+  "bpm": null,
+  "conform_policy": {
+   "alignment": "head",
+   "applied": [],
+   "sample_rate": "majority",
+   "short_assets": "pad_silence_at_render"
+  },
+  "key": null,
+  "length_samples": 4746240,
+  "sample_rate": 48000
+ },
+ "title": "マンコ主義",
+ "tracks": [
+  {
+   "chain": [
+    {
+     "id": "mx.trk_backing_vocals.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 89.1,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    },
+    {
+     "id": "mx.trk_backing_vocals.yield",
+     "owner": "mixplan",
+     "params": {
+      "bw_oct": 1.58,
+      "freq_hz": 1732.0,
+      "gain_db": -1.5,
+      "phase": "minimum",
+      "shape": "peak"
+     },
+     "reason": "R-05: accompaniment yields 1-3 kHz (template stage 4) (mixplan)",
+     "type": "eq"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_backing_vocals": {
+       "asset_sha256": "c444fec15fc0d8990ecb69a374d9a4455c8e9261f5106f68b6f6763106300c0d",
+       "overrides": {},
+       "plan_hash": "ede9e6ba0f18f8b4048f6cd9478fb80a6db13a9f5570842d67f1d42375f6449d",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_backing_vocals.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "run"
+       }
+      }
+     },
+     "plan_hash": "4ce7b6d574bfd4304af6d49a9b8a6a6d9021ad72cfdcd37227f1c38bccd4294d",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_backing_vocals",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_backing_vocals",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_backing_vocals",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "backing_vocals",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_bass.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 27.5,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    },
+    {
+     "id": "mx.trk_bass.comp",
+     "note_values": {
+      "release": {
+       "bpm": 91.208,
+       "ms": 328.92,
+       "note": "1/8",
+       "rule": "R-11"
+      }
+     },
+     "owner": "mixplan",
+     "params": {
+      "attack_ms": 30.0,
+      "detector": "rms",
+      "knee_db": 6.0,
+      "makeup_db": 2.0,
+      "ratio": 2.5,
+      "release_ms": 328.92,
+      "rms_window_ms": 30.0,
+      "threshold_db": -24.15
+     },
+     "reason": "R-11: bass levelling (mixplan)",
+     "type": "compressor"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_bass": {
+       "asset_sha256": "f8c78c658af294c98355e52daeaaaa0933e89329de0807859903cced0123b8e1",
+       "overrides": {},
+       "plan_hash": "b5f3d10865b6284e287b85d7ea8163921943ae1c9be1159e72a2287e10878045",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_bass.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "skip",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "cb21dd731c1de61cf43917091fba0f7e6427394d25a8829df0a19eb8e1693191",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_bass",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_bass",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -3.1,
+   "id": "trk_bass",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.7
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "bass",
+   "sends": []
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_brass.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 88.8,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_brass": {
+       "asset_sha256": "cd50cecd6bd0b8bc68462bd68f0e3f649240a78850c7fb57a15e3280d6df072b",
+       "overrides": {},
+       "plan_hash": "81cf4b91ab35a282412351081280da8683bba467b82b943cade2c71a02c9c55a",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_brass.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "be4b9ae3cfe981757c98f1e631373645535c3740ed86eecf80b52df611bfcf6d",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_brass",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_brass",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_brass",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "brass",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_drums": {
+       "asset_sha256": "fca494f025b0fca6277989f70c2fe144d43d20411b2271ef732e24fce4c80b21",
+       "overrides": {},
+       "plan_hash": "c2551282580f47ad49d1c1345f534334bd4c04ac1038fe97a6b678ebb3a2fadd",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_drums.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "5c4bd72333565f26dc00b33401492b317e7ec11f201165d4e21112598a6b1a99",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_drums",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_drums",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -2.4,
+   "id": "trk_drums",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.8
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "drums",
+   "sends": []
+  },
+  {
+   "chain": [],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_fx": {
+       "asset_sha256": "b0d12e1435cfc60ebe10ef4dfec1c59509690d5e1fbef7e8673a789935ddcd3c",
+       "overrides": {},
+       "plan_hash": "301ed26dd460be35c250299d504a76432955e7485da5ac4a051e4285ab898b89",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_fx.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "run"
+       }
+      }
+     },
+     "plan_hash": "5867914e56c06fa071657dbf36ea200fa9dc27dbe87a120f11145c4c01254393",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_fx",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_fx",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -5.9,
+   "id": "trk_fx",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.3
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "fx",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -13.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_guitar.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 41.3,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_guitar": {
+       "asset_sha256": "80b1df8b2ae6eecc9bd258b9c1199ef9a0242757c0ee3e3493fd677ab46b330d",
+       "overrides": {},
+       "plan_hash": "df2ff4d636ed930975352964ac5516cd4e36b7172df95e88cc80006a0a7dfb44",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_guitar.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "skip",
+        "spectral_reduction": "skip"
+       }
+      }
+     },
+     "plan_hash": "371d27729586f473025e305523ecc2a946d9031af4bd44ed05efba4d8003fccc",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_guitar",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_guitar",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_guitar",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.35,
+    "width": 1.0
+   },
+   "role": "guitar",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_keyboard": {
+       "asset_sha256": "647cb4b65678c9be22616f042334e79c530fc20fcd22a0dd8b3eef122bde2312",
+       "overrides": {},
+       "plan_hash": "e4efe3197ca63de07605d0114c2a6563fddf584a9edd619798adde713253513a",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_keyboard.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "skip",
+        "spectral_reduction": "skip"
+       }
+      }
+     },
+     "plan_hash": "1470488a4452f51ad02e2a3cb23d970e49e20dd9b7dff3f7e15a9cdd2d18b193",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_keyboard",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_keyboard",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_keyboard",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "keyboard",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_percussion.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 56.2,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_percussion": {
+       "asset_sha256": "88740e65fa8a1647cc79f37e257418c645cbae3d5a2e6e11857384cb33f016c4",
+       "overrides": {},
+       "plan_hash": "d736dd6719f6cf0b260445eb481590af3d8e7e4843dcde60453dd0ea51f6e00d",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_percussion.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "c0bb9ce73df9831f6e6ed5dd0d389f0e7a8bd34f22bbcf08cb27b66ac893d340",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_percussion",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_percussion",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -2.4,
+   "id": "trk_percussion",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.8
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "percussion",
+   "sends": []
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_strings.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 80.0,
+      "kind": "hpf",
+      "slope_db_oct": 12
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_strings": {
+       "asset_sha256": "d7114de4b2b55f4e97c20332be11c2339bff855e9dd6b0e58bd7d24c00f2b357",
+       "overrides": {},
+       "plan_hash": "ba50c7c719b44fdc7b537576596af7daab5ad35294f4e3bb5a32f6325b23932a",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_strings.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "dd1795bd2f6ef3c139469643a869b7403596d1a036a8c8ed4b9010e5a036af51",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_strings",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_strings",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_strings",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.5,
+    "width": 1.0
+   },
+   "role": "strings",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_synth": {
+       "asset_sha256": "e3ed491638689a4776f6d71354860589ae59fc0a1c73f1c20e14256c187adad6",
+       "overrides": {},
+       "plan_hash": "fc784e8770712b1ab2b1670d4487036fad52c8c7ecaec42519d50edf3c495722",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_synth.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "skip",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "run"
+       }
+      }
+     },
+     "plan_hash": "7192630d4d9fd03071203d22db7dbd70b7171b6397b06e3d3ce33502e008a0eb",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_synth",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_synth",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_synth",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "synth",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [
+    {
+     "id": "mx.trk_vocals.hpf",
+     "owner": "mixplan",
+     "params": {
+      "freq_hz": 84.4,
+      "kind": "hpf",
+      "slope_db_oct": 18
+     },
+     "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+     "type": "filter"
+    },
+    {
+     "id": "mx.trk_vocals.mud",
+     "owner": "mixplan",
+     "params": {
+      "bw_oct": 0.7,
+      "freq_hz": 254.0,
+      "gain_db": -3.0,
+      "phase": "minimum",
+      "shape": "peak"
+     },
+     "reason": "R-06: lead mud cut (template stage 1) (mixplan)",
+     "type": "eq"
+    },
+    {
+     "id": "mx.trk_vocals.res",
+     "owner": "mixplan",
+     "params": {
+      "bw_oct": 0.33,
+      "freq_hz": 3517.3,
+      "gain_db": -3.0,
+      "phase": "minimum",
+      "shape": "peak"
+     },
+     "reason": "R-06: lead res cut (template stage 1) (mixplan)",
+     "type": "eq"
+    },
+    {
+     "id": "mx.trk_vocals.comp_peak",
+     "note_values": {
+      "release": {
+       "bpm": 91.208,
+       "ms": 82.23,
+       "note": "1/32",
+       "rule": "R-11"
+      }
+     },
+     "owner": "mixplan",
+     "params": {
+      "attack_ms": 2.0,
+      "detector": "peak",
+      "knee_db": 3.0,
+      "makeup_db": 0.0,
+      "ratio": 4.0,
+      "release_ms": 82.23,
+      "threshold_db": -17.76
+     },
+     "reason": "R-11: lead stage A: fast peak control (template stage 2) (mixplan)",
+     "type": "compressor"
+    },
+    {
+     "id": "mx.trk_vocals.comp_level",
+     "note_values": {
+      "release": {
+       "bpm": 91.208,
+       "ms": 657.84,
+       "note": "1/4",
+       "rule": "R-11"
+      }
+     },
+     "owner": "mixplan",
+     "params": {
+      "attack_ms": 25.0,
+      "detector": "rms",
+      "knee_db": 6.0,
+      "makeup_db": 4.6,
+      "ratio": 2.0,
+      "release_ms": 657.84,
+      "rms_window_ms": 30.0,
+      "threshold_db": -27.19
+     },
+     "reason": "R-11: lead stage B: slow 2-3 dB levelling (template stage 2) (mixplan)",
+     "type": "compressor"
+    },
+    {
+     "id": "mx.trk_vocals.deess",
+     "owner": "mixplan",
+     "params": {
+      "attack_ms": 1.0,
+      "bw_oct": 1.0,
+      "freq_hz": 6500.0,
+      "range_db": 6.0,
+      "release_ms": 60.0,
+      "threshold_db": -37.0
+     },
+     "reason": "R-13: lead sibilance (P-17) is intermittent: dynamic control (mixplan)",
+     "type": "deesser"
+    },
+    {
+     "id": "mx.trk_vocals.sat",
+     "owner": "mixplan",
+     "params": {
+      "drive_db": 6.0,
+      "mix": 0.25,
+      "mode": "tanh",
+      "output_db": 0.05,
+      "oversample": 2
+     },
+     "reason": "R-06: lead harmonics in 1-5 kHz for small speakers (template stage 3) (mixplan)",
+     "type": "saturator"
+    }
+   ],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_vocals": {
+       "asset_sha256": "6ea15e88a1b7b3a44ef323ac7ca8ba2117e98962fbd40ee7f9319cf49c0be03c",
+       "overrides": {},
+       "plan_hash": "cd71dd420835085e7df5b4a22809ff9030ac8a137142d3c01a71717f64570b17",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_vocals.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "light"
+       }
+      }
+     },
+     "plan_hash": "ed970d0d8393b06e1e2ce0c9ffd600299a9281b8c4b34430d472272c6dd461e2",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_vocals",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_vocals",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": 0.0,
+   "id": "trk_vocals",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 1.0
+   },
+   "is_lead": true,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": 0.0,
+    "width": 1.0
+   },
+   "role": "vocals",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -18.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  },
+  {
+   "chain": [],
+   "cleanup": {
+    "applied": {
+     "assets": {
+      "ast_woodwinds": {
+       "asset_sha256": "ff66f9531e966cf5e0a7a4d884fd73b98678a7f953c1d3e0d77bebcdb324b6ac",
+       "overrides": {},
+       "plan_hash": "fc94bac9d226437a6012da4c121f10f93a5ae5cea7719d2bf3db0e07ca626e48",
+       "plan_version": 1,
+       "record_path": "analysis/cleanup_ast_woodwinds.json",
+       "s07_pass": true,
+       "skipped": false,
+       "steps": {
+        "click_repair": "run",
+        "completion": "skip",
+        "protection": "run",
+        "spectral_reduction": "run"
+       }
+      }
+     },
+     "plan_hash": "d40fe12984c4f304ab9c12cd81997dc5467a850d3c69c1b918a80f19778189fd",
+     "proposal_id": "cln_f70daa1f62b0",
+     "version": 1
+    },
+    "enabled": true,
+    "overrides": {},
+    "plan": "auto"
+   },
+   "clips": [
+    {
+     "asset": "ast_woodwinds",
+     "fade_in": 0,
+     "fade_out": 0,
+     "gain_db": 0.0,
+     "id": "clp_woodwinds",
+     "length": 4746240,
+     "muted": false,
+     "source_start": 0,
+     "timeline_start": 0
+    }
+   ],
+   "gain_db": -4.5,
+   "id": "trk_woodwinds",
+   "importance": {
+    "by_section": {},
+    "source": "default",
+    "value": 0.5
+   },
+   "is_lead": false,
+   "kind": "audio",
+   "output": "bus_mix",
+   "pan": {
+    "position": -0.35,
+    "width": 1.0
+   },
+   "role": "woodwinds",
+   "sends": [
+    {
+     "bus": "bus_reverb",
+     "level_db": -15.0,
+     "owner": "mixplan",
+     "pre_fader": false
+    }
+   ]
+  }
+ ],
+ "variants": [
+  {
+   "decisions": {
+    "balance": [
+     {
+      "action": {
+       "en": "balance is handled at the mix stage",
+       "ja": "バランスはミックス段で扱う"
+      },
+      "alternatives": [],
+      "measured": {},
+      "result": null,
+      "rule": "R-28",
+      "stage": "planner"
+     }
+    ],
+    "depth": [
+     {
+      "action": {
+       "en": "depth is handled at the mix stage",
+       "ja": "奥行きはミックス段で扱う"
+      },
+      "alternatives": [],
+      "measured": {},
+      "result": null,
+      "rule": null,
+      "stage": "planner"
+     }
+    ],
+    "dynamics": [
+     {
+      "action": {
+       "en": "the limiter is a ceiling; its drive was kept constant by loudness compensation",
+       "ja": "リミッターは天井として扱い、駆動量はレベル補償で一定に保った"
+      },
+      "alternatives": [],
+      "measured": {},
+      "result": {
+       "gr_fraction_gt_1db": 5.8e-05,
+       "gr_max_db": 1.039,
+       "gr_median_db": 0.0,
+       "gr_p95_db": 0.0001
+      },
+      "rule": "R-14",
+      "stage": "planner"
+     }
+    ],
+    "frequency": [
+     {
+      "action": {
+       "en": "decided on level-matched measurements",
+       "ja": "レベルマッチ後の測定で判断した"
+      },
+      "alternatives": [],
+      "measured": {
+       "P-11": {
+        "after": 0.2410614269678888,
+        "before": 3.138250158898458,
+        "penalty_after": 0.4694017897980169,
+        "penalty_before": 0.596379373149522
+       },
+       "P-17": {
+        "after": 27.286888000993546,
+        "before": 22.02963597416838,
+        "penalty_after": 0.9999999999990596,
+        "penalty_before": 0.9999998578156953
+       },
+       "P-19": {
+        "after": 1.305740480494265,
+        "before": 1.3235468273584932,
+        "penalty_after": 0.0,
+        "penalty_before": 0.0
+       }
+      },
+      "result": null,
+      "rule": "R-01",
+      "stage": "planner"
+     },
+     {
+      "action": {
+       "en": "high_mid band -0.5 dB",
+       "ja": "high_mid 帯域を -0.5 dB"
+      },
+      "alternatives": [
+       {
+        "en": "leave as is",
+        "ja": "この手を入れない"
+       },
+       {
+        "en": "fix the cause at the mix stage (R-15)",
+        "ja": "ミックス段で原因を直す（R-15）"
+       }
+      ],
+      "measured": "P-11: 2-5 kHz prominence (harshness)",
+      "result": {
+       "improvement": 0.01083581510495396,
+       "score_after": 0.37612158562117654
+      },
+      "rule": "R-05,R-06",
+      "stage": "planner"
+     },
+     {
+      "action": {
+       "en": "high_mid band -0.5 dB",
+       "ja": "high_mid 帯域を -0.5 dB"
+      },
+      "alternatives": [
+       {
+        "en": "leave as is",
+        "ja": "この手を入れない"
+       },
+       {
+        "en": "fix the cause at the mix stage (R-15)",
+        "ja": "ミックス段で原因を直す（R-15）"
+       }
+      ],
+      "measured": "P-11: 2-5 kHz prominence (harshness)",
+      "result": {
+       "improvement": 0.0091445392906358,
+       "score_after": 0.36697704633054073
+      },
+      "rule": "R-05,R-06",
+      "stage": "planner"
+     },
+     {
+      "action": {
+       "en": "high_mid band -0.5 dB",
+       "ja": "high_mid 帯域を -0.5 dB"
+      },
+      "alternatives": [
+       {
+        "en": "leave as is",
+        "ja": "この手を入れない"
+       },
+       {
+        "en": "fix the cause at the mix stage (R-15)",
+        "ja": "ミックス段で原因を直す（R-15）"
+       }
+      ],
+      "measured": "P-11: 2-5 kHz prominence (harshness)",
+      "result": {
+       "improvement": 0.007032475856026232,
+       "score_after": 0.3599445704745145
+      },
+      "rule": "R-05,R-06",
+      "stage": "planner"
+     }
+    ],
+    "interest": [
+     {
+      "action": {
+       "en": "Interest is the hardest axis to automate and depends on human direction and references; the planner only watches that section contrast is not flattened",
+       "ja": "「仕掛け」は自動化が最も難しい軸で、人間の指示とリファレンスに依存する。プランナーは展開のコントラストを平坦にしないことだけを監視する"
+      },
+      "alternatives": [],
+      "measured": {},
+      "result": null,
+      "rule": "R-26",
+      "stage": "planner",
+      "status": "depends_on_humans_and_references"
+     }
+    ],
+    "panning": [
+     {
+      "action": {
+       "en": "no panning / width change",
+       "ja": "定位・幅は変更なし"
+      },
+      "alternatives": [],
+      "measured": {
+       "S-03": "pass",
+       "S-04": "pass"
+      },
+      "result": null,
+      "rule": "R-09",
+      "stage": "planner"
+     }
+    ]
+   },
+   "evaluation": {
+    "chain_hash": "c57b2629fc3411e6d44cc45ed77bf23685e6d64a658bf929f05dc6e94d8c328e",
+    "constraints": {
+     "S-01": "pass",
+     "S-02": "not_evaluated",
+     "S-03": "pass",
+     "S-04": "pass",
+     "S-05": "not_evaluated",
+     "S-06": "pass",
+     "S-07": "not_evaluated",
+     "S-08": "not_evaluated",
+     "S-09": "pass",
+     "S-10": "not_evaluated",
+     "S-11": "not_evaluated"
+    },
+    "gate": {
+     "checks": [
+      {
+       "id": "band_limited_lead_preserved",
+       "reason": "not_evaluable_without_stems",
+       "required": true,
+       "status": "not_evaluated",
+       "values": {}
+      },
+      {
+       "id": "mono_fold_loss_within_limit",
+       "required": true,
+       "status": "pass",
+       "values": {
+        "bands": {
+         "air": {
+          "cancelled": false,
+          "mono_loss_db": 0.0644855261673732
+         },
+         "bass": {
+          "cancelled": false,
+          "mono_loss_db": 0.08140078550895857
+         },
+         "highmid": {
+          "cancelled": false,
+          "mono_loss_db": 0.0973464242064783
+         },
+         "lowmid": {
+          "cancelled": false,
+          "mono_loss_db": 0.24410469256097664
+         },
+         "mid": {
+          "cancelled": false,
+          "mono_loss_db": 0.09529001478106844
+         },
+         "sub": {
+          "cancelled": false,
+          "mono_loss_db": 0.00502843533138688
+         }
+        },
+        "clarity_band_mono_loss_db": 0.1329546800194226,
+        "low_band_mono_loss_db": 0.01956804885555087,
+        "problems": []
+       }
+      },
+      {
+       "id": "low_level_balance_preserved",
+       "reason": "not_evaluable_without_stems",
+       "required": true,
+       "status": "not_evaluated",
+       "values": {}
+      },
+      {
+       "id": "pitch_preserved_without_fundamental",
+       "required": true,
+       "status": "pass",
+       "values": {
+        "agreement_ratio": 0.6702,
+        "caveat": "periodicity-pitch proxy (YIN); not a listening test",
+        "f0_hz": 104.2584,
+        "fundamental_below_cutoff": true,
+        "harmonic_index_db": -0.8955,
+        "median_f0_after_hp_hz": 136.2131,
+        "source": "2mix low-passed at 400 Hz (proxy, no bass stem)"
+       }
+      }
+     ],
+     "corrective_suggestions": [],
+     "lead": "trk_vocals",
+     "notes": [
+      "2mix only: lead checks are not evaluable without stems and are not counted as passes"
+     ],
+     "pass": false,
+     "playback_assumptions": {
+      "low_level_check": true,
+      "mono_fold_check": true,
+      "mono_fold_strict": false,
+      "mono_low_band_hz": 120.0,
+      "small_speaker_check": true
+     },
+     "profile": "streaming_universal",
+     "status": "incomplete"
+    },
+    "level_matched": true,
+    "objective": {
+     "blend": [
+      {
+       "id": "low_fatigue",
+       "weight": 1.0
+      }
+     ],
+     "genre": "hiphop",
+     "intensity": 0.5,
+     "lead": {
+      "estimated": false,
+      "source": "track_is_lead",
+      "stem": "trk_vocals"
+     },
+     "notes": [
+      "provisional_objective",
+      "genre_prior",
+      "generic_prior"
+     ],
+     "reference": {
+      "n": 0,
+      "source": "generic_prior"
+     }
+    },
+    "proposal_id": "mpl_b931a5d08147",
+    "redistribution": [
+     {
+      "factor": 1.1764705882352942,
+      "moved_weight": 0.15000000000000002,
+      "objective": "low_fatigue",
+      "reasons": {
+       "P-16": "cleanup stage measurements not available yet (M5)"
+      },
+      "rule": "proportional to the measured terms of the same objective",
+      "terms": [
+       "P-16"
+      ]
+     }
+    ],
+    "rule": "R-01",
+    "scope": "full_length",
+    "score": 0.34499138488359515,
+    "terms": [
+     {
+      "contribution": 0.16567121992871187,
+      "effective_weight": 0.35294117647058826,
+      "key": "P-11",
+      "metric": "P-11",
+      "objective": "low_fatigue",
+      "penalty": 0.4694017897980169,
+      "sense": "minimize_excess",
+      "status": "measured",
+      "target": [
+       null,
+       1.75
+      ],
+      "target_source": "thresholds_m3",
+      "unit": "dB prominence",
+      "value": 0.2410614269678888,
+      "variant": null,
+      "weight": 0.3
+     },
+     {
+      "contribution": 0.002849576719755119,
+      "effective_weight": 0.29411764705882354,
+      "key": "P-03:lra_density",
+      "metric": "P-03",
+      "objective": "low_fatigue",
+      "penalty": 0.009688560847167405,
+      "sense": "keep_in_range",
+      "status": "measured",
+      "target": [
+       3.0,
+       12.0
+      ],
+      "target_source": "generic",
+      "unit": "LU",
+      "value": {
+       "lra_lu": 2.703989522315265,
+       "short_term_p95_p10_lu": 2.703989522315265
+      },
+      "variant": "lra_density",
+      "weight": 0.25
+     },
+     {
+      "contribution": 0.17647058823512818,
+      "effective_weight": 0.17647058823529413,
+      "key": "P-17",
+      "metric": "P-17",
+      "objective": "low_fatigue",
+      "penalty": 0.9999999999990596,
+      "sense": "minimize_excess",
+      "status": "measured",
+      "target": [
+       null,
+       6.5
+      ],
+      "target_source": "thresholds_m3",
+      "unit": "dB p99 prominence",
+      "value": 27.286888000993546,
+      "variant": null,
+      "weight": 0.15
+     },
+     {
+      "contribution": 0.0,
+      "effective_weight": 0.0,
+      "key": "P-16",
+      "metric": "P-16",
+      "objective": "low_fatigue",
+      "penalty": null,
+      "reason": "cleanup stage measurements not available yet (M5)",
+      "sense": "minimize",
+      "status": "not_measured",
+      "target": null,
+      "target_source": "cleanup",
+      "value": null,
+      "variant": null,
+      "weight": 0.15
+     },
+     {
+      "contribution": 0.0,
+      "effective_weight": 0.17647058823529413,
+      "key": "P-19",
+      "metric": "P-19",
+      "objective": "low_fatigue",
+      "penalty": 0.0,
+      "sense": "minimize",
+      "status": "measured",
+      "target": null,
+      "target_source": "module",
+      "unit": "dB",
+      "value": 1.305740480494265,
+      "variant": null,
+      "weight": 0.15
+     }
+    ]
+   },
+   "id": "var_streaming_universal",
+   "master": {
+    "chain": [
+     {
+      "id": "pln_eq_high_mid",
+      "params": {
+       "bw_oct": 1.5,
+       "freq_hz": 3500.0,
+       "gain_db": -1.5,
+       "phase": "minimum",
+       "shape": "peak"
+      },
+      "reason": "R-06,R-01,planner",
+      "type": "eq"
+     },
+     {
+      "id": "mst_loudness",
+      "params": {
+       "gain_db": 3.774
+      },
+      "reason": "R-18",
+      "type": "loudness_gain"
+     },
+     {
+      "id": "mst_limiter",
+      "params": {
+       "ceiling_dbtp": -1.0,
+       "lookahead_ms": 3.0,
+       "oversample": 4,
+       "release_ms": 100.0
+      },
+      "reason": "R-14,S-01",
+      "type": "limiter"
+     }
+    ],
+    "plan": {
+     "definitions": {
+      "delivery": {
+       "id": "hires_native",
+       "sha256": "06ac1319a777b7e5d18f83809be134e18d9eca32a6ea249f9acba1152f9ade67"
+      },
+      "objectives": [
+       {
+        "id": "low_fatigue",
+        "sha256": "0019a0f7c503f11e63cb25b9d961ea23e31f74f95db19b40993867b55413feed"
+       }
+      ],
+      "profile": {
+       "id": "streaming_universal",
+       "sha256": "e8c6566b78c1821864f13002641c83b8e9dd52a154552ba8627317f61c2c7510"
+      },
+      "thresholds": "7620e71f8eb6c72ef6a892e9b2eb6a31002d9a8056c897cf65cb3990cc04079d"
+     },
+     "expected": {
+      "ceiling_dbtp": -1.0,
+      "codec_after_ceiling_dbtp": -0.1,
+      "limiter_gr": {
+       "gr_fraction_gt_1db": 0.0,
+       "gr_max_db": 1.04,
+       "gr_median_db": 0.0,
+       "gr_p95_db": 0.0
+      },
+      "lufs_i": -14.0,
+      "objective_score": 0.34499138488359515,
+      "s08": {
+       "baseline_source": "measured on the master input built from cleaned assets",
+       "corrective_steps": 0,
+       "deltas": {
+        "noise_floor_dbfs": {
+         "delta_db": -0.01,
+         "tolerance_db": 2.0
+        },
+        "noise_floor_hf_dbfs": {
+         "delta_db": 0.01,
+         "tolerance_db": 2.0
+        },
+        "shimmer_index_db": {
+         "delta_db": 0.02,
+         "tolerance_db": 1.5
+        },
+        "side_shimmer_index_db": {
+         "delta_db": 0.02,
+         "tolerance_db": 1.5
+        }
+       },
+       "failing": [],
+       "frame_selection": "baseline_frames",
+       "gain_db": 3.623,
+       "margin_db": 0.2,
+       "status": "pass",
+       "verify_tolerance_status": "pass",
+       "worst_excess_db": -1.28
+      },
+      "target_lufs_i": -14.0,
+      "true_peak": -1.01
+     },
+     "input": {
+      "frames": 4746240,
+      "lufs_i": -17.63,
+      "sample_rate": 48000,
+      "true_peak": -3.636688922350531
+     },
+     "rationale": [
+      {
+       "action": {
+        "en": "No clear band issue was measured, so no EQ is applied (0 dB)",
+        "ja": "明確な帯域の問題が測定されなかったため、EQ は入れない（0 dB）"
+       },
+       "alternatives": [
+        {
+         "en": "small moves toward the generic prior",
+         "ja": "汎用 prior に寄せる小さな補正"
+        }
+       ],
+       "expected": {
+        "eq_moves": 0
+       },
+       "measured": {
+        "band_ratios_vs_generic_prior": {
+         "air": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.0005,
+           0.12
+          ],
+          "ratio": 0.006
+         },
+         "bass": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.05,
+           0.7
+          ],
+          "ratio": 0.60554
+         },
+         "high_mid": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.01,
+           0.25
+          ],
+          "ratio": 0.03586
+         },
+         "low_mid": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.03,
+           0.3
+          ],
+          "ratio": 0.11896
+         },
+         "mid": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.04,
+           0.4
+          ],
+          "ratio": 0.17489
+         },
+         "sub": {
+          "deviation_db": 0.0,
+          "prior_range": [
+           0.01,
+           0.6
+          ],
+          "ratio": 0.05874
+         }
+        }
+       },
+       "rule": "R-06",
+       "stage": "corrective_eq"
+      },
+      {
+       "action": {
+        "en": "No dynamics processing by default (no multiband)",
+        "ja": "既定でダイナミクス処理なし（マルチバンドは使わない）"
+       },
+       "alternatives": [
+        {
+         "en": "light single-band compression (1-2 dB)",
+         "ja": "軽いシングルバンド・コンプ（1〜2 dB）"
+        },
+        {
+         "en": "multiband (only as an alternative to a send-back)",
+         "ja": "マルチバンド（ミックスへ差し戻す代替としてのみ）"
+        }
+       ],
+       "expected": {},
+       "measured": {
+        "lra_lu": 2.768912987861441,
+        "plr_db": 13.99379702165553
+       },
+       "rule": "R-30",
+       "stage": "dynamics"
+      },
+      {
+       "action": {
+        "en": "No enhancement by default",
+        "ja": "エンハンスは既定で使わない"
+       },
+       "alternatives": [
+        {
+         "en": "harmonic enhancement (only with a stated purpose)",
+         "ja": "倍音付加（目的が説明できる場合のみ）"
+        }
+       ],
+       "expected": {},
+       "measured": {},
+       "rule": "R-06",
+       "stage": "enhance"
+      },
+      {
+       "action": {
+        "en": "Low-band mono loss and anti-phase are within limits; no stereo processing",
+        "ja": "低域のモノ損失と逆相は許容内。ステレオ処理は入れない"
+       },
+       "alternatives": [
+        {
+         "en": "mono below 120 Hz",
+         "ja": "120 Hz 以下のモノ化"
+        }
+       ],
+       "expected": {},
+       "measured": {
+        "low_band_hz": 120.0,
+        "low_band_mono_loss_db": 0.02,
+        "low_band_negative_corr": {
+         "longest_run_s": 0.0,
+         "min_corr": 0.486137904123278,
+         "negative_fraction": 0.0,
+         "windows": 234
+        }
+       },
+       "rule": "R-09",
+       "stage": "stereo"
+      },
+      {
+       "action": {
+        "en": "Normalized medium: match -14.0 LUFS (a delivery gate, not a goal)",
+        "ja": "正規化される媒体のため目標 -14.0 LUFS に合わせる（配送条件として扱う）"
+       },
+       "alternatives": [
+        {
+         "en": "a louder target (more limiter dependency and noise return)",
+         "ja": "より大きい目標（リミッター依存度とノイズ戻りが増える）"
+        }
+       ],
+       "expected": {
+        "gain_db": 3.63,
+        "lufs_i": -14.01
+       },
+       "measured": {
+        "input_lufs_i": -17.63,
+        "pre_limiter_lufs_i": -17.63,
+        "profile_target_lufs_i": -14.0,
+        "tried": [
+         {
+          "gr_p95_db": 0.0,
+          "lufs_i": -14.01,
+          "target": -14.0
+         }
+        ],
+        "window_lufs_i": [
+         -15.0,
+         -13.5
+        ]
+       },
+       "rule": "R-18",
+       "stage": "loudness"
+      },
+      {
+       "action": {
+        "en": "True-peak limiter last (ceiling -1.0 dBTP, release 100 ms)",
+        "ja": "最終段に True Peak リミッター（天井 -1.0 dBTP、リリース 100 ms）"
+       },
+       "alternatives": [
+        {
+         "en": "add a clipper (not default)",
+         "ja": "クリッパーの併用（既定では使わない）"
+        },
+        {
+         "en": "a different release time (changes pumping and noise lift)",
+         "ja": "リリース時間の変更（ポンピングとノイズの持ち上がりが変わる）"
+        }
+       ],
+       "expected": {
+        "true_peak": -1.01
+       },
+       "measured": {
+        "limiter_gr": {
+         "gr_fraction_gt_1db": 0.0,
+         "gr_max_db": 1.0,
+         "gr_median_db": 0.0,
+         "gr_p95_db": 0.0
+        }
+       },
+       "rule": "R-14",
+       "stage": "true_peak_limiter"
+      },
+      {
+       "action": {
+        "en": "The simulated master passes the noise-return guard (no correction needed)",
+        "ja": "シミュレーションしたマスターはノイズ戻り監視に合格（是正は不要）"
+       },
+       "alternatives": [
+        {
+         "en": "relax the tolerance (never: hard constraint, SPEC 4.3)",
+         "ja": "許容幅を緩める（ハード制約なので行わない。SPEC 4.3）"
+        },
+        {
+         "en": "suppress the noise with multiband processing (not default, R-30)",
+         "ja": "マルチバンド処理でノイズを抑える（R-30 により既定では使わない）"
+        }
+       ],
+       "expected": {
+        "s08": {
+         "deltas": {
+          "noise_floor_dbfs": {
+           "delta_db": -0.01,
+           "tolerance_db": 2.0
+          },
+          "noise_floor_hf_dbfs": {
+           "delta_db": 0.01,
+           "tolerance_db": 2.0
+          },
+          "shimmer_index_db": {
+           "delta_db": 0.02,
+           "tolerance_db": 1.5
+          },
+          "side_shimmer_index_db": {
+           "delta_db": 0.02,
+           "tolerance_db": 1.5
+          }
+         },
+         "failing": [],
+         "frame_selection": "baseline_frames",
+         "gain_db": 3.623,
+         "margin_db": 0.2,
+         "status": "pass",
+         "verify_tolerance_status": "pass",
+         "worst_excess_db": -1.28
+        }
+       },
+       "measured": {
+        "baseline": {
+         "cleaned": true,
+         "source": "measured on the master input built from cleaned assets"
+        },
+        "frame_selection": "baseline frames, time aligned",
+        "s08": {
+         "deltas": {
+          "noise_floor_dbfs": {
+           "delta_db": -0.01,
+           "tolerance_db": 2.0
+          },
+          "noise_floor_hf_dbfs": {
+           "delta_db": 0.01,
+           "tolerance_db": 2.0
+          },
+          "shimmer_index_db": {
+           "delta_db": 0.02,
+           "tolerance_db": 1.5
+          },
+          "side_shimmer_index_db": {
+           "delta_db": 0.02,
+           "tolerance_db": 1.5
+          }
+         },
+         "failing": [],
+         "frame_selection": "baseline_frames",
+         "gain_db": 3.623,
+         "margin_db": 0.2,
+         "status": "pass",
+         "verify_tolerance_status": "pass",
+         "worst_excess_db": -1.28
+        },
+        "scope": "full input, simulated chain"
+       },
+       "rule": "S-08",
+       "stage": "noise_return_guard",
+       "steps": []
+      },
+      {
+       "action": {
+        "en": "small moves were tried along the objective breakdown; the best level-matched candidate was kept",
+        "ja": "目的関数の内訳に沿って小さな手を試し、レベルマッチ後の測定で最良の候補を残した"
+       },
+       "alternatives": [
+        {
+         "en": "use the plan_master proposal unchanged",
+         "ja": "plan_master の提案をそのまま使う"
+        }
+       ],
+       "expected": {
+        "converged": true,
+        "reason": "converged: best improvement 0.0047 < 0.005",
+        "s08": {
+         "deltas": {
+          "noise_floor_dbfs": {
+           "delta_db": 0.0,
+           "tolerance_db": 2.0
+          },
+          "noise_floor_hf_dbfs": {
+           "delta_db": -0.33,
+           "tolerance_db": 2.0
+          },
+          "shimmer_index_db": {
+           "delta_db": 0.48,
+           "tolerance_db": 1.5
+          },
+          "side_shimmer_index_db": {
+           "delta_db": 0.49,
+           "tolerance_db": 1.5
+          }
+         },
+         "status": "pass",
+         "worst_excess_db": -0.81
+        },
+        "score": 0.3599445704745145
+       },
+       "measured": {
+        "iterations": 3,
+        "score_best": 0.3599445704745145,
+        "score_start": 0.3869574007261305
+       },
+       "moves": [
+        {
+         "band": "high_mid",
+         "delta_db": -0.5,
+         "improvement": 0.01083581510495396,
+         "kind": "eq",
+         "rule": "R-05,R-06",
+         "why": "P-11: 2-5 kHz prominence (harshness)"
+        },
+        {
+         "band": "high_mid",
+         "delta_db": -0.5,
+         "improvement": 0.0091445392906358,
+         "kind": "eq",
+         "rule": "R-05,R-06",
+         "why": "P-11: 2-5 kHz prominence (harshness)"
+        },
+        {
+         "band": "high_mid",
+         "delta_db": -0.5,
+         "improvement": 0.007032475856026232,
+         "kind": "eq",
+         "rule": "R-05,R-06",
+         "why": "P-11: 2-5 kHz prominence (harshness)"
+        }
+       ],
+       "rule": "R-01,R-06,R-15,R-29",
+       "stage": "planner_loop"
+      }
+     ],
+     "route_reason": {
+      "en": "Stems with mix-stage results exist, so the stem-mix route was chosen",
+      "ja": "ステムとミックス段の結果があるため、ステムミックス経路を選んだ"
+     },
+     "send_back": null,
+     "warnings": []
+    },
+    "profile": "streaming_universal",
+    "proposal_id": "mpl_b931a5d08147",
+    "route": "stem_mix",
+    "route_detail": "stem_mix"
+   },
+   "objective": null,
+   "outputs": [
+    {
+     "delivery": "hires_native",
+     "profile": "streaming_universal",
+     "target_lufs_i": -14.0
+    }
+   ]
+  }
+ ]
+}

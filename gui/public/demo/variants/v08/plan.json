@@ -1,0 +1,761 @@
+{
+ "proposals": [
+  {
+   "alternatives": [
+    {
+     "action": "reject",
+     "effect": "keep the raw assets; S-08 then guards against the uncleaned input"
+    },
+    {
+     "action": "override",
+     "effect": "lighten or skip single steps per asset or track (e.g. {'spectral_reduction': 'light'})"
+    }
+   ],
+   "author": "planner",
+   "created_at": "2026-11-18T12:53:07Z",
+   "edited": null,
+   "id": "cln_f70daa1f62b0",
+   "proposal_id": "cln_f70daa1f62b0",
+   "reject_reason": null,
+   "score": null,
+   "stage": "cleanup",
+   "status": "applied",
+   "steps": [
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_backing_vocals",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "run"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=run",
+      "type": "cleanup"
+     },
+     "target": "trk_backing_vocals"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_bass",
+      "params": {
+       "click_repair": "skip",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_bass"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_brass",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_brass"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_drums",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_drums"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_fx",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "run"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=run",
+      "type": "cleanup"
+     },
+     "target": "trk_fx"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_guitar",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "skip",
+       "spectral_reduction": "skip"
+      },
+      "reason": "R-20: click_repair=run",
+      "type": "cleanup"
+     },
+     "target": "trk_guitar"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_keyboard",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "skip",
+       "spectral_reduction": "skip"
+      },
+      "reason": "R-20: click_repair=run",
+      "type": "cleanup"
+     },
+     "target": "trk_keyboard"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_percussion",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_percussion"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_strings",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_strings"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_synth",
+      "params": {
+       "click_repair": "skip",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "run"
+      },
+      "reason": "R-20: protection=run, spectral_reduction=run",
+      "type": "cleanup"
+     },
+     "target": "trk_synth"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_vocals",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_woodwinds",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "run"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=run",
+      "type": "cleanup"
+     },
+     "target": "trk_woodwinds"
+    },
+    {
+     "editable": [],
+     "processor": {
+      "id": "cleanup:ast_fullmix",
+      "params": {
+       "click_repair": "run",
+       "completion": "skip",
+       "protection": "run",
+       "spectral_reduction": "light"
+      },
+      "reason": "R-20: click_repair=run, protection=run, spectral_reduction=light",
+      "type": "cleanup"
+     },
+     "target": "ast_fullmix"
+    }
+   ],
+   "summary": {
+    "en": "clean plan",
+    "ja": "clean の計画"
+   },
+   "variant": null
+  },
+  {
+   "alternatives": [],
+   "author": "planner",
+   "created_at": "2026-11-18T13:00:18Z",
+   "edited": null,
+   "id": "mxp_bb626fbbca64",
+   "proposal_id": "mxp_bb626fbbca64",
+   "reject_reason": null,
+   "score": 0.1916,
+   "stage": "mix",
+   "status": "applied",
+   "steps": [
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_backing_vocals.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 89.1,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_backing_vocals"
+    },
+    {
+     "editable": [
+      "bw_oct",
+      "freq_hz",
+      "gain_db",
+      "phase",
+      "shape"
+     ],
+     "processor": {
+      "id": "mx.trk_backing_vocals.yield",
+      "owner": "mixplan",
+      "params": {
+       "bw_oct": 1.58,
+       "freq_hz": 1732.0,
+       "gain_db": -1.5,
+       "phase": "minimum",
+       "shape": "peak"
+      },
+      "reason": "R-05: accompaniment yields 1-3 kHz (template stage 4) (mixplan)",
+      "type": "eq"
+     },
+     "target": "trk_backing_vocals"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_bass.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 27.5,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_bass"
+    },
+    {
+     "editable": [
+      "attack_ms",
+      "detector",
+      "knee_db",
+      "makeup_db",
+      "ratio",
+      "release_ms",
+      "rms_window_ms",
+      "threshold_db"
+     ],
+     "processor": {
+      "id": "mx.trk_bass.comp",
+      "note_values": {
+       "release": {
+        "bpm": 91.208,
+        "ms": 328.92,
+        "note": "1/8",
+        "rule": "R-11"
+       }
+      },
+      "owner": "mixplan",
+      "params": {
+       "attack_ms": 30.0,
+       "detector": "rms",
+       "knee_db": 6.0,
+       "makeup_db": 2.0,
+       "ratio": 2.5,
+       "release_ms": 328.92,
+       "rms_window_ms": 30.0,
+       "threshold_db": -24.15
+      },
+      "reason": "R-11: bass levelling (mixplan)",
+      "type": "compressor"
+     },
+     "target": "trk_bass"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_brass.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 88.8,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_brass"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_guitar.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 41.3,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_guitar"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_percussion.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 56.2,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_percussion"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_strings.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 80.0,
+       "kind": "hpf",
+       "slope_db_oct": 12
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_strings"
+    },
+    {
+     "editable": [
+      "freq_hz",
+      "kind",
+      "slope_db_oct"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.hpf",
+      "owner": "mixplan",
+      "params": {
+       "freq_hz": 84.4,
+       "kind": "hpf",
+       "slope_db_oct": 18
+      },
+      "reason": "R-07: HPF just below the lowest f0 (mixplan)",
+      "type": "filter"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "bw_oct",
+      "freq_hz",
+      "gain_db",
+      "phase",
+      "shape"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.mud",
+      "owner": "mixplan",
+      "params": {
+       "bw_oct": 0.7,
+       "freq_hz": 254.0,
+       "gain_db": -3.0,
+       "phase": "minimum",
+       "shape": "peak"
+      },
+      "reason": "R-06: lead mud cut (template stage 1) (mixplan)",
+      "type": "eq"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "bw_oct",
+      "freq_hz",
+      "gain_db",
+      "phase",
+      "shape"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.res",
+      "owner": "mixplan",
+      "params": {
+       "bw_oct": 0.33,
+       "freq_hz": 3517.3,
+       "gain_db": -3.0,
+       "phase": "minimum",
+       "shape": "peak"
+      },
+      "reason": "R-06: lead res cut (template stage 1) (mixplan)",
+      "type": "eq"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "attack_ms",
+      "detector",
+      "knee_db",
+      "makeup_db",
+      "ratio",
+      "release_ms",
+      "threshold_db"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.comp_peak",
+      "note_values": {
+       "release": {
+        "bpm": 91.208,
+        "ms": 82.23,
+        "note": "1/32",
+        "rule": "R-11"
+       }
+      },
+      "owner": "mixplan",
+      "params": {
+       "attack_ms": 2.0,
+       "detector": "peak",
+       "knee_db": 3.0,
+       "makeup_db": 0.0,
+       "ratio": 4.0,
+       "release_ms": 82.23,
+       "threshold_db": -17.76
+      },
+      "reason": "R-11: lead stage A: fast peak control (template stage 2) (mixplan)",
+      "type": "compressor"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "attack_ms",
+      "detector",
+      "knee_db",
+      "makeup_db",
+      "ratio",
+      "release_ms",
+      "rms_window_ms",
+      "threshold_db"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.comp_level",
+      "note_values": {
+       "release": {
+        "bpm": 91.208,
+        "ms": 657.84,
+        "note": "1/4",
+        "rule": "R-11"
+       }
+      },
+      "owner": "mixplan",
+      "params": {
+       "attack_ms": 25.0,
+       "detector": "rms",
+       "knee_db": 6.0,
+       "makeup_db": 4.6,
+       "ratio": 2.0,
+       "release_ms": 657.84,
+       "rms_window_ms": 30.0,
+       "threshold_db": -27.19
+      },
+      "reason": "R-11: lead stage B: slow 2-3 dB levelling (template stage 2) (mixplan)",
+      "type": "compressor"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "attack_ms",
+      "bw_oct",
+      "freq_hz",
+      "range_db",
+      "release_ms",
+      "threshold_db"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.deess",
+      "owner": "mixplan",
+      "params": {
+       "attack_ms": 1.0,
+       "bw_oct": 1.0,
+       "freq_hz": 6500.0,
+       "range_db": 6.0,
+       "release_ms": 60.0,
+       "threshold_db": -37.0
+      },
+      "reason": "R-13: lead sibilance (P-17) is intermittent: dynamic control (mixplan)",
+      "type": "deesser"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "drive_db",
+      "mix",
+      "mode",
+      "output_db",
+      "oversample"
+     ],
+     "processor": {
+      "id": "mx.trk_vocals.sat",
+      "owner": "mixplan",
+      "params": {
+       "drive_db": 6.0,
+       "mix": 0.25,
+       "mode": "tanh",
+       "output_db": 0.05,
+       "oversample": 2
+      },
+      "reason": "R-06: lead harmonics in 1-5 kHz for small speakers (template stage 3) (mixplan)",
+      "type": "saturator"
+     },
+     "target": "trk_vocals"
+    },
+    {
+     "editable": [
+      "bpm",
+      "er_late_db",
+      "highcut_hz",
+      "lowcut_hz",
+      "mix",
+      "predelay_ms",
+      "rt60_high_mult",
+      "rt60_low_mult",
+      "rt60_s"
+     ],
+     "processor": {
+      "id": "mx.bus_reverb.plate",
+      "note_values": {
+       "predelay": {
+        "bpm": 91.208,
+        "ms": 41.11,
+        "note": "1/64",
+        "rule": "R-11"
+       }
+      },
+      "owner": "mixplan",
+      "params": {
+       "bpm": 91.208,
+       "er_late_db": -6.0,
+       "highcut_hz": 6000.0,
+       "lowcut_hz": 600.0,
+       "mix": 1.0,
+       "predelay_ms": 41.11,
+       "rt60_high_mult": 0.6,
+       "rt60_low_mult": 0.8,
+       "rt60_s": 0.8
+      },
+      "reason": "R-10: plate-like reverb, wet low-cut 600 Hz / high-cut 6 kHz keep only the tail (template stage 5) (mixplan)",
+      "type": "reverb"
+     },
+     "target": "bus_reverb"
+    },
+    {
+     "editable": [
+      "attack_ms",
+      "detector",
+      "knee_db",
+      "makeup_db",
+      "ratio",
+      "release_ms",
+      "rms_window_ms",
+      "threshold_db"
+     ],
+     "processor": {
+      "id": "mx.bus_mix.glue",
+      "note_values": {
+       "release": {
+        "bpm": 91.208,
+        "ms": 657.84,
+        "note": "1/4",
+        "rule": "R-11"
+       }
+      },
+      "owner": "mixplan",
+      "params": {
+       "attack_ms": 30.0,
+       "detector": "rms",
+       "knee_db": 6.0,
+       "makeup_db": 0.0,
+       "ratio": 1.5,
+       "release_ms": 657.84,
+       "rms_window_ms": 50.0,
+       "threshold_db": -17.34
+      },
+      "reason": "R-11: light mix-bus glue (1-2 dB) (mixplan)",
+      "type": "compressor"
+     },
+     "target": "bus_mix"
+    }
+   ],
+   "summary": {
+    "en": "mix plan (score 0.192)",
+    "ja": "mix の計画 (score 0.192)"
+   },
+   "variant": null
+  },
+  {
+   "alternatives": [
+    {
+     "chain": [
+      {
+       "id": "mst_loudness",
+       "params": {
+        "gain_db": 8.181
+       },
+       "type": "loudness_gain"
+      },
+      {
+       "id": "mst_limiter",
+       "params": {
+        "ceiling_dbtp": -0.3,
+        "lookahead_ms": 3.0,
+        "oversample": 4,
+        "release_ms": 100.0
+       },
+       "type": "limiter"
+      }
+     ],
+     "label": {
+      "en": "initial plan_master proposal",
+      "ja": "plan_master の初期提案"
+     },
+     "score": 0.19795286914067817
+    }
+   ],
+   "author": "planner",
+   "created_at": "2026-11-18T13:02:13Z",
+   "edited": null,
+   "id": "mpl_c99405955c0b",
+   "proposal_id": "mpl_c99405955c0b",
+   "reject_reason": null,
+   "score": 0.1812,
+   "stage": "master",
+   "status": "applied",
+   "steps": [
+    {
+     "editable": [
+      "gain_db"
+     ],
+     "processor": {
+      "id": "mst_loudness",
+      "params": {
+       "gain_db": 8.181
+      },
+      "reason": "R-18",
+      "type": "loudness_gain"
+     },
+     "target": "master"
+    },
+    {
+     "editable": [
+      "ceiling_dbtp",
+      "lookahead_ms",
+      "oversample",
+      "release_ms"
+     ],
+     "processor": {
+      "id": "mst_limiter",
+      "params": {
+       "ceiling_dbtp": -0.3,
+       "lookahead_ms": 3.0,
+       "oversample": 4,
+       "release_ms": 100.0
+      },
+      "reason": "R-14,S-01",
+      "type": "limiter"
+     },
+     "target": "master"
+    }
+   ],
+   "summary": {
+    "en": "master plan for var_cd (score 0.181)",
+    "ja": "master の計画（var_cd） (score 0.181)"
+   },
+   "variant": "var_cd"
+  }
+ ]
+}

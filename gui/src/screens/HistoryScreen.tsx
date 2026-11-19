@@ -9,8 +9,9 @@ import type { Actor } from "../types";
 const ACTOR_ICON: Record<Actor, IconName> = { human: "human", agent: "agent", planner: "chain" };
 
 export function HistoryScreen() {
-  const { backend, revision, t, label, caps, bump, lang } = useApp();
-  const state = useAsync(() => backend.history(100), [backend, revision]);
+  const { backend, revision, variantId, t, label, caps, bump, lang } = useApp();
+  const projectVariant = backend.kind === "mock" ? variantId : undefined;
+  const state = useAsync(() => backend.history(100, projectVariant), [backend, revision, projectVariant]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
   const undo = async () => {

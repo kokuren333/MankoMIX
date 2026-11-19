@@ -30,7 +30,15 @@
    "audio/delta.mp3",
    "audio/fullmix_reference.mp3",
    "variants/v01/after.mp3",
-   "variants/v01/after_level_matched.mp3"
+   "variants/v01/after_level_matched.mp3",
+   "variants/v01/floor.mp3",
+   "variants/v02/after.mp3",
+   "variants/v03/after.mp3",
+   "variants/v04/after.mp3",
+   "variants/v05/after.mp3",
+   "variants/v06/after.mp3",
+   "variants/v07/after.mp3",
+   "variants/v08/after.mp3"
   ],
   "format": "mp3",
   "included": true,
@@ -59,7 +67,7 @@
  "source": {
   "content_hash": "2d768503f74c92703a7b82adf890c302ea8bf4f46cf5f7d7edd5782e1a7d358e",
   "project_id": "prj_sample_v01",
-  "sample_set": null
+  "sample_set": "samples/sample_set.json"
  },
  "synthetic": false,
  "title": {
@@ -80,6 +88,11 @@
     "request": "空間音響 × 複雑で心地の良いパンニング（公式サンプルの主サンプル）",
     "title": "マンコ主義 × 空間音響と複雑で心地の良いパンニング（公式サンプル 主サンプル） 全体指揮書"
    },
+   "floor": {
+    "objective": "comfort",
+    "profile": "streaming_universal",
+    "project_id": "prj_sample_v01"
+   },
    "id": "v01",
    "intensity": 0.5,
    "label": {
@@ -91,7 +104,262 @@
    "profile": "streaming_universal",
    "project_variant": "var_streaming_universal",
    "role": "main"
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v02/",
+   "history": "variants/v02/history.json",
+   "id": "v02",
+   "intensity": 0.5,
+   "label": {
+    "en": "Bass heavy × Streaming (universal safe default)",
+    "ja": "重低音強化 × ストリーミング共通（安全既定）"
+   },
+   "n": 2,
+   "objective": "bass_heavy",
+   "profile": "streaming_universal",
+   "project": "variants/v02/project.json",
+   "project_variant": "var_streaming_universal",
+   "role": "objective_axis",
+   "source": {
+    "content_hash": "945599f9c4ef072a6031b8af2bde68acebe8f22acc56093a68de253458f0a3c1",
+    "project_id": "prj_sample_v02"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v03/",
+   "history": "variants/v03/history.json",
+   "id": "v03",
+   "intensity": 0.5,
+   "label": {
+    "en": "Vocal forward × Streaming (universal safe default)",
+    "ja": "ボーカル前面 × ストリーミング共通（安全既定）"
+   },
+   "n": 3,
+   "objective": "vocal_forward",
+   "profile": "streaming_universal",
+   "project": "variants/v03/project.json",
+   "project_variant": "var_streaming_universal",
+   "role": "objective_axis",
+   "source": {
+    "content_hash": "77426857a2ad7c1fa8f4de9c44cb8a78262e4583ef56017754bf2fa5d1d12b96",
+    "project_id": "prj_sample_v03"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v04/",
+   "history": "variants/v04/history.json",
+   "id": "v04",
+   "intensity": 0.5,
+   "label": {
+    "en": "Clarity × Streaming (universal safe default)",
+    "ja": "明瞭さ × ストリーミング共通（安全既定）"
+   },
+   "n": 4,
+   "objective": "clarity",
+   "profile": "streaming_universal",
+   "project": "variants/v04/project.json",
+   "project_variant": "var_streaming_universal",
+   "role": "objective_axis",
+   "source": {
+    "content_hash": "8ca5616d3fd5303e6e97bfe1ab6bb7bec6e96ac661e3228cf7b845073c2c3c2d",
+    "project_id": "prj_sample_v04"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v05/",
+   "history": "variants/v05/history.json",
+   "id": "v05",
+   "intensity": 0.5,
+   "label": {
+    "en": "Low fatigue × Streaming (universal safe default)",
+    "ja": "疲れにくさ × ストリーミング共通（安全既定）"
+   },
+   "n": 5,
+   "objective": "low_fatigue",
+   "profile": "streaming_universal",
+   "project": "variants/v05/project.json",
+   "project_variant": "var_streaming_universal",
+   "role": "objective_axis",
+   "source": {
+    "content_hash": "74f2ae46fbf494ffebe1f7aec382e9b15bc52ff6e61bae31fc16b984e367ee26",
+    "project_id": "prj_sample_v05"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v06/",
+   "history": "variants/v06/history.json",
+   "id": "v06",
+   "intensity": 0.5,
+   "label": {
+    "en": "Listening comfort × Apple Music",
+    "ja": "聞き心地 × Apple Music"
+   },
+   "n": 6,
+   "objective": "comfort",
+   "profile": "apple_music",
+   "project": "variants/v06/project.json",
+   "project_variant": "var_apple_music",
+   "role": "media_axis",
+   "source": {
+    "content_hash": "d4b815def31de019d407751041f1c1181bb715a1d11ea883f1574f83aecdba28",
+    "project_id": "prj_sample_v06"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "hires_native"
+   ],
+   "dir": "variants/v07/",
+   "history": "variants/v07/history.json",
+   "id": "v07",
+   "intensity": 0.5,
+   "label": {
+    "en": "Listening comfort × Social (hot variant)",
+    "ja": "聞き心地 × SNS（熱いバリアント）"
+   },
+   "n": 7,
+   "objective": "comfort",
+   "profile": "sns_hot",
+   "project": "variants/v07/project.json",
+   "project_variant": "var_sns_hot",
+   "role": "media_axis",
+   "source": {
+    "content_hash": "7c5a543ed42371dc2f39a2a3099828f8b2d90116d2d064ded5c30cfff7b5876c",
+    "project_id": "prj_sample_v07"
+   }
+  },
+  {
+   "available": true,
+   "deliveries": [
+    "cd_redbook"
+   ],
+   "dir": "variants/v08/",
+   "history": "variants/v08/history.json",
+   "id": "v08",
+   "intensity": 0.5,
+   "label": {
+    "en": "Listening comfort × CD (Red Book)",
+    "ja": "聞き心地 × CD（Red Book）"
+   },
+   "n": 8,
+   "objective": "comfort",
+   "profile": "cd",
+   "project": "variants/v08/project.json",
+   "project_variant": "var_cd",
+   "role": "media_axis",
+   "source": {
+    "content_hash": "c4047812074c78a9371729701d379fea2983ba58ed3819936a5b964ee9465bd3",
+    "project_id": "prj_sample_v08"
+   }
+  },
+  {
+   "available": false,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "dir": "variants/v09/",
+   "id": "v09",
+   "intensity": 0.5,
+   "label": {
+    "en": "Listening comfort × Club / DJ",
+    "ja": "聞き心地 × クラブ／DJ"
+   },
+   "n": 9,
+   "objective": "comfort",
+   "profile": "club",
+   "project_variant": "var_club",
+   "role": "media_axis",
+   "source": {
+    "content_hash": "c7cedb11d44f9ecd61af48833684dcda2f0068faed719a794728d9ddb6652f8a",
+    "project_id": "prj_sample_v09"
+   },
+   "stopped": {
+    "at": "master",
+    "rule": "S-08"
+   },
+   "unavailable_reason": "not_rendered"
+  },
+  {
+   "available": false,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "dir": "variants/v10/",
+   "id": "v10",
+   "intensity": 0.5,
+   "label": {
+    "en": "Club impact × Club / DJ",
+    "ja": "クラブ・インパクト × クラブ／DJ"
+   },
+   "n": 10,
+   "objective": "club_impact",
+   "profile": "club",
+   "project_variant": "var_club",
+   "role": "composite",
+   "source": {
+    "content_hash": "0626f442d0d988b4284623caa2c02feaddeaa8a5a1662957cf899a10c96aefde",
+    "project_id": "prj_sample_v10"
+   },
+   "stopped": {
+    "at": "master",
+    "rule": "S-08"
+   },
+   "unavailable_reason": "not_rendered"
+  },
+  {
+   "available": false,
+   "deliveries": [
+    "dj_wav"
+   ],
+   "dir": "variants/v11/",
+   "id": "v11",
+   "intensity": 0.5,
+   "label": {
+    "en": "Bass heavy × Club / DJ",
+    "ja": "重低音強化 × クラブ／DJ"
+   },
+   "n": 11,
+   "objective": "bass_heavy",
+   "profile": "club",
+   "project_variant": "var_club",
+   "role": "composite",
+   "source": {
+    "content_hash": "e2d670dec9b30d43f0d8effeec07bdd26c6e2e1147481a51d76152ef63670658",
+    "project_id": "prj_sample_v11"
+   },
+   "stopped": {
+    "at": "master",
+    "rule": "S-08"
+   },
+   "unavailable_reason": "not_rendered"
   }
  ],
- "verification_only_profiles": []
+ "verification_only_profiles": [
+  "spotify",
+  "youtube",
+  "amazon_music",
+  "tidal",
+  "sns_safe"
+ ]
 }

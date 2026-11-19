@@ -7,7 +7,7 @@ import { AppProvider } from "../AppContext";
 import { MockBackend } from "../backend/MockBackend";
 import type { Backend, Capabilities } from "../backend/Backend";
 import type { AudioEngine, EngineFactory, LoadStatus } from "../audio/engine";
-import type { MonitorSettings, SourceId } from "../audio/gains";
+import type { MonitorSettings, SourceId, SourceGains } from "../audio/gains";
 import type { Lang } from "../types";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -53,12 +53,12 @@ export class FullCapsBackend extends MockBackend {
 /** Recording fake for the audio engine. */
 export class FakeEngine implements AudioEngine {
   supported = true;
-  gains: Record<SourceId, number>[] = [];
+  gains: SourceGains[] = [];
   monitors: MonitorSettings[] = [];
   loaded: Partial<Record<SourceId, string | null>>[] = [];
   async load(urls: Partial<Record<SourceId, string | null>>): Promise<Record<SourceId, LoadStatus>> {
     this.loaded.push(urls);
-    return { before: urls.before ? "ok" : "none", after: urls.after ? "ok" : "none", delta: urls.delta ? "ok" : "none" };
+    return { before: urls.before ? "ok" : "none", floor: urls.floor ? "ok" : "none", after: urls.after ? "ok" : "none", delta: urls.delta ? "ok" : "none" };
   }
   async play() {}
   pause() {}
@@ -72,7 +72,7 @@ export class FakeEngine implements AudioEngine {
   duration() {
     return 99;
   }
-  setSourceGains(g: Record<SourceId, number>) {
+  setSourceGains(g: SourceGains) {
     this.gains.push({ ...g });
   }
   setMonitor(m: MonitorSettings) {

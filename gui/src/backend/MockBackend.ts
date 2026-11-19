@@ -34,10 +34,16 @@ import { normalizeCatalog, normalizeDeliveries, normalizeProfiles } from "./norm
 
 /** One entry of demo/index.json (layout documented in gui/DEMO_DATA.md). */
 export interface DemoVariant {
+  project?: string;
+  history?: string;
+  source?: { project_id: string; content_hash: string };
+  stopped?: { at: string; rule: string };
+  unavailable_reason?: string;
   id: string;
   n?: number;
   label?: Label;
   direction?: DirectionRef;
+  floor?: { objective: string; profile: string; project_id: string };
   objective: string;
   profile: string;
   role?: string;
@@ -133,9 +139,10 @@ export class MockBackend implements Backend {
     return { ...MOCK_CAPABILITIES };
   }
 
-  async getProject(): Promise<Project> {
+  async getProject(variant?: string): Promise<Project> {
     const idx = await this.index();
-    return this.json<Project>(idx.project);
+    const entry = idx.variants.find((v) => v.id === variant);
+    return this.json<Project>(entry?.project ?? idx.project);
   }
 
   patchProject(_ops: PatchOp[], _reason?: string): Promise<PatchResult> {
@@ -146,10 +153,11 @@ export class MockBackend implements Backend {
     return Promise.reject(new UnsupportedError("importFiles"));
   }
 
-  async history(limit = 50): Promise<HistoryEntry[]> {
+  async history(limit = 50, variant?: string): Promise<HistoryEntry[]> {
     const idx = await this.index();
-    if (!idx.history) return [];
-    const data = await this.json<{ entries: HistoryEntry[] } | HistoryEntry[]>(idx.history);
+    const path = idx.variants.find((v) => v.id === variant)?.history ?? idx.history;
+    if (!path) return [];
+    const data = await this.json<{ entries: HistoryEntry[] } | HistoryEntry[]>(path);
     const entries = Array.isArray(data) ? data : data.entries ?? [];
     return [...entries].sort((a, b) => b.seq - a.seq).slice(0, limit);
   }
@@ -197,6 +205,7 @@ export class MockBackend implements Backend {
       role: v.role,
       intensity: v.intensity ?? idx.intensity,
       available: v.available,
+      stopped: v.stopped,
     }));
   }
 

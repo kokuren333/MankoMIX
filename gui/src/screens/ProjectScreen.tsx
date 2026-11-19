@@ -5,8 +5,9 @@ import { Async, Card, CapButton, StatusBadge, fmtNum, shortHash } from "../compo
 import type { Project } from "../types";
 
 export function ProjectScreen() {
-  const { backend, revision } = useApp();
-  const state = useAsync(() => backend.getProject(), [backend, revision]);
+  const { backend, revision, variantId } = useApp();
+  const projectVariant = backend.kind === "mock" ? variantId : undefined;
+  const state = useAsync(() => backend.getProject(projectVariant), [backend, revision, projectVariant]);
   return <Async state={state}>{(p) => <ProjectView project={p} />}</Async>;
 }
 

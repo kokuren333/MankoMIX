@@ -4,7 +4,7 @@ AI 生成楽曲や既存のステムを、**人の耳にとって聞き心地が
 
 > **状態: 公開プレビュー（v0.1、pre-1.0）。** 取り込み、測定、整音、ミックス、マスタリング、検証、Mix Report、ステム分離、CLI、MCP、ローカル GUI に加え、楽曲ごとの指揮書で方向付けするディレクターレイヤー（後述）が動く。Apache-2.0 で公開しているが、まだ開発中であり、仕様・挙動は今後変わりうる。進み具合は [docs/SPEC.md](docs/SPEC.md) §17 のマイルストーンに沿う。
 
-**▶ デモ（GitHub Pages）: https://kokuren333.github.io/MankoMIX/** — インストール不要、ブラウザ内モックで GUI をそのまま触れる。指揮書の実例（空間音響・パンニング）には試聴用 MP3 が入り、ブラウザでそのまま聴ける。
+**▶ デモ（GitHub Pages）: https://kokuren333.github.io/MankoMIX/** — インストール不要、ブラウザ内モックで GUI をそのまま触れる。Pages デモでは主サンプルを処理前→床（#1 指揮なし）→指揮版の 3 段で切り替えて聴ける。#2〜#8 も測定値・レベルマッチ付きで試聴でき、#9〜#11 は未完成（音声なし、S-08）と表示される。
 
 ## 何をするツールか
 
@@ -168,7 +168,7 @@ mankomix serve -p my_song.mmx
 | 10 | クラブ・インパクト × クラブ／DJ | 未完成: 同上 | — | なし |
 | 11 | 重低音強化 × クラブ／DJ | 未完成: 同上 | — | なし |
 
-LUFS-I／True Peak はマスター（ロスレス）の実測。翻訳ゲート（OF-5）は 8 種とも incomplete（マスター段にステムを渡さないため 2 項目が未評価）。#1 のマスターを他の配信先の基準で検証した結果は、Spotify・YouTube・TIDAL・SNS（安全既定）が合格、Amazon Music が不合格（S-01、True Peak）。種別の定義は [samples/sample_set.json](samples/sample_set.json)、方針は [docs/SPEC.md](docs/SPEC.md) の §15。Pages デモには主サンプルが収録されている。
+LUFS-I／True Peak はマスター（ロスレス）の実測。翻訳ゲート（OF-5）は 8 種とも incomplete（マスター段にステムを渡さないため 2 項目が未評価）。#1 のマスターを他の配信先の基準で検証した結果は、Spotify・YouTube・TIDAL・SNS（安全既定）が合格、Amazon Music が不合格（S-01、True Peak）。種別の定義は [samples/sample_set.json](samples/sample_set.json)、方針は [docs/SPEC.md](docs/SPEC.md) の §15。Pages デモでは主サンプルを処理前→床（#1 指揮なし）→指揮版の 3 段で切り替えて聴ける。#2〜#8 も測定値・レベルマッチ付きで試聴でき、#9〜#11 は未完成（音声なし、S-08）と表示される。
 
 ## ドキュメント
 

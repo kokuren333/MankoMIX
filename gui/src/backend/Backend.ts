@@ -114,12 +114,14 @@ export interface Backend {
   capabilities(): Promise<Capabilities>;
 
   // Project (core: status / project_get / patch)
-  getProject(): Promise<Project>;
+  /** Demo entries may override the project; local mode ignores this selector. */
+  getProject(variant?: string): Promise<Project>;
   patchProject(ops: PatchOp[], reason?: string): Promise<PatchResult>;
   importFiles(files: File[]): Promise<Job | PatchResult>;
 
   // History (core: history / undo)
-  history(limit?: number): Promise<HistoryEntry[]>;
+  /** Demo entries may override history; local mode ignores this selector. */
+  history(limit?: number, variant?: string): Promise<HistoryEntry[]>;
   undo(): Promise<UndoResult>;
 
   // Definitions (core: objective_list / profile_list / delivery list / model_list)

@@ -12,7 +12,7 @@ export function ReportScreen() {
   const state = useAsync(() => backend.getReport(variantId, reportLang), [backend, revision, variantId, reportLang]);
   return (
     <div className="stack">
-      <Async state={state}>{(r) => <ReportView report={r} reportLang={reportLang} onLang={setReportLang} variantId={variantId} />}</Async>
+      <Async state={state} variantDependent>{(r) => <ReportView report={r} reportLang={reportLang} onLang={setReportLang} variantId={variantId} />}</Async>
     </div>
   );
 }

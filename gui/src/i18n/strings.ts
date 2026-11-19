@@ -2,6 +2,8 @@
 // the backend in the requested language; these are only GUI chrome strings.
 
 const en = {
+  "stopped.short": "not finished · no audio ({rule})",
+  "stopped.reason": "Not finished (no audio). Stopped at the master stage: the noise-return guard (S-08) did not pass and the variant was sent back to the mix stage. The tolerance was not relaxed.",
   "nav.notes": "Notes",
   "nav.spectral": "Spectral regions",
   "nav.meters": "Meters",
@@ -165,6 +167,12 @@ const en = {
 
   "listen.ab": "A/B",
   "listen.before": "A: Before",
+  "listen.threeWayBefore": "Before",
+  "listen.floor": "Floor (no direction)",
+  "listen.floorShort": "Floor",
+  "listen.directed": "Directed",
+  "listen.gainSeparator": " / ",
+  "listen.gainsApplied": " applied",
   "listen.after": "B: After",
   "listen.delta": "Delta (removed)",
   "listen.play": "Play",
@@ -271,6 +279,8 @@ const en = {
 export type StringKey = keyof typeof en;
 
 const ja: Record<StringKey, string> = {
+  "stopped.short": "未完成・音声なし（{rule}）",
+  "stopped.reason": "未完成（音声なし）。マスター段で停止しました。ノイズ戻り監視（S-08）が合格せず、ミックス段へ差し戻されています。許容幅は緩めていません。",
   "nav.notes": "音符表示",
   "nav.spectral": "スペクトル領域選択",
   "nav.meters": "メータ",
@@ -434,6 +444,12 @@ const ja: Record<StringKey, string> = {
 
   "listen.ab": "A/B",
   "listen.before": "A: 処理前",
+  "listen.threeWayBefore": "処理前",
+  "listen.floor": "床（指揮なし）",
+  "listen.floorShort": "床",
+  "listen.directed": "指揮版",
+  "listen.gainSeparator": "／",
+  "listen.gainsApplied": " を適用",
   "listen.after": "B: 処理後",
   "listen.delta": "除去分（delta）",
   "listen.play": "再生",

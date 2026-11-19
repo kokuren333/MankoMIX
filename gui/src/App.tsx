@@ -1,4 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
+import { StoppedNotice } from "./components/ui";
 import { useApp } from "./AppContext";
 import type { StringKey } from "./i18n/strings";
 import type { Lang, VariantSummary } from "./types";
@@ -108,7 +109,7 @@ function VariantPicker() {
     const head = v.direction
       ? `${t("direction.short")}${v.direction.pattern ? ` ${v.direction.pattern}` : ""} ${lang === "ja" ? "「" : "\""}${label(v.direction.request ?? v.direction.title, v.direction.id)}${lang === "ja" ? "」" : "\""} × ${v.profile}`
       : `${v.objectives.join("+")} × ${v.profile}`;
-    return `${v.n != null ? `#${v.n} ` : ""}${head}${v.available ? "" : " (—)"}`;
+    return `${v.n != null ? `#${v.n} ` : ""}${head}${v.stopped ? ` ${t("stopped.short").replace("{rule}", v.stopped.rule)}` : v.available ? "" : " (—)"}`;
   };
   return (
     <label className="variant-picker">
@@ -122,6 +123,12 @@ function VariantPicker() {
       </select>
     </label>
   );
+}
+
+export function StoppedBanner() {
+  const { variant } = useApp();
+  if (!variant?.stopped) return null;
+  return <aside className="direction-banner" data-testid="stopped-banner"><StoppedNotice /></aside>;
 }
 
 export function DirectionBanner() {
@@ -156,7 +163,7 @@ function LangToggle() {
 }
 
 export function App() {
-  const { t, caps, layout, connection } = useApp();
+  const { t, caps, layout, connection, variantId } = useApp();
   const [route, go] = useRoute();
   const Screen = SCREENS.find((s) => s.id === route)?.component ?? ListenScreen;
   return (
@@ -181,6 +188,7 @@ export function App() {
       </header>
       <MockBanner />
       <DirectionBanner />
+      <StoppedBanner />
       <ChangeToast />
       <div className="body">
         <nav className="nav" aria-label={t("app.nav")}>
@@ -196,7 +204,7 @@ export function App() {
         </nav>
         <main className="main">
           <h1 className="screen-title">{t(SCREENS.find((s) => s.id === route)!.label)}</h1>
-          <Screen />
+          <Screen key={caps.mode === "mock" ? variantId : "local"} />
         </main>
       </div>
     </div>

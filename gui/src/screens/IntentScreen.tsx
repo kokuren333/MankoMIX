@@ -6,17 +6,18 @@ import { Async, Card, CapButton, fmtNum } from "../components/ui";
 import type { DeliveryFormat, MediaProfile, ObjectiveCatalog, ObjectiveSpec, OutputSpec, PatchOp, Project, VariantSummary } from "../types";
 
 export function IntentScreen() {
-  const { backend, revision } = useApp();
+  const { backend, revision, variantId } = useApp();
+  const projectVariant = backend.kind === "mock" ? variantId : undefined;
   const state = useAsync(
-    () => Promise.all([backend.getProject(), backend.listObjectives(), backend.listProfiles(), backend.listDeliveries()]),
-    [backend, revision],
+    () => Promise.all([backend.getProject(projectVariant), backend.listObjectives(), backend.listProfiles(), backend.listDeliveries()]),
+    [backend, revision, projectVariant],
   );
   return <Async state={state}>{([p, o, pr, d]) => <IntentView project={p} catalog={o} profiles={pr} deliveries={d} />}</Async>;
 }
 
 /** Objective × profile matrix of available variants (the demo's switch). */
 export function VariantMatrix({ catalog, profiles }: { catalog: ObjectiveCatalog; profiles: MediaProfile[] }) {
-  const { variants, variantId, setVariantId, label } = useApp();
+  const { variants, variantId, setVariantId, label, t } = useApp();
   const objIds = [...new Set(variants.map((v) => v.objectives[0]))];
   const profIds = [...new Set(variants.map((v) => v.profile))];
   const objLabel = (id: string) => label(catalog.objectives.find((o) => o.id === id)?.label, id);
@@ -49,9 +50,10 @@ export function VariantMatrix({ catalog, profiles }: { catalog: ObjectiveCatalog
                       className={"chip" + (v.id === variantId ? " active" : "") + (v.available ? "" : " unavailable")}
                       aria-pressed={v.id === variantId}
                       onClick={() => setVariantId(v.id)}
-                      title={v.available ? undefined : "not generated"}
+                      title={v.stopped ? t("stopped.reason") : v.available ? undefined : "not generated"}
                     >
                       {v.n != null ? `#${v.n}` : v.id}
+                      {v.stopped && ` ${t("stopped.short").replace("{rule}", v.stopped.rule)}`}
                     </button>
                   </td>
                 );

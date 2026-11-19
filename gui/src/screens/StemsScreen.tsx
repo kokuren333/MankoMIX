@@ -6,8 +6,9 @@ import { Icon } from "../components/Icon";
 import { ROLES, type PatchOp, type Project, type Track } from "../types";
 
 export function StemsScreen() {
-  const { backend, revision } = useApp();
-  const state = useAsync(() => backend.getProject(), [backend, revision]);
+  const { backend, revision, variantId } = useApp();
+  const projectVariant = backend.kind === "mock" ? variantId : undefined;
+  const state = useAsync(() => backend.getProject(projectVariant), [backend, revision, projectVariant]);
   return <Async state={state}>{(p) => <StemsView project={p} />}</Async>;
 }
 

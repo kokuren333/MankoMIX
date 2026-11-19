@@ -1,7 +1,11 @@
 // Pure gain logic for the A/B player. The match gain itself always comes from
-// the backend data (AudioSet.match_gain_db); the GUI never computes loudness.
+// the backend data (AudioSet.level_match_gains_db or match_gain_db);
+// the GUI never computes loudness.
 
-export type SourceId = "before" | "after" | "delta";
+export type SourceId = "before" | "floor" | "after" | "delta";
+
+/** Floor is optional for compatibility with two-way engine clients. */
+export type SourceGains = Record<Exclude<SourceId, "floor">, number> & { floor?: number };
 
 export interface MonitorSettings {
   mono: boolean;
@@ -24,18 +28,23 @@ export interface GainInput {
   active: SourceId;
   levelMatch: boolean;
   matchGainDb: number;
-  matchTarget: "before" | "after";
+  matchTarget: "before" | "floor" | "after";
+  levelMatchGainsDb?: { before: number; floor: number; after: number };
 }
 
 /**
  * Linear gain per source. Only the active source is audible (all sources run
  * in sync so switching keeps the position). With level match on, the match
- * gain is applied to the louder side (match_target).
+ * table is used when present, otherwise the pair gain is applied to match_target.
  */
-export function sourceGains({ active, levelMatch, matchGainDb, matchTarget }: GainInput): Record<SourceId, number> {
-  const g: Record<SourceId, number> = { before: 0, after: 0, delta: 0 };
+export function sourceGains({ active, levelMatch, matchGainDb, matchTarget, levelMatchGainsDb }: GainInput): SourceGains {
+  const g: SourceGains = { before: 0, after: 0, delta: 0 };
+  if (levelMatchGainsDb || active === "floor") g.floor = 0;
   let v = 1;
-  if (levelMatch && active === matchTarget && Number.isFinite(matchGainDb)) v = dbToGain(matchGainDb);
+  const db = levelMatchGainsDb
+    ? active === "delta" ? 0 : levelMatchGainsDb[active]
+    : active === matchTarget ? matchGainDb : 0;
+  if (levelMatch && Number.isFinite(db)) v = dbToGain(db);
   g[active] = v;
   return g;
 }

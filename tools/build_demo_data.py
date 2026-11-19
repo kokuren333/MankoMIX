@@ -14,7 +14,8 @@ recorded as the floor the direction was applied on top of, never as the headline
 
 Usage:
     python -I tools/build_demo_data.py --project <song.mmx> [--out tmp/demo_data]
-        [--variants-from samples/sample_set.json | --project-variants] [--mp3] [--ffmpeg PATH]
+        [--variants-from samples/sample_set.json | --project-variants] [--slot N=PROJECT ...]
+        [--floor N=PROJECT ...] [--official-manifest manifest.json] [--mp3] [--ffmpeg PATH]
 
 The default output folder is ``tmp/demo_data`` (gitignored). Writing into ``gui/public/demo``
 replaces the committed placeholder. Audio there is not committed until the owner approves the M9
@@ -25,6 +26,7 @@ Layout: gui/DEMO_DATA.md. Exit code 0 on success, 1 when the build fails, 2 on u
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -260,6 +262,53 @@ def plan_entries(sample_set: dict | None, project_variants: list[dict], profiles
     return entries
 
 
+def project_path(value: str) -> Path:
+    path = Path(value)
+    return (path.parent if path.name == "project.json" else path).resolve()
+
+
+def parse_assignments(values: list[str], option: str) -> dict[int, Path]:
+    """Parse numbered project assignments; shared by future numbered input options."""
+    assignments = {}
+    for value in values:
+        number, sep, path = value.partition("=")
+        if not sep or not number.isdecimal() or int(number) < 1 or not path.strip():
+            raise BuildError(f"{option} expects N=<project> with N >= 1")
+        n = int(number)
+        if n in assignments:
+            raise BuildError(f"{option}: duplicate assignment for #{n}")
+        assignments[n] = project_path(path)
+        if not (assignments[n] / "project.json").is_file():
+            raise BuildError(f"{option} #{n}: not a MankoMIX project (no project.json)")
+    return assignments
+
+
+def assign_slots(entries: list[dict], slots: dict[int, Path], variants, option="--slot") -> None:
+    """Resolve overrides independently of the default project's variant ids and used set."""
+    by_n = {e["n"]: e for e in entries}
+    for n, project in slots.items():
+        if n not in by_n:
+            raise BuildError(f"{option} #{n}: no such slot")
+        e = by_n[n]
+        matches = [v for v in variants(project)
+                   if v.get("profile") == e["profile"] and _single_objective(v) == e["objective"]
+                   and (e["intensity"] is None or v.get("intensity") is not None)
+                   and _intensity_ok(v, e["intensity"])]
+        if len(matches) != 1:
+            raise BuildError(f"{option} #{n}: expected exactly 1 variant matching "
+                             f"{e['objective']} x {e['profile']} x {e['intensity']}; found {len(matches)}")
+        e["project_variant"] = matches[0]
+        e["deliveries"] = matches[0].get("deliveries") or e["deliveries"]
+
+
+def _sha256(path: Path) -> str:
+    try:
+        with path.open("rb") as stream:
+            return hashlib.file_digest(stream, "sha256").hexdigest()
+    except OSError:
+        raise BuildError("cannot read before source for sha256 comparison") from None
+
+
 # ---------------------------------------------------------------------------
 # Direction (director layer) metadata
 # ---------------------------------------------------------------------------
@@ -339,15 +388,38 @@ def _labels(items: list[dict]) -> dict[str, dict]:
     return out
 
 
+def three_way_gains(after: dict, floor: dict) -> dict[str, float]:
+    """Combine the directed and floor pairs arithmetically, without measuring audio."""
+    differences = {"before": 0.0}
+    for side, pair in (("after", after), ("floor", floor)):
+        gain, target = pair.get("match_gain_db"), pair.get("match_target")
+        if not isinstance(gain, (int, float)) or not math.isfinite(gain) or gain > 0 or \
+                target not in ("before", "after"):
+            raise BuildError(f"{side}: invalid core level-match pair")
+        differences[side] = gain if target == "before" else -gain
+    lowest = min(differences.values())
+    return {side: round(lowest - differences[side], 2) for side in ("before", "floor", "after")}
+
+
 class Builder:
     def __init__(self, project: Path, out: Path, sample_set_path: Path | None, encoder: Mp3Encoder | None,
-                 warn=None):
+                 warn=None, *, slots: dict[int, Path] | None = None,
+                 floors: dict[int, Path] | None = None, official_manifest: Path | None = None):
         from mankomix.core import api
         self.api = api
         self.project = project
         self.out = out
         self.sample_set_path = sample_set_path
         self.encoder = encoder
+        self.slots = slots or {}
+        self.floors = floors or {}
+        self.official = None
+        if official_manifest is not None:
+            try:
+                self.official = json.loads(official_manifest.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as e:
+                raise BuildError(f"cannot read official manifest: {e}") from None
+        self.expected_mp3: dict[str, str] = {}
         self.warn = warn or (lambda msg: print(f"warning: {msg}", file=sys.stderr))
         self.files: dict[str, Any] = {}           # demo-relative path -> JSON object
         self.audio_jobs: dict[str, tuple] = {}    # demo-relative path -> (source Path, gain or None)
@@ -363,27 +435,33 @@ class Builder:
             self.warn(f"{what}: {e.message}")
             return None, what
 
-    def _source(self, rel: str | None) -> Path | None:
+    def _source(self, rel: str | None, project: Path | None = None) -> Path | None:
         """A project-relative file from the core as a readable file inside the project (or None)."""
         if not rel or rel.startswith(("external/", "linked/")):
             return None
-        p = (self.project / rel).resolve()
+        project = project or self.project
+        p = (project / rel).resolve()
         try:
-            p.relative_to(self.project)
+            p.relative_to(project)
         except ValueError:
             return None
         return p if p.is_file() else None
 
-    def _audio(self, dst: str, rel: str | None, gain_db: float | None = None) -> str | None:
+    def _audio(self, dst: str, rel: str | None, gain_db: float | None = None,
+               *, project: Path | None = None) -> str | None:
         if self.encoder is None:
             return None
-        src = self._source(rel)
+        src = self._source(rel, project)
         if src is None:
             if rel:
                 self.warn(f"{rel}: not readable inside the project (linked asset?); no listening copy")
             return None
         prev = self.audio_jobs.get(dst)
         if prev is not None and prev != (src, gain_db):
+            if (dst in {"audio/before.mp3", "audio/delta.mp3", "audio/fullmix_reference.mp3",
+                        "audio/before_level_matched.mp3"}
+                    and prev[1] == gain_db and _sha256(prev[0]) == _sha256(src)):
+                return dst
             raise BuildError(f"two different sources for {dst}")
         self.audio_jobs[dst] = (src, gain_db)
         return dst
@@ -407,10 +485,35 @@ class Builder:
             except (OSError, ValueError) as e:
                 raise BuildError(f"cannot read the sample set {self.sample_set_path.name}: {e}") from None
         entries = plan_entries(sample_set, project_variants, prof_by_id, self.warn)
+        variant_cache = {self.project: project_variants}
 
-        befores: dict[str, str] = {}      # project-relative before source -> demo audio path
+        def variants(project):
+            if project not in variant_cache:
+                variant_cache[project] = api.variant_list(str(project))["variants"]
+            return variant_cache[project]
+
+        assign_slots(entries, self.slots, variants)
+        floor_entries = [dict(e) for e in entries]
+        assign_slots(floor_entries, self.floors, variants, "--floor")
+        floor_by_n = {e["n"]: e for e in floor_entries if e["n"] in self.floors}
+        contexts = {}
+        for project in set(self.slots.values()):
+            data = api.project_get(str(project))["value"]
+            history = api.history(str(project), limit=None)
+            history_entries = [dict(x, summary=x.get("reason") or x.get("op"))
+                               for x in history.get("entries") or []]
+            content_hash = next((x.get("after_hash") for x in reversed(history_entries)
+                                 if x.get("after_hash")), None)
+            contexts[project] = (data, {"entries": history_entries},
+                                 {"project_id": data.get("id"), "content_hash": content_hash})
+
+        # Preserve the legacy layout without overrides; multi-project builds share by content.
+        befores: dict[str, str] = {}      # before identity -> demo audio path
+        before_hash = None
         variants_index = []
         for e in entries:
+            project = self.slots.get(e["n"], self.project)
+            proj = str(project)
             vid = f"v{int(e['n']):02d}"
             pv = e["project_variant"]
             item = {"id": vid, "n": e["n"], "objective": e["objective"], "profile": e["profile"],
@@ -421,20 +524,38 @@ class Builder:
                     "dir": f"variants/{vid}/", "project_variant": pv.get("id") if pv else None,
                     "available": False}
             variants_index.append(item)
+            if e["n"] in self.slots:
+                item["source"] = contexts[project][2]
+            if e["n"] in self.floors and (pv is None or not pv.get("rendered")):
+                raise BuildError(f"--floor #{e['n']}: directed slot must be available")
             if pv is None:
                 item["unavailable_reason"] = "not_in_project"
                 continue
             if not pv.get("rendered"):
                 item["unavailable_reason"] = "not_rendered"
                 continue
+            # Only rendered slots share audio; audio_set may write derived project files.
+            # Keep the comparison even when no listening copies are requested.
+            slot_audio = None
+            if self.slots:
+                slot_audio = api.audio_set(proj, pv["id"])
+                before = self._source((slot_audio.get("files") or {}).get("before"), project)
+                if before is None:
+                    raise BuildError(f"#{e['n']}: before source is not readable for sha256 comparison")
+                digest = _sha256(before)
+                if before_hash is not None and before_hash != digest:
+                    raise BuildError(f"#{e['n']}: before source sha256 differs from other slots")
+                before_hash = digest
             pid = pv["id"]
             analysis, m1 = self._try("analysis", api.analysis_view, proj, pid)
             verification, m2 = self._try("verification", api.verification_get, proj, pid)
-            audio, m3 = self._try("audio", api.audio_set, proj, pid)
+            audio, m3 = (slot_audio, None) if slot_audio is not None else self._try("audio", api.audio_set, proj, pid)
             rep_ja, m4 = self._try("report", lambda: api.report(proj, pid, lang="ja", write=False)["report"])
             rep_en, m5 = self._try("report", lambda: api.report(proj, pid, lang="en", write=False)["report"])
             missing = sorted({m for m in (m1, m2, m3, m4, m5) if m})
             if missing:
+                if e["n"] in self.floors:
+                    raise BuildError(f"--floor #{e['n']}: directed slot is incomplete")
                 item["unavailable_reason"] = "incomplete"
                 item["missing"] = missing
                 continue
@@ -443,7 +564,7 @@ class Builder:
             props.sort(key=_proposal_key)
             dids = direction_ids(props)
             if dids:
-                meta = _direction_meta(self.project, dids[0]) or {"id": dids[0]}
+                meta = _direction_meta(project, dids[0]) or {"id": dids[0]}
                 item["direction"] = meta
                 req = meta.get("request") or meta.get("title")
                 if req:
@@ -464,7 +585,32 @@ class Builder:
             self.files[d + "verify.json"] = verification
             self.files[d + "report.ja.json"] = rep_ja
             self.files[d + "report.en.json"] = rep_en
-            self.files[d + "audio.json"] = self._audio_json(vid, e, audio, befores)
+            self.files[d + "audio.json"] = self._audio_json(vid, e, audio, befores, project)
+            if self.official is not None:
+                self._official_audio(vid, audio, verification, project, bool(dids))
+            if e["n"] in self.floors:
+                self._floor(vid, floor_by_n[e["n"]], self.floors[e["n"]],
+                            project, audio, dids, item)
+            if e["n"] in self.slots:
+                item["project"] = d + "project.json"
+                item["history"] = d + "history.json"
+                self.files[item["project"]] = sanitise_project(contexts[project][0])
+                self.files[item["history"]] = contexts[project][1]
+
+        if self.official is not None:
+            published = (sample_set or {}).get("published")
+            if published is None:
+                raise BuildError("official mode requires sample_set published metadata")
+            by_n = {v["n"]: v for v in variants_index}
+            for n in published.get("verified") or []:
+                if n not in by_n or not by_n[n]["available"]:
+                    raise BuildError(f"published.verified #{n} is unavailable")
+            for stopped in published.get("stopped") or []:
+                n = stopped["n"]
+                if n not in by_n or by_n[n]["available"]:
+                    raise BuildError(f"published.stopped #{n} is available or missing")
+                by_n[n].update(stopped={k: stopped[k] for k in ("at", "rule")},
+                               unavailable_reason="not_rendered")
 
         title = project_data.get("title") or (sample_set or {}).get("title") or "MankoMIX"
         entries_h = [dict(x, summary=x.get("reason") or x.get("op")) for x in hist.get("entries") or []]
@@ -502,17 +648,187 @@ class Builder:
         self.files["history.json"] = {"entries": entries_h}
 
         roots = _local_roots(self.project)
+        for project in self.slots.values():
+            roots.extend(_local_roots(project))
+        for project in self.floors.values():
+            roots.extend(_local_roots(project))
         leaks = [f"{name}{p}" for name, obj in sorted(self.files.items()) for p in find_leaks(obj, roots)]
         if leaks:
             raise BuildError("refusing to write: absolute paths or addresses in the dataset:\n  "
                              + "\n  ".join(leaks[:20]))
         self._write()
-        return {"out": _display(self.out),
+        result = {"out": _display(self.out),
                 "available": [v["id"] for v in variants_index if v["available"]],
                 "unavailable": {v["id"]: v.get("unavailable_reason") for v in variants_index if not v["available"]},
                 "audio_files": len(self.audio_jobs), "json_files": len(self.files) + len(DEFINITIONS)}
+        if self.official is not None:
+            result["mp3_sha256_verification"] = "passed" if self.encoder else "skipped (JSON-only: no MP3 files)"
+        return result
 
-    def _audio_json(self, vid: str, e: dict, audio: dict, befores: dict[str, str]) -> dict:
+    def _manifest_variant(self, vid: str) -> dict:
+        matches = [v for v in self.official.get("variants", []) if v.get("id") == vid]
+        if len(matches) != 1:
+            raise BuildError(f"official manifest: expected one variant {vid}")
+        return matches[0]
+
+    @staticmethod
+    def _check_match(audio: dict, expected: dict | None, label: str) -> None:
+        if not expected or audio.get("match_gain_db") != expected.get("gain_db") or \
+                audio.get("match_target") != expected.get("lowered_side", expected.get("target")):
+            raise BuildError(f"{label}: level_match mismatch")
+
+    def _expect(self, dst: str, digest: str | None) -> None:
+        if not digest:
+            raise BuildError(f"official manifest: missing MP3 sha256 for {dst}")
+        if dst in self.expected_mp3 and self.expected_mp3[dst] != digest:
+            raise BuildError(f"official manifest: conflicting MP3 sha256 for {dst}")
+        self.expected_mp3[dst] = digest
+
+    def _master(self, project: Path, verification: dict, delivery: str | None) -> str:
+        matches = [o.get("file") for o in verification.get("outputs") or []
+                   if o.get("delivery") == delivery and o.get("file")]
+        if not delivery or len(matches) != 1 or self._source(matches[0], project) is None:
+            raise BuildError(f"official manifest: delivery master {delivery!r} is not readable")
+        return matches[0]
+
+    def _listening_values(self, vid: str, audio: dict, record: dict, project: Path,
+                          master: str, label: str) -> dict:
+        """Measure the encoding source and verify its published provenance (PM gate 2)."""
+        from tools.build_samples import level_match, proxies
+
+        delivery = (record.get("listening_copy") or {}).get("of_master")
+        rows = [m for m in record.get("masters") or [] if m.get("delivery") == delivery]
+        if len(rows) != 1:
+            raise BuildError(f"{label}: expected one of_master in manifest masters")
+        source = self._source(master, project)
+        if source is None or _sha256(source) != rows[0].get("sha256"):
+            raise BuildError(f"{label}: master sha256 mismatch")
+        before = self._source((audio.get("files") or {}).get("before"), project)
+        if before is None:
+            raise BuildError(f"{label}: before source is not readable")
+
+        def measured(path):
+            p = proxies(self.api.measure_audio(str(path))["vector"])
+            return {k: p[k] for k in ("lufs_i", "true_peak_dbtp")}
+
+        b, a = measured(before), measured(source)
+        core_before = (audio.get("measurements") or {}).get("before") or {}
+        if b != {k: core_before.get(k) for k in b}:
+            raise BuildError(f"{label}: before measurements mismatch")
+        expected = rows[0].get("measured") or {}
+        if a != {k: expected.get(k) for k in a}:
+            raise BuildError(f"{label}: after LUFS/TP mismatch")
+        lm = level_match(b["lufs_i"], a["lufs_i"])
+        pair = {"match_gain_db": lm["gain_db"], "match_target": lm["target"]}
+        self._check_match(pair, record.get("level_match"), label)
+        self._check_match(audio, (record.get("level_match") or {}).get("core_audio_set"),
+                          f"{label} core_audio_set")
+        if vid != "v08" and (pair["match_gain_db"], pair["match_target"]) != \
+                (audio.get("match_gain_db"), audio.get("match_target")):
+            raise BuildError(f"{label}: listening/core pair differs outside v08; PM review required")
+        return {**pair, "measurements": a, "after_master": delivery,
+                "core_audio_set": {"gain_db": audio.get("match_gain_db"),
+                                   "target": audio.get("match_target"),
+                                   "measurements": audio.get("measurements") or {}}}
+
+    def _official_audio(self, vid: str, audio: dict, verification: dict,
+                        project: Path, directed: bool) -> None:
+        record = self._manifest_variant(vid)
+        main = self.official.get("main_sample") or {}
+        is_main = directed and main.get("of") == vid
+        uses_listening_values = not is_main and vid in {f"v{n:02d}" for n in range(2, 9)}
+        if is_main:
+            self._check_match(audio, main.get("level_match"), vid)
+        elif not uses_listening_values:
+            self._check_match(audio, record.get("level_match"), vid)
+        data = self.files[f"variants/{vid}/audio.json"]
+        files = data["files"]
+        if not is_main:
+            listening = record.get("listening_copy") or {}
+            master = self._master(project, verification, listening.get("of_master"))
+            if uses_listening_values:
+                values = self._listening_values(vid, audio, record, project, master, vid)
+                data.update({k: v for k, v in values.items() if k != "measurements"})
+                data["measurements"] = {**data["measurements"], "after": values["measurements"]}
+            dst = f"variants/{vid}/after.mp3"
+            self.audio_jobs.pop(dst, None)
+            files["after"] = self._audio(dst, master, project=project)
+            data["source_files"]["after"] = master
+            matched = files.get("after_level_matched")
+            if matched:
+                self.audio_jobs.pop(matched, None)
+                files["after_level_matched"] = self._audio(matched, master, data["match_gain_db"], project=project)
+        if self.encoder is None:
+            return
+        for key, dst in files.items():
+            if dst is None:
+                continue
+            if key == "after":
+                digest = ((main.get("mp3") or {}).get("main") or {}).get("sha256") if is_main else \
+                    (record.get("listening_copy") or {}).get("mp3_sha256")
+            elif key in ("after_level_matched", "before_level_matched"):
+                digest = ((main.get("mp3") or {}).get("level_matched") or {}).get("sha256") if is_main else \
+                    ((self.official.get("audio") or {}).get("level_matched_pair") or {}).get("mp3_sha256")
+            else:
+                digest = ((self.official.get("audio") or {}).get(key) or {}).get("mp3_sha256")
+            self._expect(dst, digest)
+
+    def _floor(self, vid: str, entry: dict, project: Path, directed_project: Path,
+               directed_audio: dict, dids: list[str], item: dict) -> None:
+        pv = entry["project_variant"]
+        if not dids:
+            raise BuildError(f"--floor {vid}: slot has no direction_ids")
+        props = self.api.proposal_list(str(project))["proposals"]
+        if direction_ids(props):
+            raise BuildError(f"--floor {vid}: floor must have no direction_ids")
+        if not pv.get("rendered"):
+            raise BuildError(f"--floor {vid}: floor is not rendered")
+        verification, missing = self._try("verification", self.api.verification_get, str(project), pv["id"])
+        if missing:
+            raise BuildError(f"--floor {vid}: floor is not verified")
+        audio = self.api.audio_set(str(project), pv["id"])
+        src = audio.get("files") or {}
+        before = self._source(src.get("before"), project)
+        directed_before = self._source((directed_audio.get("files") or {}).get("before"), directed_project)
+        if before is None or directed_before is None or _sha256(before) != _sha256(directed_before):
+            raise BuildError(f"--floor {vid}: before source sha256 differs or is unreadable")
+        if self._source(src.get("after"), project) is None:
+            raise BuildError(f"--floor {vid}: floor master is not readable")
+        data = self.api.project_get(str(project))["value"]
+        hist = self.api.history(str(project), limit=None).get("entries") or []
+        content_hash = next((h.get("after_hash") for h in reversed(hist) if h.get("after_hash")), None)
+        measurements = (audio.get("measurements") or {}).get("after") or {}
+        floor = {"project_variant": audio.get("variant"), "project_id": data.get("id"),
+                 "content_hash": content_hash, "objective": entry["objective"], "profile": entry["profile"],
+                 "measurements": measurements, "match_gain_db": audio.get("match_gain_db"),
+                 "match_target": "floor" if audio.get("match_target") == "after" else audio.get("match_target"),
+                 "source_files": {k: v for k, v in sorted(src.items()) if v}}
+        master = src.get("after")
+        floor_pair = audio
+        if self.official is not None:
+            record = self._manifest_variant(vid)
+            master = self._master(project, verification, (record.get("listening_copy") or {}).get("of_master"))
+            if vid == "v01":
+                values = self._listening_values(vid, audio, record, project, master, f"{vid} floor")
+                floor_pair = values
+                floor.update(values)
+                floor["match_target"] = "floor" if values["match_target"] == "after" else values["match_target"]
+                floor["source_files"] = {**floor["source_files"], "after": master}
+                measurements = values["measurements"]
+            else:
+                self._check_match(audio, record.get("level_match"), f"{vid} floor")
+        dst = f"variants/{vid}/floor.mp3"
+        aj = self.files[f"variants/{vid}/audio.json"]
+        aj["files"]["floor"] = self._audio(dst, master, project=project)
+        if self.official is not None and self.encoder:
+            self._expect(dst, (record.get("listening_copy") or {}).get("mp3_sha256"))
+        aj["floor"] = floor
+        aj["measurements"] = {**aj["measurements"], "floor": measurements}
+        aj["level_match_gains_db"] = three_way_gains(directed_audio, floor_pair)
+        item["floor"] = {k: floor[k] for k in ("objective", "profile", "project_id")}
+
+    def _audio_json(self, vid: str, e: dict, audio: dict, befores: dict[str, str],
+                    project: Path | None = None) -> dict:
         src = audio.get("files") or {}
         gain = audio.get("match_gain_db")
         target = audio.get("match_target")
@@ -520,22 +836,23 @@ class Builder:
                                  "before_level_matched": None, "fullmix_reference": None}
         b_rel = src.get("before")
         if b_rel:
-            dst = befores.get(b_rel) or ("audio/before.mp3" if not befores else f"audio/before_{vid}.mp3")
-            files["before"] = self._audio(dst, b_rel)
+            key = _sha256(self._source(b_rel, project)) if self.slots else b_rel
+            dst = befores.get(key) or ("audio/before.mp3" if not befores else f"audio/before_{vid}.mp3")
+            files["before"] = self._audio(dst, b_rel, project=project)
             if files["before"]:
-                befores[b_rel] = dst
-        files["after"] = self._audio(f"variants/{vid}/after.mp3", src.get("after"))
+                befores[key] = dst
+        files["after"] = self._audio(f"variants/{vid}/after.mp3", src.get("after"), project=project)
         if e["delta"]:
-            files["delta"] = self._audio("audio/delta.mp3", src.get("delta"))
+            files["delta"] = self._audio("audio/delta.mp3", src.get("delta"), project=project)
         if src.get("fullmix_reference"):
-            files["fullmix_reference"] = self._audio("audio/fullmix_reference.mp3", src.get("fullmix_reference"))
+            files["fullmix_reference"] = self._audio("audio/fullmix_reference.mp3", src.get("fullmix_reference"), project=project)
         if e["level_matched_pair_file"] and isinstance(gain, (int, float)):
             # SPEC 15.3: only the main pair gets a level-matched file; the louder side is lowered.
             if target == "before":
-                files["before_level_matched"] = self._audio("audio/before_level_matched.mp3", b_rel, float(gain))
+                files["before_level_matched"] = self._audio("audio/before_level_matched.mp3", b_rel, float(gain), project=project)
             elif target == "after":
                 files["after_level_matched"] = self._audio(f"variants/{vid}/after_level_matched.mp3",
-                                                           src.get("after"), float(gain))
+                                                           src.get("after"), float(gain), project=project)
         note = audio.get("note")
         if self.encoder is None:
             note = _label("音声を含まないデータ（JSON のみ）。", "JSON-only dataset: no audio files.")
@@ -577,6 +894,9 @@ class Builder:
             p.write_text(text, encoding="utf-8", newline="\n")
         for rel, (src, gain) in sorted(self.audio_jobs.items()):
             self.encoder.encode(src, out / rel, gain)
+            if self.official is not None:
+                if rel not in self.expected_mp3 or _sha256(out / rel) != self.expected_mp3[rel]:
+                    raise BuildError(f"official MP3 sha256 mismatch: {rel}")
 
 
 def _check_out(out: Path) -> None:
@@ -596,6 +916,11 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="build_demo_data.py", description=__doc__.split("\n\n")[0])
     ap.add_argument("--project", required=True, help="project folder (or its project.json)")
     ap.add_argument("--out", default=None, help="output folder (default: tmp/demo_data, gitignored)")
+    ap.add_argument("--slot", action="append", default=[], metavar="N=PROJECT",
+                    help="build slot N from this project (repeatable; exactly one matching variant required)")
+    ap.add_argument("--floor", action="append", default=[], metavar="N=PROJECT",
+                    help="attach an undirected, rendered and verified floor to slot N")
+    ap.add_argument("--official-manifest", type=Path, help="strict official sample validation manifest")
     grp = ap.add_mutually_exclusive_group()
     grp.add_argument("--variants-from", default=None,
                      help="sample set manifest giving the variant list and numbering (default: samples/sample_set.json)")
@@ -605,10 +930,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ffmpeg", default=None, help="ffmpeg executable (default: ffmpeg on PATH)")
     args = ap.parse_args(argv)
 
-    project = Path(args.project)
-    if project.name == "project.json":
-        project = project.parent
-    project = project.resolve()
+    project = project_path(args.project)
     if not (project / "project.json").is_file():
         print(f"error: not a MankoMIX project (no project.json): {project.name}", file=sys.stderr)
         return 2
@@ -618,6 +940,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: sample set not found: {sample_set.name}", file=sys.stderr)
         return 2
     try:
+        slots = parse_assignments(args.slot, "--slot")
+        floors = parse_assignments(args.floor, "--floor")
         _check_out(out)
         encoder = None
         if args.mp3:
@@ -627,7 +951,8 @@ def main(argv: list[str] | None = None) -> int:
             encoder = Mp3Encoder(exe)
         from mankomix.core.errors import MankoError
         try:
-            result = Builder(project, out, sample_set, encoder).build()
+            result = Builder(project, out, sample_set, encoder, slots=slots, floors=floors,
+                             official_manifest=args.official_manifest).build()
         except MankoError as e:
             raise BuildError(f"{e.code if hasattr(e, 'code') else 'error'}: {e.message}") from None
     except BuildError as e:

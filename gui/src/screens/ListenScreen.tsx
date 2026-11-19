@@ -10,7 +10,7 @@ import type { AudioSet } from "../types";
 export function ListenScreen() {
   const { backend, variantId } = useApp();
   const state = useAsync(() => backend.listAudio(variantId), [backend, variantId]);
-  return <Async state={state}>{(set) => <Player set={set} />}</Async>;
+  return <Async state={state} variantDependent>{(set) => <Player set={set} />}</Async>;
 }
 
 function Toggle({ on, onChange, children, hint, testId }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode; hint?: string; testId?: string }) {
@@ -36,8 +36,10 @@ export function Player({ set }: { set: AudioSet }) {
   const [dur, setDur] = useState(0);
   const raf = useRef<number | undefined>(undefined);
 
-  const urls = useMemo(() => ({ before: set.files.before, after: set.files.after, delta: set.files.delta ?? null }), [set]);
-  const hasAnyUrl = !!(urls.before || urls.after || urls.delta);
+  const hasFloor = !!(set.level_match_gains_db && (set.files.floor || set.floor));
+  const urls = useMemo(() => ({ before: set.files.before, after: set.files.after, delta: set.files.delta ?? null,
+    ...(hasFloor ? { floor: set.files.floor ?? null } : {}) }), [set, hasFloor]);
+  const hasAnyUrl = !!(urls.before || urls.floor || urls.after || urls.delta);
 
   useEffect(() => () => engine.dispose(), [engine]);
 
@@ -61,8 +63,13 @@ export function Player({ set }: { set: AudioSet }) {
 
   // Gains always follow state; the match gain value comes from the data.
   useEffect(() => {
-    engine.setSourceGains(sourceGains({ active, levelMatch, matchGainDb: set.match_gain_db, matchTarget: set.match_target }));
-  }, [engine, active, levelMatch, set.match_gain_db, set.match_target]);
+    engine.setSourceGains(sourceGains({ active: active === "floor" && !hasFloor ? "before" : active,
+      levelMatch, matchGainDb: set.match_gain_db, matchTarget: set.match_target, levelMatchGainsDb: set.level_match_gains_db }));
+  }, [engine, active, hasFloor, levelMatch, set.match_gain_db, set.match_target, set.level_match_gains_db]);
+
+  useEffect(() => {
+    if (!hasFloor && active === "floor") setActive("before");
+  }, [hasFloor, active]);
 
   useEffect(() => {
     engine.setMonitor(monitor);
@@ -96,8 +103,18 @@ export function Player({ set }: { set: AudioSet }) {
     }
   };
 
-  const sourceLabel = (s: SourceId) => (s === "before" ? t("listen.before") : s === "after" ? t("listen.after") : t("listen.delta"));
-  const sources: SourceId[] = urls.delta ? ["before", "after", "delta"] : ["before", "after"];
+  const sourceLabel = (s: SourceId) => s === "floor" ? t("listen.floor") : s === "before"
+    ? t(hasFloor ? "listen.threeWayBefore" : "listen.before")
+    : s === "after" ? t(hasFloor ? "listen.directed" : "listen.after") : t("listen.delta");
+  const mainSources: ("before" | "floor" | "after")[] = hasFloor ? ["before", "floor", "after"] : ["before", "after"];
+  const sources: SourceId[] = [...mainSources, ...(urls.delta ? ["delta" as const] : [])];
+  const matchedSources = set.level_match_gains_db;
+  const gainEntries = matchedSources ? mainSources
+    .filter((s) => matchedSources[s] !== 0)
+    .map((s) => `${s === "floor" ? t("listen.floorShort") : sourceLabel(s)} ${fmtNum(matchedSources[s], 1, "dB")}`) : [];
+  const gainReadout = hasFloor && matchedSources
+    ? (gainEntries.length ? gainEntries.join(t("listen.gainSeparator")) : `${sourceLabel("before")} ${fmtNum(0, 1, "dB")}`) + t("listen.gainsApplied")
+    : `${fmtNum(set.match_gain_db, 1, "dB")} ${t("listen.appliedTo")} ${sourceLabel(set.match_target)}`;
   const m = set.measurements;
 
   return (
@@ -125,16 +142,20 @@ export function Player({ set }: { set: AudioSet }) {
           <dt>{t("listen.matchGain")}</dt>
           <dd data-testid="match-readout">
             {levelMatch
-              ? `${fmtNum(set.match_gain_db, 1, "dB")} ${t("listen.appliedTo")} ${sourceLabel(set.match_target)}`
+              ? gainReadout
               : t("listen.levelMatchOff")}
           </dd>
-          {m && (
+          {(m || (hasFloor && set.floor?.measurements)) && (
             <>
               <dt>{t("listen.measurements")}</dt>
               <dd>
-                {t("listen.before")}: {fmtNum(m.before?.lufs_i, 1, "LUFS")} / {fmtNum(m.before?.true_peak_dbtp, 1, "dBTP")}
-                <br />
-                {t("listen.after")}: {fmtNum(m.after?.lufs_i, 1, "LUFS")} / {fmtNum(m.after?.true_peak_dbtp, 1, "dBTP")}
+                {mainSources.map((s, i) => {
+                  const measurement = s === "floor" ? m?.floor ?? set.floor?.measurements : m?.[s];
+                  return <span key={s} data-testid={`measurement-${s}`}>
+                    {i > 0 && <br />}
+                    {sourceLabel(s)}: {fmtNum(measurement?.lufs_i, 1, "LUFS")} / {fmtNum(measurement?.true_peak_dbtp, 1, "dBTP")}
+                  </span>;
+                })}
               </dd>
             </>
           )}

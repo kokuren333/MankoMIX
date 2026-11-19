@@ -45,7 +45,7 @@ export function PlanScreen() {
           )}
         </Card>
       )}
-      <Async state={state}>
+      <Async state={state} variantDependent>
         {(proposals) =>
           proposals.length === 0 ? (
             <p className="muted">{t("plan.none")}</p>

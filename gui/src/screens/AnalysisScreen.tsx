@@ -7,7 +7,7 @@ import type { Analysis } from "../types";
 export function AnalysisScreen() {
   const { backend, revision, variantId } = useApp();
   const state = useAsync(() => backend.getAnalysis(variantId), [backend, revision, variantId]);
-  return <Async state={state}>{(a) => <AnalysisView a={a} />}</Async>;
+  return <Async state={state} variantDependent>{(a) => <AnalysisView a={a} />}</Async>;
 }
 
 function AnalysisView({ a }: { a: Analysis }) {
